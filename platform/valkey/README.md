@@ -24,3 +24,14 @@ per-app instances.
 
 `+flushdb` is granted on the cache because Django's `cache.clear()` calls it and fails with
 `ConnectionInterrupted` when it is disabled. It is *not* granted on the broker.
+
+## Isolation is per-credential, not per-key
+
+ACL key patterns are `~*`, not `~<app>:*`. Valkey ACLs cannot scope by logical DB, so
+key-level isolation would require every application to set a Django `KEY_PREFIX` matching
+its pattern — and a pattern the application does not actually use is a cache that silently
+denies every write. So today an application that holds one app's credentials could read
+another's logical DB.
+
+Tightening this means verifying, per app, that the upstream chart exposes a cache key prefix
+and that Celery's own keys honour it. Worth doing at the second application, not before.

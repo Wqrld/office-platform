@@ -30,4 +30,4 @@ spec:
         # No ambient access: with no NetworkPolicy enforcement on this cluster
         # (adr/0103), these ACLs are the only isolation between applications.
         default:   {permissions: "off -@all"}
-        docs:      {permissions: "~docs:* &* +@all -@dangerous +flushdb"}
+        docs:      {permissions: "~* &* +@all -@dangerous +flushdb"}
