@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gateway/namespace.yaml
+  - gateway/priorityclasses.yaml
+  - gateway/envoyproxy.yaml
+  - gateway/gateway.yaml
+  - gateway/certificate.yaml
+  - gateway/clusterissuer.yaml
+  # gateway/deferred/ is deliberately absent — see gateway/deferred/README.md

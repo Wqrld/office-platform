@@ -1,0 +1,15 @@
+# Postgres for every application: one shared Cluster, a Database and Role per app.
+# 1.30.0 is well past the 1.26.0 floor for declarative `Database.spec.extensions`,
+# which is what lets an app's migrations run without SUPERUSER (06-datastores.md).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: cloudnative-pg, namespace: cnpg-system}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: cloudnative-pg
+      version: "0.29.0"
+      sourceRef: {kind: HelmRepository, name: cloudnative-pg, namespace: flux-system}
+  install: {crds: Create, disableWaitForJobs: true}
+  upgrade: {crds: CreateReplace, disableWaitForJobs: true}
