@@ -1,0 +1,22 @@
+# One shared Postgres for every application: a Database and a DatabaseRole per app,
+# rather than the cluster-per-app the legacy stack runs (~27 pods, nine backup
+# configurations). Splitting later is a values change, not a rewrite (P4).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: office-pg
+  namespace: office-data
+spec:
+  # Single-node cluster: there is nowhere for a replica to go, and a second instance on
+  # the same kubelet buys latency, not availability. Raise this the day a node is added.
+  instances: 1
+  priorityClassName: office-data
+  storage:
+    size: 20Gi
+    storageClass: ${STORAGE_CLASS}
+  postgresql:
+    parameters:
+      max_connections: "200"        # Django + Celery across apps; no pooler yet, see README
+  enableSuperuserAccess: true
+  monitoring:
+    enablePodMonitor: false         # no Prometheus on this cluster yet (adr/0103 sibling)

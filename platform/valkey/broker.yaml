@@ -1,0 +1,29 @@
+# The Celery broker: never evicts, persists. Queued tasks are real work, not cache.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: valkey-broker, namespace: office-data}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: valkey
+      version: "0.12.0"
+      sourceRef: {kind: HelmRepository, name: valkey, namespace: flux-system}
+  install: {disableWaitForJobs: true}
+  upgrade: {disableWaitForJobs: true}
+  values:
+    fullnameOverride: valkey-broker
+    priorityClassName: office-data
+    valkeyConfig: |
+      maxmemory-policy noeviction
+      appendonly yes
+    dataStorage:
+      enabled: true
+      requestedSize: 5Gi
+      className: ${STORAGE_CLASS}
+    auth:
+      enabled: true
+      usersExistingSecret: valkey-broker-users
+      aclUsers:
+        default:   {permissions: "off -@all"}
+        docs:      {permissions: "~* &* +@all -@dangerous"}
