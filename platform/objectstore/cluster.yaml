@@ -6,8 +6,10 @@ metadata:
 spec:
   # Pin Garage like a database major version. The operator speaks Admin API v2, which
   # requires Garage >= 2.0.0; below that every admin call 404s.
-  imageRepository: dxflrs/garage
-  image: v2.3.0
+  # `image` is the FULL reference and overrides `imageRepository` entirely. It must also
+  # be registry-qualified: this cluster's CRI-O resolves a bare name against quay.io, so
+  # an unqualified string fails with a confusing 404 for `quay.io/v2.3.0:latest`.
+  image: docker.io/dxflrs/garage:v2.3.0
   replication:
     # CANNOT BE CHANGED IN PLACE — raising this requires destroying and rebuilding the
     # cluster. One node, so one copy; revisit only when a second node exists, and expect
