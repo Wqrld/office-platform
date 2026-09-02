@@ -16,11 +16,14 @@ spec:
   storage:
     replicas: 1
     priorityClassName: office-data
+    # Sized for this node, not aspirationally: Longhorn has ~85Gi free with the legacy
+    # stack still running, and Docs' entire media set is ~100MB. Growing a Longhorn
+    # volume is an online expand; shrinking one is a rebuild.
     data:
-      size: 50Gi
+      size: 20Gi
       storageClassName: ${STORAGE_CLASS}
     metadata:
-      size: 5Gi
+      size: 2Gi
       storageClassName: ${STORAGE_CLASS}
     # Default is Retain, which is correct — but it means deleting this cluster leaves
     # volumes behind to be cleaned up by hand.
