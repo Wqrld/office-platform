@@ -5,3 +5,4 @@ resources:
   - namespaces.yaml
   - cloudnative-pg.yaml
   - external-secrets.yaml
+  - garage-operator.yaml

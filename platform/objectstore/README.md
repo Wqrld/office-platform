@@ -1,0 +1,40 @@
+# Object storage — Garage
+
+S3 for Docs media today; Drive and Grist later. One cluster, a bucket and a scoped key per
+application, emitted by `platform-deps`.
+
+## Why an operator for one bucket
+
+The operator is **control-plane only**: it calls Garage's Admin API to create buckets and
+keys. Garage holds the data. If `rajsinghtech/garage-operator` (Apache-2.0, active, but a
+single maintainer) stalls, what is lost is declarative bucket management — not documents —
+and the replacement is a Job, which is *more* of our own code than the operator is.
+
+That bounded blast radius is the whole reason this is acceptable under P6.
+
+## The credentials contract, without an extra hop
+
+`GarageKey.secretTemplate` writes the canonical `objectstore` key set from `06-datastores.md`
+directly — `endpoint`, `region`, `bucket`, `accessKeyId`, `secretAccessKey` — so no ESO
+`ExternalSecret` is needed to reshape it. Applications still only ever see a Secret with
+those keys and never learn what Garage is (P4).
+
+## Decisions that are expensive to revisit
+
+- **`replication.factor: 1` cannot be changed in place.** Raising it requires destroying and
+  rebuilding the cluster. One node, one copy.
+- **No node-local storage pools.** They require `privileged` Pod Security Admission, which
+  contradicts the security baseline. PVC-backed only.
+- **No multi-cluster federation.** It needs externally routable per-node RPC addresses and we
+  have no requirement for it (P6).
+- **Checksum compatibility is unverified.** AWS SDKs since 2025 send checksum algorithms that
+  non-AWS S3 implementations may reject. If Docs' uploads fail in a way that mentions
+  checksums, set `AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED` and
+  `AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED` on the app. **Verify during the Docs
+  build rather than assuming it works.**
+
+## Retention is not configured
+
+The bucket carries a quota and nothing else. Nothing here decides whether Docs' orphaned
+media is ever deleted. That is an application-level retention question, and an unbounded
+bucket behind a quota is an outage with a date on it.

@@ -13,4 +13,5 @@ resources:
   - postgres/cluster.yaml
   - valkey/cache.yaml
   - valkey/broker.yaml
+  - objectstore/cluster.yaml
   # gateway/deferred/ is deliberately absent — see gateway/deferred/README.md

@@ -1,0 +1,29 @@
+# S3 for applications that need it (Docs media today; Drive and Grist later).
+#
+# Why an operator for what is currently one bucket: the operator is control-plane only.
+# It creates buckets and keys through Garage's Admin API; Garage itself holds the data.
+# If this single-maintainer project stalls, what is lost is declarative bucket
+# management, not documents — and replacing it is a Job, which is more of our own code
+# than the operator is. See platform/objectstore/README.md.
+#
+# Its admission and conversion webhooks require cert-manager, which this cluster runs.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: garage-operator, namespace: garage-system}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: garage-operator
+      version: "0.7.7"
+      sourceRef: {kind: HelmRepository, name: garage-operator, namespace: flux-system}
+  install: {disableWaitForJobs: true}
+  upgrade: {disableWaitForJobs: true}
+  values:
+    crds: {install: true, keep: true}
+    webhooks: {enabled: true}
+    # Nothing scrapes these yet; emitting them would only imply monitoring that is absent.
+    serviceMonitor: {enabled: false}
+    prometheusRules: {enabled: false}
+    grafanaDashboard: {enabled: false}
+    networkPolicy: {enabled: false}   # unenforced on this cluster — adr/0103

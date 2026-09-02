@@ -1,0 +1,30 @@
+apiVersion: garage.rajsingh.info/v1beta2
+kind: GarageCluster
+metadata:
+  name: office-s3
+  namespace: office-data
+spec:
+  # Pin Garage like a database major version. The operator speaks Admin API v2, which
+  # requires Garage >= 2.0.0; below that every admin call 404s.
+  imageRepository: dxflrs/garage
+  image: v2.3.0
+  replication:
+    # CANNOT BE CHANGED IN PLACE — raising this requires destroying and rebuilding the
+    # cluster. One node, so one copy; revisit only when a second node exists, and expect
+    # a rebuild when you do.
+    factor: 1
+  storage:
+    replicas: 1
+    priorityClassName: office-data
+    data:
+      size: 50Gi
+      storageClassName: ${STORAGE_CLASS}
+    metadata:
+      size: 5Gi
+      storageClassName: ${STORAGE_CLASS}
+    # Default is Retain, which is correct — but it means deleting this cluster leaves
+    # volumes behind to be cleaned up by hand.
+  s3Api:
+    # Set explicitly: an empty region makes SigV4 signing flaky in some SDKs. The legacy
+    # stack hardcoded eu-west-1 for exactly this reason.
+    region: eu-west-1
