@@ -1,0 +1,53 @@
+# A Database and a DatabaseRole per application on the one shared Cluster. These must
+# live in the Cluster's namespace, which is why an app's Postgres objects are here and
+# not beside the app.
+#
+# Extensions are declared on the Database, so CNPG's operator creates them as superuser
+# once. The application role therefore never needs SUPERUSER — which is the whole reason
+# to do it here rather than in a Django migration.
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata: {name: keycloak, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: keycloak
+  ensure: present
+  login: true
+  passwordSecret: {name: keycloak-db}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: keycloak, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: keycloak
+  owner: keycloak
+  ensure: present
+  # Retain: dropping the CR must not drop an identity provider's database.
+  databaseReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata: {name: docs, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: docs
+  ensure: present
+  login: true
+  passwordSecret: {name: docs-db}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: docs, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: docs
+  owner: docs
+  ensure: present
+  databaseReclaimPolicy: retain
+  extensions:
+    # Docs' document search uses trigram similarity and accent-insensitive matching.
+    # Both are CREATE EXTENSION, which is superuser-only on a stock cluster.
+    - {name: pg_trgm, ensure: present}
+    - {name: unaccent, ensure: present}

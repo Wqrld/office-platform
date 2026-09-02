@@ -1,0 +1,47 @@
+# Keycloak's official install is Kustomize manifests, NOT a Helm chart, and they are
+# pinned 1:1 to the Keycloak release — the operator only ever runs the server version it
+# ships with (adr/0104's sibling problem: no chart, so the tag is the pin).
+#
+# The five files beside this one are byte-identical copies of
+#   https://github.com/keycloak/keycloak-k8s-resources/tree/26.7.3/kubernetes
+# Do not hand-edit them. To upgrade: re-download all five at the new tag, in one commit,
+# and diff. Everything we change about the operator is expressed here instead.
+#
+# The operator watches ONLY its own namespace (JOSDK_WATCH_CURRENT in kubernetes.yml), so
+# it must live in the same namespace as the Keycloak CR. Upstream's own kustomization
+# does the same thing with `namespace: keycloak`; ours just picks a different one.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: office-identity
+
+resources:
+  - keycloakoidcclients.k8s.keycloak.org-v1.yml
+  - keycloakrealmimports.k8s.keycloak.org-v1.yml
+  - keycloaks.k8s.keycloak.org-v1.yml
+  - keycloaksamlclients.k8s.keycloak.org-v1.yml
+  - kubernetes.yml
+
+# Upstream's ClusterRoleBinding hardcodes `namespace: keycloak` on its ServiceAccount
+# subject. setRoleBindingSubjects rewrites it; without this the operator silently runs
+# with no permissions and nothing reconciles.
+transformers:
+  - |-
+    apiVersion: builtin
+    kind: NamespaceTransformer
+    metadata:
+      name: office-identity
+    setRoleBindingSubjects: allServiceAccounts
+    fieldSpecs:
+      - path: metadata/namespace
+        create: true
+
+# ...except on the ClusterRoleBinding, whose subject namespace upstream hardcodes to
+# `keycloak`. The transformer fills a missing namespace but will not overwrite a present
+# one, so that single field has to be patched by hand.
+patches:
+  - target: {kind: ClusterRoleBinding, name: keycloak-operator-clusterrole-binding}
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: office-identity

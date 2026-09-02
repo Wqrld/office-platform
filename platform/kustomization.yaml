@@ -9,10 +9,16 @@ resources:
   - gateway/certificate.yaml
   - gateway/clusterissuer.yaml
   - secrets/generator.yaml
+  - secrets/stores.yaml
   - secrets/valkey-users.yaml
+  - secrets/database-users.yaml
   - postgres/cluster.yaml
+  - postgres/databases.yaml
   - valkey/cache.yaml
   - valkey/broker.yaml
   - objectstore/admin-token.yaml
   - objectstore/cluster.yaml
+  - identity/namespace.yaml
+  - identity/operator          # vendored upstream, pinned 26.7.3 — see its kustomization
+  - identity/keycloak.yaml
   # gateway/deferred/ is deliberately absent — see gateway/deferred/README.md

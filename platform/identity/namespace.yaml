@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-identity
+  labels:
+    # Without this label the shared Gateway's allowedRoutes selector refuses every
+    # HTTPRoute from here, and the symptom is a route that simply never attaches.
+    office.haaijer.dev/gateway-access: "true"
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
