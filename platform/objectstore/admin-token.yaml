@@ -1,0 +1,12 @@
+# Garage's Admin API bearer token. The operator needs it to create buckets and keys; a
+# GarageAdminToken CR cannot bootstrap it, because minting one already requires admin
+# access. So this is a generated root, produced once in-cluster like every other secret.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: office-s3-admin-token, namespace: office-data}
+spec:
+  refreshInterval: "0"        # rotating this underneath the operator would lock it out
+  target: {name: office-s3-admin-token, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: "password", target: "token"}}]

@@ -24,6 +24,8 @@ spec:
       storageClassName: ${STORAGE_CLASS}
     # Default is Retain, which is correct — but it means deleting this cluster leaves
     # volumes behind to be cleaned up by hand.
+  admin:
+    adminTokenSecretRef: {name: office-s3-admin-token, key: token}
   s3Api:
     # Set explicitly: an empty region makes SigV4 signing flaky in some SDKs. The legacy
     # stack hardcoded eu-west-1 for exactly this reason.
