@@ -1,10 +1,11 @@
-# One SAN certificate for every platform hostname. Adding an application is one
-# dnsName here; the Gateway listener never changes.
+# One SAN certificate for every platform hostname; the Gateway's single HTTPS listener
+# selects from it by SNI. Adding an application is one dnsName here — the Gateway is
+# never edited. See platform/docs/adr/0105.
 #
-# Issued over HTTP-01. While the legacy ingress-nginx still holds the public IP the
-# solver runs there (`letsencrypt-nginx`); after the gateway takes that IP the
-# issuer switches to `letsencrypt-gateway`, which solves through the Gateway itself.
-# Neither path needs DNS provider credentials. A wildcard would need DNS-01.
+# RULE: a hostname may be listed here only once its DNS resolves to the Gateway.
+# Let's Encrypt fails the whole certificate if any single SAN fails validation, so one
+# mispointed record takes down TLS for every application. This is why Harbor and the
+# Longhorn UI are absent — they still resolve to ingress-nginx (see deferred/).
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -16,5 +17,5 @@ spec:
     name: ${TLS_ISSUER}
     kind: ClusterIssuer
   dnsNames:
-    - harbor.mijnbureau.haaijer.dev     # chart/artifact registry — also the Flux source
-    - longhorn.mijnbureau.haaijer.dev   # storage admin UI
+    - id.${BASE_DOMAIN}      # Keycloak
+    - docs.${BASE_DOMAIN}    # Docs

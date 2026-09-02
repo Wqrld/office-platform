@@ -11,4 +11,4 @@ data:
   # legacy ingress-nginx still holds 45.136.141.136; becomes .136 at cutover.
   GATEWAY_IP: "45.136.141.168"
   # Swap to letsencrypt-gateway once the Gateway owns the public IP.
-  TLS_ISSUER: letsencrypt-prod
+  TLS_ISSUER: letsencrypt-gateway
