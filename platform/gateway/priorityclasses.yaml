@@ -1,0 +1,25 @@
+# The gateway and identity evict last: without them nothing else is reachable or
+# able to authenticate, so shedding them to save an application is never correct.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: office-critical
+value: 1000000
+globalDefault: false
+description: Gateway and identity. Evicted last.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: office-data
+value: 100000
+globalDefault: false
+description: Shared datastores. Evicted before the gateway, after applications.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: office-app
+value: 1000
+globalDefault: false
+description: Applications. Evicted first.

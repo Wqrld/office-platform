@@ -1,0 +1,19 @@
+# One SAN certificate for every platform hostname. Adding an application is one
+# dnsName here; the Gateway listener never changes.
+#
+# Issued over HTTP-01. While the legacy ingress-nginx still holds the public IP the
+# solver runs there (`letsencrypt-nginx`); after the gateway takes that IP the
+# issuer switches to `letsencrypt-gateway`, which solves through the Gateway itself.
+# Neither path needs DNS provider credentials. A wildcard would need DNS-01.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: office-tls
+  namespace: office-system
+spec:
+  secretName: office-tls
+  issuerRef:
+    name: ${TLS_ISSUER}
+    kind: ClusterIssuer
+  dnsNames:
+    - harbor.mijnbureau.haaijer.dev   # chart/artifact registry — also the Flux source

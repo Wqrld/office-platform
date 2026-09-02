@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-system
+  labels:
+    # Pod Security Admission. `restricted` is audited, not enforced, until we know
+    # exactly which upstream images fail it — see docs/adr/0102.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

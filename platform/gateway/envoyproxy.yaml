@@ -1,0 +1,18 @@
+# Attached to our Gateway (not to the shared `eg` GatewayClass) so that reusing the
+# cluster's existing Envoy Gateway installation stays side-effect free.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: office-gateway
+  namespace: office-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        annotations:
+          metallb.universe.tf/loadBalancerIPs: "${GATEWAY_IP}"
+      envoyDeployment:
+        replicas: 1
+        pod:
+          priorityClassName: office-critical

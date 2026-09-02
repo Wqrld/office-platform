@@ -1,0 +1,7 @@
+# Harbor is an existing namespace we adopt a route into, not one we create.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: harbor
+  labels:
+    office.haaijer.dev/gateway-access: "true"

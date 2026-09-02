@@ -1,0 +1,38 @@
+# Renewal path once the Gateway owns the public IP: cert-manager solves HTTP-01 by
+# attaching a temporary HTTPRoute to our own Gateway. Requires the controller's
+# `enableGatewayAPI: true`, which this cluster already sets.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-gateway
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: luc@haaijer.dev
+    privateKeySecretRef: {name: letsencrypt-gateway}
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: office
+                namespace: office-system
+                kind: Gateway
+---
+# Same, against the staging endpoint. Use it to prove the chain without spending
+# Let's Encrypt rate limit on a hostname that has never validated before.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-gateway-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: luc@haaijer.dev
+    privateKeySecretRef: {name: letsencrypt-gateway-staging}
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: office
+                namespace: office-system
+                kind: Gateway
