@@ -33,6 +33,17 @@ those keys and never learn what Garage is (P4).
   `AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED` on the app. **Verify during the Docs
   build rather than assuming it works.**
 
+## Delete order matters — verified the hard way
+
+The operator **refuses to delete a non-empty bucket** (`BucketNotEmpty`, 409) and never empties
+one automatically. That is the right behaviour, but it means:
+
+**Empty the bucket BEFORE deleting its GarageKey.** Delete the key first and you strand the
+bucket in `Deleting` forever, with no credentials left to empty it. Recovery is to create a
+temporary `GarageKey` with `allBuckets: {owner: true}`, empty the bucket, then delete both.
+
+Set `deletionPolicy: Retain` on any bucket whose contents should outlive its CR.
+
 ## Retention is not configured
 
 The bucket carries a quota and nothing else. Nothing here decides whether Docs' orphaned
