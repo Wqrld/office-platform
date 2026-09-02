@@ -16,4 +16,5 @@ spec:
     name: ${TLS_ISSUER}
     kind: ClusterIssuer
   dnsNames:
-    - harbor.mijnbureau.haaijer.dev   # chart/artifact registry — also the Flux source
+    - harbor.mijnbureau.haaijer.dev     # chart/artifact registry — also the Flux source
+    - longhorn.mijnbureau.haaijer.dev   # storage admin UI
