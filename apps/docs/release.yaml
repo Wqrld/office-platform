@@ -40,8 +40,8 @@ spec:
 
     # Routing is ours: HTTPRoutes on the shared Gateway, in routes.yaml. All five of the
     # chart's Ingress objects are off. They are already false by default at this tag;
-    # they are stated anyway so a default flip upstream cannot quietly publish a second
-    #, unauthenticated path to the application.
+    # they are stated anyway so a default flip upstream cannot quietly publish a second,
+    # unauthenticated path to the application.
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
     ingressMedia: {enabled: false}
@@ -123,21 +123,30 @@ spec:
 
             User = get_user_model()
             email = os.environ["DJANGO_SUPERUSER_EMAIL"]
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={"is_active": True, "language": "nl-nl"},
+
+            # Build the whole object before the first save: Docs' User.save() calls
+            # full_clean(), so an unsaved-then-set_password() order fails validation on
+            # a blank password.
+            user = User.objects.filter(email=email).first() or User(
+                email=email, language="nl-nl"
             )
+            user.is_active = True
             user.is_staff = True
             user.is_superuser = True
             user.set_password(os.environ["DJANGO_SUPERUSER_PASSWORD"])
             user.save()
-            print("superuser", "created" if created else "updated", email)
+            print("superuser ready:", email)
             PY
       celery:
         replicas: 1
+        # The chart's default args carry no --concurrency, so Celery preforks one process
+        # per CPU — ten on this node, each a full Django — and the container is OOMKilled
+        # within seconds of a clean startup. The logs look perfect right up to exit 137.
+        args: ["celery", "-A", "impress.celery_app", "worker", "-l", "INFO",
+               "-n", "impress@%h", "--concurrency", "2"]
         resources:
           requests: {cpu: 50m, memory: 384Mi}
-          limits: {memory: 768Mi}
+          limits: {memory: 1Gi}
       themeCustomization:
         enabled: true
         # THE GAUFRE. Without a `waffle` key the switcher does not render at all; with
