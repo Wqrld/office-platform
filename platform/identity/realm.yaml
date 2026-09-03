@@ -1,10 +1,16 @@
 # The realm is declarative config in git; secrets in it are not.
 #
-# `placeholders` is the operator's mechanism for exactly that: the realm JSON carries
-# `$(env:NAME)` and the operator injects the value from a Secret at import time. So the
-# `docs` client secret is generated once by ESO (identity/keycloak.yaml), written into
-# Keycloak here, and read by Docs from the same Secret — one value, two consumers, never
-# a literal in git.
+# `placeholders` turns each entry into an environment variable on the import Job, and
+# Keycloak's importer resolves a placeholder in the realm against it. So the `docs` client
+# secret is generated once by ESO (identity/keycloak.yaml), written into Keycloak here, and
+# read by Docs from the same Secret — one value, two consumers, never a literal in git.
+#
+# TWO SYNTAX TRAPS, and both fail silently by storing the placeholder text as the secret:
+#   1. Keycloak's own importer wants ${NAME}. `$(env:NAME)` is keycloak-config-cli syntax —
+#      what the legacy stack used — and Keycloak stores it verbatim.
+#   2. ${NAME} is also Flux's postBuild substitution syntax, so Flux would blank it before
+#      Keycloak ever saw it. `$${NAME}` escapes it: Flux emits a literal ${NAME} and still
+#      substitutes ${BASE_DOMAIN} elsewhere in this same file.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: realm-user-passwords, namespace: office-identity}
@@ -76,7 +82,7 @@ spec:
         protocol: openid-connect
         publicClient: false
         clientAuthenticatorType: client-secret
-        secret: $(env:CLIENT_SECRET_DOCS)
+        secret: "$${CLIENT_SECRET_DOCS}"
         rootUrl: https://docs.${BASE_DOMAIN}
         baseUrl: https://docs.${BASE_DOMAIN}
         adminUrl: https://docs.${BASE_DOMAIN}
@@ -105,32 +111,32 @@ spec:
         lastName: Haaijer
         emailVerified: true
         enabled: true
-        credentials: [{type: password, value: $(env:PW_LFHAAIJER), temporary: false}]
+        credentials: [{type: password, value: "$${PW_LFHAAIJER}", temporary: false}]
       - username: k.e.roelofs
         email: k.e.roelofs@student.utwente.nl
         firstName: Karsten
         lastName: Roelofs
         emailVerified: true
         enabled: true
-        credentials: [{type: password, value: $(env:PW_KEROELOFS), temporary: false}]
+        credentials: [{type: password, value: "$${PW_KEROELOFS}", temporary: false}]
       - username: o.adams
         email: o.adams@student.utwente.nl
         firstName: Olaf
         lastName: Adams
         emailVerified: true
         enabled: true
-        credentials: [{type: password, value: $(env:PW_OADAMS), temporary: false}]
+        credentials: [{type: password, value: "$${PW_OADAMS}", temporary: false}]
       - username: r.i.rupert
         email: r.i.rupert@student.utwente.nl
         firstName: Ruud
         lastName: Rupert
         emailVerified: true
         enabled: true
-        credentials: [{type: password, value: $(env:PW_RIRUPERT), temporary: false}]
+        credentials: [{type: password, value: "$${PW_RIRUPERT}", temporary: false}]
       - username: s.molinagarcia
         email: s.molinagarcia@student.utwente.nl
         firstName: Sergio
         lastName: Molina Garcia
         emailVerified: true
         enabled: true
-        credentials: [{type: password, value: $(env:PW_SMOLINAGARCIA), temporary: false}]
+        credentials: [{type: password, value: "$${PW_SMOLINAGARCIA}", temporary: false}]

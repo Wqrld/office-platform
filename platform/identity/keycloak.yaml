@@ -79,6 +79,11 @@ spec:
   ingress:
     # Routing is ours: an HTTPRoute on the shared Gateway, below.
     enabled: false
+  bootstrapAdmin:
+    # Only consulted the first time a Keycloak is created against an empty database. On
+    # THIS cluster the CR landed before this stanza did, so the live admin credential is
+    # the operator-generated `keycloak-initial-admin` Secret, not this one.
+    user: {secret: keycloak-bootstrap-admin}
   networkPolicy:
     # This cluster's CNI enforces nothing (adr/0103). An operator-managed policy here
     # would imply isolation that does not exist.
