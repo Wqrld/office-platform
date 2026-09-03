@@ -1,0 +1,75 @@
+# Docs
+
+Upstream chart at git tag `v5.5.0`, path `src/helm/impress`. Everything below is a thing
+that cost time to find.
+
+## Chart values the design set gets wrong
+
+| Design set says | Actually |
+|---|---|
+| `backend.envVarsFrom` | `backend.envFrom` |
+| `backend.podDisruptionBudget.enabled` | `backend.pdb.enabled` |
+| `backend.serviceMonitor.enabled` | no such key; the chart has **no** ServiceMonitor template |
+
+And one the chart itself gets wrong: its `values.yaml` documents `envFrom` entries as
+`- secret: {name: …}`. The chart passes the list straight through `toYaml` into the pod
+spec, where the field is `secretRef`. Kubernetes 1.34 rejects the documented form with
+`unknown field "envFrom[0].secret"` — confirmed by server dry-run before deploying.
+
+`appVersion` is `latest`, so `image.tag`, `frontend.image.tag` and `yProvider.image.tag`
+are all pinned explicitly.
+
+## Celery OOMKills itself on the chart defaults
+
+The default `celery` args carry no `--concurrency`, so it preforks one process per CPU —
+ten on this node, each a whole Django. The container is killed with exit 137 a few seconds
+after a startup log that looks completely healthy. Pinned to 2.
+
+## `/media` is an nginx proxy of ours
+
+See the comment at the top of `media-proxy.yaml`. Short version: Docs authorises media by
+subrequest and replays the S3 signature headers, and Envoy Gateway's `SecurityPolicy`
+ext-auth appends the original path to its configured path, so Docs' `media-auth` endpoint
+can never be reached that way. Verified working: a restricted document's attachment is 403
+anonymously and 200 with a session, and public documents are readable by anyone — which is
+what `link_reach` says should happen.
+
+## The theme JSON is cached in Redis for 24 hours
+
+`backend.themeCustomization.file_content` renders into a ConfigMap that Django reads once
+and caches for `THEME_CUSTOMIZATION_CACHE_TIMEOUT` (86400). **Editing it and reconciling
+changes nothing users can see** until that expires. To force it:
+
+```
+kubectl -n office-data exec deploy/valkey-cache -- \
+  valkey-cli --user docs --pass "$(kubectl -n office-data get secret valkey-cache-users \
+    -o jsonpath='{.data.docs}' | base64 -d)" -n 1 --scan --pattern 'docs*theme*'
+```
+
+then `DEL` what it lists. Confirm with `curl https://docs.<domain>/api/v1.0/config/`,
+whose `theme_customization` key is what the frontend actually renders.
+
+## The waffle
+
+`waffle` is the gaufre. Three states, and the default is not the one the design set warns
+about:
+
+- **absent** — the switcher does not render at all. This is v5.5.0's shipped default.
+- **`waffle.apiUrl`** — fetches the service list from `lasuite.numerique.gouv.fr`. This is
+  the state to avoid.
+- **`waffle.data.services`** — our own list, served from our own domains, no external call.
+  This is what is configured.
+
+Add an entry per application as it lands; this list is the only place the suite's inventory
+is stated to users.
+
+## Restoring the legacy data
+
+Both halves are needed and neither is useful alone (`backups/*/MANIFEST.md`).
+
+The database restores as the `docs` role, which cannot create the two `unaccent` helper
+functions the dump carries — they are `LANGUAGE c` and owned by `postgres` upstream. Create
+`public.immutable_unaccent(regdictionary, text)` and `public.f_unaccent(text)` as superuser
+first, or the two trigram indexes on `impress_user` are silently missing afterwards. The
+`pg_trgm` / `unaccent` extensions themselves are pre-created by the CNPG `Database`, so
+those errors in the restore log are expected and harmless.
