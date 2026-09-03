@@ -27,6 +27,32 @@ Treat the realm as bootstrap, not as continuously reconciled config. If drift be
 real problem, the 26.7 `KeycloakOIDCClient` CRD reconciles a single client continuously
 and takes its secret from a `secretRef` — that is the upgrade path for the client half.
 
+## Imported users get no roles unless you say so
+
+A realm import takes each user representation **literally**. An absent `realmRoles` key
+means *no roles*, not "the realm's defaults" — `default-roles-<realm>` is applied only to
+users created through registration or the admin API. Every user in `realm.yaml` therefore
+carries an explicit:
+
+```yaml
+realmRoles: [default-roles-office]
+```
+
+Without it the symptom is narrow and misleading. Login works everywhere, because Docs
+reads the ID token and never inspects roles. But the access token has no `aud: account`
+and an empty `resource_access`, so every `/realms/office/account/*` REST call returns
+401 and the Account Console renders its generic **"Something went wrong"** page — with no
+server-side error event to find, since a 401 there is not an auth *failure*, it is a
+missing authorization.
+
+To repair a realm that was already imported without it, grant the role rather than
+reimporting — deleting the realm would re-issue every `sub`:
+
+```
+POST /admin/realms/office/users/<id>/role-mappings/realm
+[{"id": "<default-roles-office id>", "name": "default-roles-office", ...}]
+```
+
 ## Placeholder syntax
 
 Two forms look right and are not:

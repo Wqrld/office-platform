@@ -104,6 +104,13 @@ spec:
     # These emails are load-bearing: the restored Docs database identifies users by
     # `sub` first and falls back to email, so an email that does not match here orphans
     # that user's documents. Taken from `select email from impress_user`.
+    # `realmRoles` is NOT optional here. A realm import takes the user representation
+    # literally: no `realmRoles` key means no roles at all, not "the realm defaults".
+    # Only users created through registration or the admin API get `default-roles-<realm>`
+    # applied for them. Without it a user's access token carries no `aud: account` and an
+    # empty `resource_access`, so every Account Console REST call 401s and the console
+    # renders "Something went wrong". Docs still logs in, because it reads the ID token and
+    # never looks at roles — which is exactly why this stayed invisible.
     users:
       - username: l.f.haaijer
         email: l.f.haaijer@student.utwente.nl
@@ -111,6 +118,7 @@ spec:
         lastName: Haaijer
         emailVerified: true
         enabled: true
+        realmRoles: [default-roles-office]
         credentials: [{type: password, value: "$${PW_LFHAAIJER}", temporary: false}]
       - username: k.e.roelofs
         email: k.e.roelofs@student.utwente.nl
@@ -118,6 +126,7 @@ spec:
         lastName: Roelofs
         emailVerified: true
         enabled: true
+        realmRoles: [default-roles-office]
         credentials: [{type: password, value: "$${PW_KEROELOFS}", temporary: false}]
       - username: o.adams
         email: o.adams@student.utwente.nl
@@ -125,6 +134,7 @@ spec:
         lastName: Adams
         emailVerified: true
         enabled: true
+        realmRoles: [default-roles-office]
         credentials: [{type: password, value: "$${PW_OADAMS}", temporary: false}]
       - username: r.i.rupert
         email: r.i.rupert@student.utwente.nl
@@ -132,6 +142,7 @@ spec:
         lastName: Rupert
         emailVerified: true
         enabled: true
+        realmRoles: [default-roles-office]
         credentials: [{type: password, value: "$${PW_RIRUPERT}", temporary: false}]
       - username: s.molinagarcia
         email: s.molinagarcia@student.utwente.nl
@@ -139,4 +150,5 @@ spec:
         lastName: Molina Garcia
         emailVerified: true
         enabled: true
+        realmRoles: [default-roles-office]
         credentials: [{type: password, value: "$${PW_SMOLINAGARCIA}", temporary: false}]
