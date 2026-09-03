@@ -1,0 +1,40 @@
+# Release 1 of 3: everything Docs must have before it starts.
+#
+# Replaces the hand-written datastores.yaml and secrets.yaml — 174 lines of ExternalSecret
+# and Garage boilerplate — with the values that actually differ between applications. The
+# rendered output was verified identical to those files object-for-object, and a
+# server-side dry-run confirmed adopting the live objects is a no-op.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: docs-deps, namespace: office-docs}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  values:
+    app: docs
+    baseDomain: ${BASE_DOMAIN}
+
+    postgres: {enabled: true, env: django}
+
+    # Two instances: the cache evicts and does not persist, the broker must not evict —
+    # an evicting broker silently drops queued Celery tasks.
+    cache: {enabled: true, env: django, uses: [cache, broker]}
+
+    # The legacy bucket was called `docs` and the restored database refers to its objects
+    # by exactly that name, so the alias is not free to change.
+    objectstore: {enabled: true, env: django-s3, quota: {maxSize: 20Gi}}
+
+    # The restored database already holds every user; login matches by sub, then email.
+    oidc: {enabled: true, createUser: false}
+
+    # A LIST, not a map: `dataFrom` is ordered and its order is part of the spec, so a
+    # re-sort would make ESO draw new values — logging every user out and breaking
+    # collaborative editing until both the backend and the y-provider restart.
+    # These draw names match the objects already in the cluster.
+    generated:
+      docs-django:
+        - {env: DJANGO_SECRET_KEY, draw: secretkey}
+        - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
+      docs-collaboration:
+        - {env: Y_PROVIDER_API_KEY, draw: apikey}
+        - {env: COLLABORATION_SERVER_SECRET, draw: serversecret}

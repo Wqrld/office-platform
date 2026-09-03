@@ -40,3 +40,24 @@ spec:
   interval: 24h
   type: oci
   url: oci://ghcr.io/rajsinghtech/charts
+---
+# Our own charts. Pinned exactly, never a semver range in prod (05-app-contract.md).
+# Published by platform/scripts/publish.sh; platform-lib is vendored into the two
+# application charts at package time, so nothing references it directly.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata: {name: platform-deps, namespace: flux-system}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
+  ref: {tag: "0.1.1"}
+  secretRef: {name: harbor-auth}
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata: {name: platform-app, namespace: flux-system}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  ref: {tag: "0.1.1"}
+  secretRef: {name: harbor-auth}

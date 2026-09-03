@@ -1,0 +1,59 @@
+# Release 3 of 3: the surround. It creates nothing that runs — it creates everything around
+# what DINUM's chart created.
+#
+# Replaces routes.yaml. Routes are grouped by BACKEND rather than one per path, because a
+# BackendTrafficPolicy attaches to an HTTPRoute: an upload path wants a body limit and a
+# websocket path must not have one, so they cannot share an object.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: docs-platform, namespace: office-docs}
+spec:
+  interval: 30m
+  dependsOn: [{name: docs}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  values:
+    app: docs
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      - host: docs
+        backend: {name: docs-frontend, port: 80}
+        paths: [/]
+
+      - name: api
+        host: docs
+        backend: {name: docs-backend, port: 80}
+        # /static is Django's own admin CSS. Not in the upstream ingress set, which is why
+        # /admin renders unstyled there; the frontend serves nothing under /static.
+        paths: [/api, /admin, /static]
+        requestBuffer: 100Mi
+        timeout: 300s               # uploads and conversion are slow, not hung
+
+      - name: media
+        host: docs
+        backend: {name: docs-media-proxy, port: 8080}
+        paths: [/media]
+        timeout: 300s
+
+      - name: collaboration
+        host: docs
+        backend: {name: docs-y-provider, port: 443}
+        # The websocket the editor holds open all session, and the server-to-server API
+        # the backend calls at its PUBLIC url — so it must be routable from outside too.
+        paths: [/collaboration/ws, /collaboration/api]
+        websocket: true             # setting requestBuffer here is a render-time error
+
+    # Emitted, NOT enforced: Flannel ships no policy controller (adr/0103). Written down so
+    # the egress graph exists somewhere, and so it starts working unchanged the day a
+    # policy-capable CNI arrives. Do not cite it as segmentation.
+    networkPolicy:
+      enabled: true
+      egress:
+        - {datastore: postgres}
+        - {datastore: cache}
+        - {datastore: objectstore}
+        - {identity: true}
+        - {external: true, port: 443}
+
+    # One replica at this size, so no PDB: it could only block drains.
+    pdb: {enabled: false}

@@ -17,6 +17,8 @@ metadata:
   namespace: office-docs
 spec:
   interval: 30m
+  # Every Secret this release consumes with `envFrom` is created by docs-deps.
+  dependsOn: [{name: docs-deps}]
   chart:
     spec:
       chart: src/helm/impress
