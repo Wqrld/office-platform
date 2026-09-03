@@ -1,0 +1,136 @@
+# The realm is declarative config in git; secrets in it are not.
+#
+# `placeholders` is the operator's mechanism for exactly that: the realm JSON carries
+# `$(env:NAME)` and the operator injects the value from a Secret at import time. So the
+# `docs` client secret is generated once by ESO (identity/keycloak.yaml), written into
+# Keycloak here, and read by Docs from the same Secret — one value, two consumers, never
+# a literal in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: realm-user-passwords, namespace: office-identity}
+spec:
+  # Generate once. Rotating these under a logged-in user would look like an outage.
+  refreshInterval: "0"
+  target: {name: realm-user-passwords, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: "password", target: "l.f.haaijer"}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: "password", target: "k.e.roelofs"}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: "password", target: "o.adams"}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: "password", target: "r.i.rupert"}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: "password", target: "s.molinagarcia"}}]
+---
+apiVersion: k8s.keycloak.org/v2beta1
+kind: KeycloakRealmImport
+metadata:
+  name: office
+  namespace: office-identity
+spec:
+  keycloakCRName: keycloak
+  placeholders:
+    CLIENT_SECRET_DOCS: {secret: {name: oidc-client-docs, key: secret}}
+    PW_LFHAAIJER:      {secret: {name: realm-user-passwords, key: l.f.haaijer}}
+    PW_KEROELOFS:      {secret: {name: realm-user-passwords, key: k.e.roelofs}}
+    PW_OADAMS:         {secret: {name: realm-user-passwords, key: o.adams}}
+    PW_RIRUPERT:       {secret: {name: realm-user-passwords, key: r.i.rupert}}
+    PW_SMOLINAGARCIA:  {secret: {name: realm-user-passwords, key: s.molinagarcia}}
+  realm:
+    realm: office
+    displayName: Office
+    displayNameHtml: "<b>Office</b>"
+    enabled: true
+    defaultSignatureAlgorithm: RS256
+    # Users arrive through this realm only; self-registration is not part of the product.
+    registrationAllowed: false
+    editUsernameAllowed: false
+    loginWithEmailAllowed: true
+    duplicateEmailsAllowed: false
+    rememberMe: true
+    revokeRefreshToken: true
+    internationalizationEnabled: true
+    supportedLocales: [en, nl]
+    defaultLocale: nl
+    # Carried over from the legacy realm: these numbers were tuned there, not guessed.
+    bruteForceProtected: true
+    permanentLockout: false
+    bruteForceStrategy: LINEAR
+    failureFactor: 30
+    maxFailureWaitSeconds: 900
+    minimumQuickLoginWaitSeconds: 60
+    waitIncrementSeconds: 60
+    quickLoginCheckMilliSeconds: 1000
+    maxDeltaTimeSeconds: 43200
+    eventsEnabled: true
+    eventsExpiration: 86400
+    adminEventsEnabled: true
+    clients:
+      - clientId: docs
+        name: Docs
+        description: Docs — samen werken aan documenten
+        enabled: true
+        alwaysDisplayInConsole: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: $(env:CLIENT_SECRET_DOCS)
+        rootUrl: https://docs.${BASE_DOMAIN}
+        baseUrl: https://docs.${BASE_DOMAIN}
+        adminUrl: https://docs.${BASE_DOMAIN}
+        redirectUris: ["https://docs.${BASE_DOMAIN}/*"]
+        webOrigins: ["https://docs.${BASE_DOMAIN}"]
+        standardFlowEnabled: true
+        implicitFlowEnabled: false
+        # Docs is a browser application. A password grant would be a second, weaker way
+        # in that nothing needs.
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        frontchannelLogout: true
+        attributes:
+          backchannel.logout.url: https://docs.${BASE_DOMAIN}/api/v1.0/logout/
+          backchannel.logout.session.required: "true"
+          frontchannel.logout.url: https://docs.${BASE_DOMAIN}/api/v1.0/logout/
+          frontchannel.logout.session.required: "false"
+          post.logout.redirect.uris: https://docs.${BASE_DOMAIN}/*
+    # These emails are load-bearing: the restored Docs database identifies users by
+    # `sub` first and falls back to email, so an email that does not match here orphans
+    # that user's documents. Taken from `select email from impress_user`.
+    users:
+      - username: l.f.haaijer
+        email: l.f.haaijer@student.utwente.nl
+        firstName: Luc
+        lastName: Haaijer
+        emailVerified: true
+        enabled: true
+        credentials: [{type: password, value: $(env:PW_LFHAAIJER), temporary: false}]
+      - username: k.e.roelofs
+        email: k.e.roelofs@student.utwente.nl
+        firstName: Karsten
+        lastName: Roelofs
+        emailVerified: true
+        enabled: true
+        credentials: [{type: password, value: $(env:PW_KEROELOFS), temporary: false}]
+      - username: o.adams
+        email: o.adams@student.utwente.nl
+        firstName: Olaf
+        lastName: Adams
+        emailVerified: true
+        enabled: true
+        credentials: [{type: password, value: $(env:PW_OADAMS), temporary: false}]
+      - username: r.i.rupert
+        email: r.i.rupert@student.utwente.nl
+        firstName: Ruud
+        lastName: Rupert
+        emailVerified: true
+        enabled: true
+        credentials: [{type: password, value: $(env:PW_RIRUPERT), temporary: false}]
+      - username: s.molinagarcia
+        email: s.molinagarcia@student.utwente.nl
+        firstName: Sergio
+        lastName: Molina Garcia
+        emailVerified: true
+        enabled: true
+        credentials: [{type: password, value: $(env:PW_SMOLINAGARCIA), temporary: false}]
