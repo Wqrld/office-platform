@@ -1,0 +1,42 @@
+# Release 3 of 3: the surround.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: collabora-platform, namespace: office-collabora}
+spec:
+  interval: 30m
+  dependsOn: [{name: collabora}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  values:
+    app: collabora
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      - host: collabora
+        backend: {name: collabora-online, port: 9980}
+        paths: [/]
+        # The editor holds a websocket open for the whole session, and it is one request
+        # that legitimately lasts all day. No requestBuffer: setting one here is a
+        # render-time error, and Collabora's own uploads are bounded by Drive.
+        websocket: true
+
+        # coolwsd publishes its admin console and its metrics on the same host and port as
+        # the editor. 403 at the edge, so neither is reachable from the internet at all.
+        # The generated password in collabora-deps is the second layer, not the first.
+        #
+        # `/cool/getMetrics` in particular is unauthenticated in some coolwsd versions and
+        # enumerates every open document.
+        deny:
+          - /browser/dist/admin
+          - /cool/adminws
+          - /cool/getMetrics
+
+    # Emitted, NOT enforced (adr/0103). Collabora's egress graph is unusually small and
+    # unusually worth writing down: it fetches documents from Drive and talks to nothing
+    # else. It reaches Drive at its PUBLIC name, because that is the WOPISrc Drive signs
+    # into the token — so this is an external rule, not an app rule.
+    networkPolicy:
+      enabled: true
+      egress:
+        - {external: true, port: 443}
+
+    pdb: {enabled: false}

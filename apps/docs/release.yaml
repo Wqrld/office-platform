@@ -204,6 +204,12 @@ spec:
                   url: https://docs.${BASE_DOMAIN}
                   maturity: stable
                   logo: https://docs.${BASE_DOMAIN}/assets/icon-docs.svg
+                - name: Drive
+                  url: https://drive.${BASE_DOMAIN}
+                  maturity: stable
+                  # Drive ships no `icon-docs.svg` equivalent; `logo-icon_beta.svg` is the mark its own
+                  # header renders (cunningham-tokens.ts), served from the frontend at /assets.
+                  logo: https://drive.${BASE_DOMAIN}/assets/logo-icon_beta.svg
                 - name: Account
                   url: https://id.${BASE_DOMAIN}/realms/office/account
                   maturity: stable

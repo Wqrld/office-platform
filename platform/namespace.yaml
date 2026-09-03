@@ -3,6 +3,10 @@ kind: Namespace
 metadata:
   name: office-data
   labels:
+    # The Gateway's allowedRoutes selector. office-data carries it for exactly one route —
+    # the published S3 endpoint in objectstore/public-route.yaml (adr/0110). Nothing else
+    # in this namespace is routable, and nothing else should become routable by accident.
+    office.haaijer.dev/gateway-access: "true"
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted

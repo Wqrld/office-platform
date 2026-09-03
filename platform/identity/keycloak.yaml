@@ -33,6 +33,23 @@ spec:
     - sourceRef:
         generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
 ---
+# The `drive` OIDC client secret. Same shape, same reasoning as `docs` above: one value,
+# written into Keycloak by the realm import and read back by the application, never in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: oidc-client-drive, namespace: office-identity}
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-drive
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
+---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: keycloak-db, namespace: office-identity}

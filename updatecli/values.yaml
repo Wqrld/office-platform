@@ -1,0 +1,37 @@
+# The upstream Helm charts this cluster installs, and the files that pin them.
+#
+# This table is the whole per-chart cost. The pipeline that consumes it is written once,
+# in updatecli.d/helm-charts.yaml, so adding a chart is an entry here — not another
+# manifest. `files` is a list because one chart can pin in several places: Valkey is
+# installed twice, and both instances must move together or the two releases drift.
+charts:
+  - id: cloudnative-pg
+    repo: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    files: [infra/cloudnative-pg.yaml]
+
+  - id: external-secrets
+    repo: https://charts.external-secrets.io
+    chart: external-secrets
+    files: [infra/external-secrets.yaml]
+
+  # An OCI registry, not an index.yaml — the `helmchart` source handles both, so this
+  # entry looks no different from the others.
+  - id: garage-operator
+    repo: oci://ghcr.io/rajsinghtech/charts
+    chart: garage-operator
+    files: [infra/garage-operator.yaml]
+
+  - id: valkey
+    repo: https://valkey.io/valkey-helm/
+    chart: valkey
+    files: [platform/valkey/cache.yaml, platform/valkey/broker.yaml]
+
+  # Collabora is the one upstream application that DOES publish a chart repository, so it
+  # goes in this table rather than getting a pipeline of its own. Its image tag is pinned
+  # separately in the release and must be checked against the new chart's appVersion when
+  # the PR arrives — the two move together upstream, but the chart does not set ours.
+  - id: collabora
+    repo: https://collaboraonline.github.io/online
+    chart: collabora-online
+    files: [apps/collabora/release.yaml]

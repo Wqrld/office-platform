@@ -1,0 +1,65 @@
+# The Garage S3 API, published — for one bucket. See platform/docs/adr/0110.
+#
+# Drive hands the browser a presigned PUT URL and the browser uploads the file body
+# straight to the object store. A SigV4 signature covers the host, so the URL has to be
+# signed against a host the browser can reach; there is no in-application fallback, so
+# without this route Drive cannot upload a file at all.
+#
+# THE PATH PREFIX IS THE SCOPE. Garage is addressed path-style, so a bucket *is* a path
+# prefix: `/drive/` is reachable from the internet and `/docs/` is not — a request for it
+# matches no route and 404s at the edge, before Garage sees it. Adding a prefix here makes
+# that bucket internet-reachable and is a security decision, not a routing tweak.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: office-s3
+  namespace: office-data
+spec:
+  parentRefs:
+    - {name: office, namespace: office-system, sectionName: https}
+  hostnames: ["s3.${BASE_DOMAIN}"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /drive/}}
+      backendRefs:
+        - {name: office-s3, port: 3900}
+---
+# CORS for the browser upload. Garage's own bucket CORS configuration is not reachable
+# through the operator's CRDs, and doing it at the edge keeps the rule beside the route it
+# belongs to. Envoy answers the preflight itself, so it never reaches Garage.
+#
+# `allowOrigins` is the whole control: only a page served from Drive may use these URLs
+# from a browser. It is not a defence against a leaked URL — that is what the 60-second
+# expiry and the single-key, PUT-only signature are for.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: SecurityPolicy
+metadata:
+  name: office-s3
+  namespace: office-data
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: office-s3}
+  cors:
+    allowOrigins: ["https://drive.${BASE_DOMAIN}"]
+    allowMethods: [GET, HEAD, PUT, OPTIONS]
+    # The signature covers the headers boto3 signed, and which ones those are is decided by
+    # botocore, not by us. Naming them here would break on a botocore upgrade.
+    allowHeaders: ["*"]
+    exposeHeaders: [ETag]
+    maxAge: 10m
+---
+# No requestBuffer. `requestBuffer` makes Envoy hold the whole body before forwarding, which
+# on a multi-gigabyte upload trades the upload for an OOM — and Drive already caps upload
+# size itself (DATA_UPLOAD_MAX_MEMORY_SIZE). Only the timeout is set, because a large upload
+# over a slow line is slow, not hung.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: office-s3
+  namespace: office-data
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: office-s3}
+  timeout:
+    http:
+      requestTimeout: 1h

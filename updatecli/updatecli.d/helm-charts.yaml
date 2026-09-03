@@ -1,0 +1,46 @@
+# Every upstream Helm chart, from one template over the table in ../values.yaml.
+#
+# Two deliberate departures from mijn-bureau-infra's version of this:
+#
+#  * No `scms:`/`actions:` block. updatecli only edits the working tree; the workflow that
+#    runs it does the branch, commit and PR once for the whole run. mijn-bureau repeats a
+#    22-line GitHub SCM + pull-request block in each of its 21 manifests — ~460 lines that
+#    exist only to name the same repository again.
+#
+#  * `kind: file`, not `kind: yaml`. Every YAML engine updatecli offers re-serialises the
+#    whole document on write: blank lines vanish, aligned trailing comments collapse to a
+#    single space, and wrapped flow sequences re-flow onto one line. On this repo that
+#    produced 11-20 lines of unrelated churn per file — enough to bury the one line that
+#    actually changed. A text replacement anchored on `chart: <name>` is byte-exact.
+name: "Upstream Helm charts"
+
+sources:
+{{- range .charts }}
+  {{ .id }}:
+    name: 'latest {{ .chart }} chart'
+    kind: helmchart
+    spec:
+      url: {{ .repo | quote }}
+      name: {{ .chart | quote }}
+      # No pattern: take the newest stable release. Every bump lands in a reviewed PR, so
+      # the guard against a bad major is a human reading the diff — not a version range
+      # that silently stops offering upgrades and rots unnoticed.
+      versionfilter:
+        kind: semver
+{{- end }}
+
+targets:
+{{- range $c := .charts }}
+{{- range $i, $f := $c.files }}
+  {{ $c.id }}-{{ $i }}:
+    name: '{{ $f }}'
+    kind: file
+    sourceid: {{ $c.id }}
+    spec:
+      file: {{ $f | quote }}
+      # Anchored on the chart name so it cannot reach another `version:` if one is ever
+      # added to the file. No match is a hard failure, not a silent no-op.
+      matchpattern: '(chart: {{ $c.chart }}\n\s+version: )"[^"]+"'
+      replacepattern: '${1}"{{ printf "{{ source %q }}" $c.id }}"'
+{{- end }}
+{{- end }}

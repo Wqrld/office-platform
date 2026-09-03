@@ -1,0 +1,68 @@
+# Release 3 of 3: the surround. Routes, the media proxy, and the egress graph.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: drive-platform, namespace: office-drive}
+spec:
+  interval: 30m
+  dependsOn: [{name: drive}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  values:
+    app: drive
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      - host: drive
+        backend: {name: drive-frontend, port: 80}
+        paths: [/]
+
+      - name: api
+        host: drive
+        backend: {name: drive-backend, port: 80}
+        # /static is whitenoise serving Django's own admin CSS; the frontend serves nothing
+        # under it. /api carries the WOPI host endpoints (/api/v1.0/wopi/files/…) that
+        # Collabora calls from OUTSIDE the cluster, so this route must stay publicly
+        # reachable — it is not only the browser's API.
+        paths: [/api, /admin, /static]
+        # Bodies here are metadata and the media-auth subrequest, not file content: uploads
+        # go straight to the object store. 25Mi is generous for what actually arrives.
+        requestBuffer: 25Mi
+        timeout: 300s
+
+      - name: media
+        host: drive
+        backend: {name: drive-media-proxy, port: 8080}
+        # One route for both: /media/preview is under /media, and the two need identical
+        # traffic treatment. The proxy is what tells them apart.
+        paths: [/media]
+        timeout: 300s
+
+    # The `/media` route's backend — adr/0109. Drive's media-auth endpoint is under
+    # `items`, not `documents`; that one path segment is the whole difference from Docs.
+    mediaProxy:
+      enabled: true
+      auth: {service: drive-backend, port: 80, path: /api/v1.0/items/media-auth/}
+      objectstore: {bucket: drive}
+      locations:
+        # Order here is presentational — nginx picks the longest matching prefix. The
+        # preview is rendered inline in the browser, so it must NOT be forced to download;
+        # everything else must be, because these are user-supplied files on our own origin.
+        - {path: "/media/preview/"}
+        - {path: "/media/", headers: {Content-Disposition: attachment}}
+
+    # Emitted, NOT enforced: Flannel ships no policy controller (adr/0103). Written down so
+    # the egress graph exists somewhere, and so it starts working unchanged the day a
+    # policy-capable CNI arrives. Do not cite it as segmentation.
+    networkPolicy:
+      enabled: true
+      egress:
+        - {datastore: postgres}
+        - {datastore: cache}
+        - {datastore: objectstore}
+        - {identity: true}
+        # Collabora, in-cluster: Drive fetches /hosting/discovery from it directly.
+        - {app: collabora, port: 9980}
+        # Off-cluster on 443. Drive needs it for its own public name — the media-auth
+        # subrequest and the WOPI callbacks arrive via the Gateway's external address.
+        - {external: true, port: 443}
+
+    pdb: {enabled: false}

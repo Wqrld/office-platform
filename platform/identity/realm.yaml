@@ -38,7 +38,8 @@ metadata:
 spec:
   keycloakCRName: keycloak
   placeholders:
-    CLIENT_SECRET_DOCS: {secret: {name: oidc-client-docs, key: secret}}
+    CLIENT_SECRET_DOCS:  {secret: {name: oidc-client-docs, key: secret}}
+    CLIENT_SECRET_DRIVE: {secret: {name: oidc-client-drive, key: secret}}
     PW_LFHAAIJER:      {secret: {name: realm-user-passwords, key: l.f.haaijer}}
     PW_KEROELOFS:      {secret: {name: realm-user-passwords, key: k.e.roelofs}}
     PW_OADAMS:         {secret: {name: realm-user-passwords, key: o.adams}}
@@ -101,6 +102,35 @@ spec:
           frontchannel.logout.url: https://docs.${BASE_DOMAIN}/api/v1.0/logout/
           frontchannel.logout.session.required: "false"
           post.logout.redirect.uris: https://docs.${BASE_DOMAIN}/*
+      # Drive. Same shape as Docs — a confidential browser client, no password grant, no
+      # service account. Collabora is NOT a client here: it never talks to Keycloak. It is
+      # handed a short-lived WOPI access token minted by Drive, and it authenticates back to
+      # Drive with that token alone.
+      - clientId: drive
+        name: Drive
+        description: Drive — bestanden delen en samen bewerken
+        enabled: true
+        alwaysDisplayInConsole: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "$${CLIENT_SECRET_DRIVE}"
+        rootUrl: https://drive.${BASE_DOMAIN}
+        baseUrl: https://drive.${BASE_DOMAIN}
+        adminUrl: https://drive.${BASE_DOMAIN}
+        redirectUris: ["https://drive.${BASE_DOMAIN}/*"]
+        webOrigins: ["https://drive.${BASE_DOMAIN}"]
+        standardFlowEnabled: true
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        frontchannelLogout: true
+        attributes:
+          backchannel.logout.url: https://drive.${BASE_DOMAIN}/api/v1.0/logout/
+          backchannel.logout.session.required: "true"
+          frontchannel.logout.url: https://drive.${BASE_DOMAIN}/api/v1.0/logout/
+          frontchannel.logout.session.required: "false"
+          post.logout.redirect.uris: https://drive.${BASE_DOMAIN}/*
     # These emails are load-bearing: the restored Docs database identifies users by
     # `sub` first and falls back to email, so an email that does not match here orphans
     # that user's documents. Taken from `select email from impress_user`.

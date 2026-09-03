@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-collabora
+  labels:
+    # The Gateway's allowedRoutes selector. Without it the HTTPRoute is silently ignored —
+    # it reports no error, it simply never attaches.
+    office.haaijer.dev/gateway-access: "true"
+    # `baseline`, not `restricted`, and this is the one namespace where that is load-bearing
+    # rather than incidental: coolwsd's document jail needs CHOWN, FOWNER, MKNOD and
+    # SYS_CHROOT. All four are inside baseline's allowed set; `restricted` forbids all of
+    # them. See apps/collabora/README.md.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

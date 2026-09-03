@@ -1,0 +1,258 @@
+# Release 2 of 3: Drive, from DINUM's in-tree chart at the pinned git tag v0.21.2
+# (adr/0104). Chart path `src/helm/drive`; the chart's own name is `drive`.
+#
+# Read `postRenderers` at the bottom before anything else in this file. Drive's chart has
+# no `envFrom` — every environment variable is a key in `backend.envVars` — so the secrets
+# drive-deps creates are attached by a post-render patch rather than by six lines of values.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: drive
+  namespace: office-drive
+spec:
+  interval: 30m
+  dependsOn:
+    - {name: drive-deps}
+    # Cross-namespace. The chart's `configure-wopi` Job calls Collabora's
+    # /hosting/discovery at install; without Collabora up it fails, and the Job is not a
+    # Helm hook, so a failure is permanent noise on every reconcile until Celery Beat
+    # re-runs the configuration on its own schedule.
+    - {name: collabora, namespace: office-collabora}
+  chart:
+    spec:
+      chart: src/helm/drive
+      sourceRef: {kind: GitRepository, name: suitenumerique-drive, namespace: flux-system}
+      reconcileStrategy: Revision
+  install:
+    # migrate/createsuperuser/configure-wopi are plain Jobs with ttlSecondsAfterFinished,
+    # so waiting on them races garbage collection.
+    disableWaitForJobs: true
+  upgrade:
+    disableWaitForJobs: true
+    remediation:
+      # A Helm rollback reverts the code and leaves the database schema migrated. Fail
+      # forward, loudly, rather than silently running old code against a new schema.
+      retries: 0
+  values:
+    image:
+      # The chart declares appVersion: latest, which is useless as a pin.
+      tag: v0.21.2
+
+    # Routing is ours — surround.yaml. Every one of the chart's Ingress objects is off.
+    # They default to false at this tag; they are stated anyway so a default flip upstream
+    # cannot quietly publish a second, unauthenticated path to the application.
+    ingress: {enabled: false}
+    ingressAdmin: {enabled: false}
+    ingressMedia: {enabled: false}
+    ingressMediaPreview: {enabled: false}
+    posthog:
+      ingress: {enabled: false}
+      ingressAssets: {enabled: false}
+
+    # Unused — our own media proxy talks to Garage directly — but the chart creates this
+    # ExternalName Service unconditionally, so point it somewhere true.
+    serviceMedia:
+      host: office-s3.office-data.svc.cluster.local
+      port: 3900
+
+    backend:
+      replicas: 1
+      pdb: {enabled: false}          # one replica: a PDB here can only block a drain
+      resources:
+        requests: {cpu: 100m, memory: 640Mi}
+        limits: {memory: 2Gi}
+
+      envVars:
+        DJANGO_SETTINGS_MODULE: drive.settings
+        DJANGO_CONFIGURATION: Production
+        DJANGO_ALLOWED_HOSTS: drive.${BASE_DOMAIN}
+        DJANGO_CSRF_TRUSTED_ORIGINS: https://drive.${BASE_DOMAIN}
+        DJANGO_CORS_ALLOWED_ORIGINS: https://drive.${BASE_DOMAIN}
+        DJANGO_CORS_ALLOW_ALL_ORIGINS: "false"
+        DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
+        # No SMTP on this platform yet. `console` prints the mail into the pod log rather
+        # than failing the request that tried to send it — an invitation still creates the
+        # access, it just does not notify.
+        DJANGO_EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+        DJANGO_EMAIL_BRAND_NAME: Office
+        DJANGO_EMAIL_FROM: noreply@${BASE_DOMAIN}
+        # `DJANGO_`-prefixed, unlike Docs' bare LANGUAGE_CODE: Drive declares it as a plain
+        # `values.Value` and django-configurations then applies the default prefix.
+        DJANGO_LANGUAGE_CODE: nl-nl
+
+        MEDIA_BASE_URL: https://drive.${BASE_DOMAIN}
+        LOGIN_REDIRECT_URL: https://drive.${BASE_DOMAIN}
+        LOGIN_REDIRECT_URL_FAILURE: https://drive.${BASE_DOMAIN}
+        LOGOUT_REDIRECT_URL: https://drive.${BASE_DOMAIN}
+
+        # Garage is not AWS and predates the checksum defaults; s3v4 is what it speaks.
+        AWS_S3_SIGNATURE_VERSION: s3v4
+        # AWS_S3_UPLOAD_ACL is left at its default `private`. Garage does accept a signed
+        # `x-amz-acl: private` on a presigned PUT — measured against this cluster's Garage,
+        # 200 with and without it — so the `default` escape hatch other object stores need
+        # is not needed here.
+
+        # No search service on this platform. The default is TRUE, and with it on but no
+        # indexer configured the indexing task fails on every upload.
+        FEATURES_INDEXED_SEARCH: "False"
+        MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
+
+        # WOPI — the Collabora integration.
+        #
+        # WOPI_CLIENTS is a list of names, and each name N is then read back as
+        # WOPI_<N>_DISCOVERY_URL. Get the two out of step and Django refuses to start with
+        # a `environ_required` error naming the variable it wanted, which is at least loud.
+        WOPI_CLIENTS: collabora
+        # Server-to-server, so the in-cluster Service — Drive fetches the capability list
+        # itself. The URLs INSIDE that document are Collabora's public ones, because
+        # coolwsd builds them from its own `server_name`; that is what the browser loads.
+        WOPI_COLLABORA_DISCOVERY_URL: http://collabora-online.office-collabora.svc.cluster.local:9980/hosting/discovery
+        # The WOPISrc Drive signs into the access token — Collabora calls back here, from
+        # outside the cluster, so it must be the public name.
+        WOPI_SRC_BASE_URL: https://drive.${BASE_DOMAIN}
+        # Collabora's in-document chat: a side channel inside the editor with no
+        # moderation, no retention policy and no place in Drive's access model.
+        WOPI_DISABLE_CHAT: "1"
+
+        LOGGING_LEVEL_LOGGERS_APP: INFO
+        LOGGING_LEVEL_LOGGERS_ROOT: INFO
+        SPECTACULAR_SETTINGS_ENABLE_DJANGO_DEPLOY_CHECK: "false"
+        # DJANGO_STORAGES_STATICFILES_BACKEND is deliberately NOT set, unlike Docs. Drive's
+        # Dockerfile runs `collectstatic` at build with whitenoise's manifest storage, so
+        # the manifest is in the image and the default works. Overriding it would serve
+        # unhashed, uncompressed assets for no reason.
+
+      # `createsuperuser` upstream runs `manage.py createsuperuser --email … --password …`,
+      # which is wrong here in two ways. It fails once the account exists — and this chart's
+      # Job is not a Helm hook, so a failing Job is permanent noise on every reconcile. And
+      # Drive's `USERNAME_FIELD` is **`admin_email`**, not `email`: `email` is the OIDC
+      # identity address and is nullable, while `admin_email` is the unique login. Passing
+      # only `--email` leaves the username field unset, and `createsuperuser --noinput`
+      # cannot fill it in.
+      #
+      # Both addresses are set to the same value here, so the Django admin login and the
+      # OIDC identity are the same account rather than two rows that look alike.
+      createsuperuser:
+        command:
+          - /bin/sh
+          - -c
+          - |
+            python manage.py shell <<'PY'
+            import os
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+            email = os.environ["DJANGO_SUPERUSER_EMAIL"]
+
+            user = User.objects.filter(admin_email=email).first() or User(
+                admin_email=email, language="nl-nl"
+            )
+            user.email = email
+            user.is_active = True
+            user.is_staff = True
+            user.is_superuser = True
+            user.set_password(os.environ["DJANGO_SUPERUSER_PASSWORD"])
+            user.save()
+            print("superuser ready:", email)
+            PY
+
+      # One worker on the default queue. The upstream dev values split work across `mirror`
+      # and `malware_detection` queues with a worker each; that split only exists if
+      # DJANGO_CELERY_TASK_ROUTES sends tasks there, and it is not set, so everything lands
+      # on the default queue and one worker drains it. Three workers on a node whose CPU
+      # requests are already at 98% would not schedule.
+      #
+      # `probes` is NOT optional here even though it looks it: `backend_celery_worker.yaml`
+      # dereferences `$worker.probes.liveness` with no nil guard, so an entry without it is
+      # a render-time nil-pointer panic. Overriding `celeryWorkers` replaces the whole
+      # upstream list, defaults included — these two are upstream's, restated.
+      celeryWorkers:
+        - name: default
+          replicas: 1
+          command: []
+          args: ["celery", "-A", "drive.celery_app", "worker", "-l", "INFO",
+                 "-n", "drive@%h", "--concurrency", "2"]
+          resources:
+            requests: {cpu: 50m, memory: 384Mi}
+            limits: {memory: 1Gi}
+          probes:
+            liveness:
+              exec:
+                command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
+              initialDelaySeconds: 30
+              periodSeconds: 60
+              timeoutSeconds: 15
+              failureThreshold: 3
+            readiness:
+              exec:
+                command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
+              initialDelaySeconds: 20
+              periodSeconds: 30
+              timeoutSeconds: 15
+              failureThreshold: 3
+
+      # Beat is what re-runs the WOPI configuration on the WOPI_CONFIGURATION_CRONTAB_*
+      # schedule, so a Collabora upgrade is picked up without a Drive deploy. Disabling it
+      # would freeze the editor's capability list at whatever the install Job saw.
+      celeryBeat:
+        enabled: true
+        replicas: 1
+        resources:
+          requests: {cpu: 25m, memory: 192Mi}
+          limits: {memory: 512Mi}
+
+    frontend:
+      image: {tag: v0.21.2}
+      replicas: 1
+      pdb: {enabled: false}
+      resources:
+        requests: {cpu: 50m, memory: 128Mi}
+        limits: {memory: 512Mi}
+      envVars:
+        PORT: "8080"
+        NEXT_PUBLIC_API_ORIGIN: https://drive.${BASE_DOMAIN}
+
+  # THE SECRETS. Drive's chart has no `envFrom` — `drive.common.env` renders
+  # `backend.envVars` as a plain `env:` list — so consuming the five Secrets drive-deps
+  # creates would otherwise mean ~40 hand-written `secretKeyRef` entries, repeated nowhere
+  # but easy to get wrong and impossible to review. This attaches them as `envFrom` after
+  # rendering instead.
+  #
+  # THE NAME SELECTOR IS THE SECURITY BOUNDARY. kustomize matches `name` as a FULL-STRING
+  # regex, so `drive-backend.*` selects the backend Deployment, both Celery Deployments,
+  # the three Jobs and the four CronJobs — ten workloads — and does NOT select
+  # `drive-frontend`. The frontend is a Next.js server that renders for the browser; it
+  # must never hold the database password or the OIDC client secret.
+  #
+  # Verified against the rendered chart: 10 workloads patched, `drive-frontend` untouched.
+  # If upstream renames its objects the patch matches nothing and the pods start without a
+  # database — which crash-loops immediately rather than failing quietly. Re-check this
+  # list when bumping the chart.
+  #
+  # WHAT WOULD REMOVE THIS: `envFrom` support upstream. That is a small PR against
+  # `src/helm/drive/templates/_helpers.tpl` and worth making — adr/0108.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target: {kind: "Deployment|Job", name: "drive-backend.*"}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: drive-postgres}}
+                  - {secretRef: {name: drive-cache}}
+                  - {secretRef: {name: drive-s3}}
+                  - {secretRef: {name: drive-oidc}}
+                  - {secretRef: {name: drive-django}}
+          # A CronJob buries the pod spec one level deeper. Same list, different path;
+          # there is no kustomize target that spans both shapes.
+          - target: {kind: CronJob, name: "drive-backend.*"}
+            patch: |
+              - op: add
+                path: /spec/jobTemplate/spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: drive-postgres}}
+                  - {secretRef: {name: drive-cache}}
+                  - {secretRef: {name: drive-s3}}
+                  - {secretRef: {name: drive-oidc}}
+                  - {secretRef: {name: drive-django}}

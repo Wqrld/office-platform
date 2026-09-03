@@ -1,0 +1,40 @@
+# Drive, the same shape as docs.yaml: La Suite publishes no Helm repository (adr/0104), so
+# one git tag pins the chart AND the images. The chart declares `appVersion: latest`, which
+# pins nothing, so the image tags are set explicitly and must move with it.
+name: "La Suite Drive"
+
+sources:
+  drive:
+    name: "latest Drive release"
+    kind: gittag
+    spec:
+      url: "https://github.com/suitenumerique/drive"
+      versionfilter:
+        kind: semver
+        # A floor, not a ceiling. Drive also publishes `-preprod` tags on the same commits;
+        # semver treats a prerelease as lower than the release, so they are not offered.
+        pattern: ">=0.21.0"
+
+targets:
+  # Anchored to the repository URL: `clusters/prod/sources.yaml` pins Docs the same way in
+  # the same file, and an unanchored `ref: {tag: vX.Y.Z}` rewrites both.
+  chart:
+    name: "GitRepository tag"
+    kind: file
+    sourceid: drive
+    spec:
+      file: "clusters/prod/sources.yaml"
+      matchpattern: 'url: https://github\.com/suitenumerique/drive\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
+      replacepattern: 'url: https://github.com/suitenumerique/drive\n  ref: {tag: {{ source "drive" }}}'
+
+  # Two tags in release.yaml — the backend takes the top-level `image`, the frontend
+  # overrides it. One pattern rather than two yamlpath keys because they must never hold
+  # different values; a partial match is not a state we want to be able to express.
+  images:
+    name: "workload image tags"
+    kind: file
+    sourceid: drive
+    spec:
+      file: "apps/drive/release.yaml"
+      matchpattern: 'tag: v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: 'tag: {{ source "drive" }}'

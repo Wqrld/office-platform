@@ -5,6 +5,16 @@ resources:
   # Three releases per app, in this order: prerequisites, the upstream chart, the surround.
   # Secrets must exist before the workload that reads them, so they cannot come from the
   # surround; the surround attaches to workloads, so it cannot come first.
+  # Collabora before Drive: Drive's `configure-wopi` Job calls Collabora's discovery
+  # endpoint at install, and its HelmRelease dependsOn the Collabora one.
+  - collabora/namespace.yaml
+  - collabora/deps.yaml
+  - collabora/release.yaml
+  - collabora/surround.yaml
+  - drive/namespace.yaml
+  - drive/deps.yaml
+  - drive/release.yaml
+  - drive/surround.yaml
   - docs/namespace.yaml
   - docs/deps.yaml
   - docs/release.yaml

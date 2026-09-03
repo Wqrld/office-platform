@@ -51,3 +51,36 @@ spec:
     # Both are CREATE EXTENSION, which is superuser-only on a stock cluster.
     - {name: pg_trgm, ensure: present}
     - {name: unaccent, ensure: present}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata: {name: drive, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: drive
+  ensure: present
+  login: true
+  passwordSecret: {name: drive-db}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: drive, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: drive
+  owner: drive
+  ensure: present
+  databaseReclaimPolicy: retain
+  # Drive's own migrations DO try to create the first two — `django_ltree.0001` and
+  # `core.00006` — but `CREATE EXTENSION` is superuser-only on a stock cluster and the
+  # `drive` role is not one. Both are `IF NOT EXISTS`, so pre-creating them here makes
+  # those migrations no-ops instead of failures.
+  #
+  # `unaccent` has no migration at all: `core/api/filters.py` filters on
+  # `title__unaccent__icontains`, which fails at QUERY time, not at migrate time, if the
+  # extension is missing. Leaving it out would present as "search is broken" long after a
+  # migration that reported success.
+  extensions:
+    - {name: ltree, ensure: present}
+    - {name: pg_trgm, ensure: present}
+    - {name: unaccent, ensure: present}

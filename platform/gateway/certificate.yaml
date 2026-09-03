@@ -19,3 +19,8 @@ spec:
   dnsNames:
     - id.${BASE_DOMAIN}      # Keycloak
     - docs.${BASE_DOMAIN}    # Docs
+    - drive.${BASE_DOMAIN}   # Drive
+    - collabora.${BASE_DOMAIN}  # Collabora Online, the WOPI editor Drive embeds
+    # The Garage S3 API, published for ONE bucket so Drive's browser uploads can be
+    # presigned against a host the browser can reach — platform/docs/adr/0110.
+    - s3.${BASE_DOMAIN}

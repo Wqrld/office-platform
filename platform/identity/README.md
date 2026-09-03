@@ -53,6 +53,31 @@ POST /admin/realms/office/users/<id>/role-mappings/realm
 [{"id": "<default-roles-office id>", "name": "default-roles-office", ...}]
 ```
 
+## Adding a client to a realm that is already imported
+
+Same consequence as above, in the direction you will actually hit: **adding a client to
+`realm.yaml` does not create it.** `realm.yaml` stays the source of truth so a clean
+reimport produces the right realm, but on this cluster the realm already exists, so the
+client has to be created once through the admin API:
+
+```sh
+./add-client.sh drive
+```
+
+That script reads the client out of `realm.yaml` itself — so the live realm and git cannot
+disagree about anything but timing — resolves `${BASE_DOMAIN}` and the
+`$${CLIENT_SECRET_*}` placeholder from the cluster, and POSTs it. It refuses to touch a
+client that already exists, so re-running it is safe and it can never rewrite one that was
+changed by hand.
+
+Confirm afterwards that the client's secret equals the value in `oidc-client-<name>`. A
+mismatch there fails at token exchange and reads exactly like a wrong OIDC configuration.
+
+The 26.7 `KeycloakOIDCClient` CRD was considered for this and rejected: it has no field for
+the backchannel/frontchannel logout attributes, and the client id comes from
+`metadata.name`. Reconciling a client continuously is worth having, but not at the cost of
+silently dropping single-logout.
+
 ## Placeholder syntax
 
 Two forms look right and are not:

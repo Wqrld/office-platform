@@ -27,3 +27,4 @@ spec:
       aclUsers:
         default:   {permissions: "off -@all"}
         docs:      {permissions: "~* &* +@all -@dangerous"}
+        drive:     {permissions: "~* &* +@all -@dangerous"}

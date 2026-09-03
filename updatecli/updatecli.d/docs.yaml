@@ -1,0 +1,48 @@
+# Docs is not a chart version, so it is not in the table: La Suite publishes no Helm
+# repository (adr/0104). The git tag is the pin for the chart AND for the images, because
+# the chart declares `appVersion: latest`, which pins nothing. One source drives both, so
+# the chart and the images it runs cannot drift apart.
+name: "La Suite Docs"
+
+sources:
+  docs:
+    name: "latest Docs release"
+    kind: gittag
+    spec:
+      url: "https://github.com/suitenumerique/docs"
+      versionfilter:
+        kind: semver
+        # A floor, not a ceiling: v5 is what we run, and a v6 tag SHOULD arrive here as a
+        # PR that fails review loudly rather than never being offered at all.
+        pattern: ">=5.0.0"
+
+targets:
+  # sources.yaml holds several documents, and updatecli's yamlpath engine writes to EVERY
+  # document whose path matches — there is no document selector. So this is a text match,
+  # and it is ANCHORED TO THE REPOSITORY URL on the preceding line.
+  #
+  # A bare `ref: {tag: vX.Y.Z}` is not enough any more: Drive is pinned the same way in the
+  # same file, and the unanchored pattern rewrote its tag to a Docs version. Our own chart
+  # pins are quoted and carry no `v` (`ref: {tag: "0.2.0"}`), so neither pattern reaches
+  # them.
+  chart:
+    name: "GitRepository tag"
+    kind: file
+    sourceid: docs
+    spec:
+      file: "clusters/prod/sources.yaml"
+      matchpattern: 'url: https://github\.com/suitenumerique/docs\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
+      replacepattern: 'url: https://github.com/suitenumerique/docs\n  ref: {tag: {{ source "docs" }}}'
+
+  # Three tags in release.yaml: the backend takes the top-level `image`, the frontend and
+  # y-provider override it. They are one pattern rather than three yamlpath keys because
+  # they must never hold different values — a partial match is not a state we want to be
+  # able to express.
+  images:
+    name: "workload image tags"
+    kind: file
+    sourceid: docs
+    spec:
+      file: "apps/docs/release.yaml"
+      matchpattern: 'tag: v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: 'tag: {{ source "docs" }}'

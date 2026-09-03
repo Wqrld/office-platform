@@ -14,3 +14,13 @@ spec:
     - {kind: GarageKey, namespace: office-docs}
   to:
     - {kind: GarageCluster, name: office-s3}
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata: {name: office-drive, namespace: office-data}
+spec:
+  from:
+    - {kind: GarageBucket, namespace: office-drive}
+    - {kind: GarageKey, namespace: office-drive}
+  to:
+    - {kind: GarageCluster, name: office-s3}
