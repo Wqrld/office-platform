@@ -48,7 +48,17 @@ Both are `./release.sh <version>` from `config/`:
 
 The script never re-pushes a version tag that already exists, so published versions stay
 immutable and a rollback cannot rewrite its own target. The artifact revision records the
-git SHA, and a dirty tree is marked `-dirty` in it.
+git SHA, and a dirty tree is marked `-dirty` in it — check for that warning, because a
+version that does not name a commit is a version you cannot reason about later.
+
+Releasing leaves one uncommitted change behind: the pointer this script just rewrote.
+Commit it. The SHA recorded in the artifact is read *before* that rewrite, so a version's
+recorded commit is the one it was built from, not the one that bumps the pointer to it:
+
+```
+$ crane manifest .../config:1.2.1 | jq -r '.annotations["org.opencontainers.image.revision"]'
+1.2.1@sha1:9e60594          # the commit whose tree was published
+```
 
 For an emergency rollback without a push:
 
