@@ -14,6 +14,20 @@ metadata:
 spec:
   targetRefs:
     - {group: gateway.networking.k8s.io, kind: Gateway, name: office}
+  # Collabora addresses an editing session by putting the WOPI source URL, percent-encoded,
+  # INSIDE the websocket path: /cool/https%3A%2F%2Fdrive…%2Fwopi%2Ffiles%2F<id>/ws.
+  #
+  # Envoy's defaults destroy that. `escapedSlashesAction` defaults to UnescapeAndRedirect,
+  # so `%2F%2F` becomes `//`, slash-merging then collapses it to `/`, and the client gets a
+  # 307 to a URL whose WOPISrc is corrupt. Measured: every editing session 307'd in a loop.
+  #
+  # Keeping the path unchanged is also the more correct behaviour for the object store
+  # route, where a key is arbitrary text. It costs the convenience of `//api` normalising
+  # to `/api`; route matching sees the raw path either way, so an encoded slash cannot be
+  # used to slip past a PathPrefix match.
+  path:
+    escapedSlashesAction: KeepUnchanged
+    disableMergeSlashes: true
   connection:
     bufferLimit: 100Mi
   timeout:
