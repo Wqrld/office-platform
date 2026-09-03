@@ -107,20 +107,40 @@
     return wrap;
   }
 
-  // Drive renders its header client-side, so wait for it rather than for DOMContentLoaded.
-  // The right-hand side of the header is where the gaufre used to sit.
+  // Drive renders its chrome client-side, so wait for it rather than for DOMContentLoaded.
+  // `.c__left-panel__footer__drive` is Drive's own class and is where the gaufre sat
+  // (ExplorerLayout.tsx); the header slot comes from the ui-kit and its class name is not
+  // ours to rely on, so it is tried by shape and then given up on for a fixed button.
+  var MOUNTS = [".c__left-panel__footer__drive", "[class*='header__right']", "[class*='__header'] > *:last-child"];
+
   function mount() {
     if (document.querySelector(".office-sw")) return true;
-    var header = document.querySelector("header");
-    if (!header) return false;
-    var host = header.lastElementChild || header;
-    host.appendChild(build());
-    return true;
+    for (var i = 0; i < MOUNTS.length; i++) {
+      var host = document.querySelector(MOUNTS[i]);
+      if (host) { host.appendChild(build()); return true; }
+    }
+    return false;
   }
 
-  if (!mount()) {
+  function mountFixed() {
+    if (document.querySelector(".office-sw")) return;
+    var w = build();
+    w.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:2000";
+    w.querySelector(".office-sw__menu").style.cssText = "top:auto;bottom:44px;left:0;right:auto";
+    document.body.appendChild(w);
+  }
+
+  function start() {
+    if (mount()) return;
     var obs = new MutationObserver(function () { if (mount()) obs.disconnect(); });
     obs.observe(document.documentElement, { childList: true, subtree: true });
-    setTimeout(function () { obs.disconnect(); }, 30000);
+    // If the app never renders a slot we recognise, still give the user a way across.
+    setTimeout(function () { obs.disconnect(); mountFixed(); }, 8000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
   }
 })();
