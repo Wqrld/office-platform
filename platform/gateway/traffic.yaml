@@ -1,0 +1,23 @@
+# Gateway-wide client connection settings. The pair to any app's
+# BackendTrafficPolicy.requestBuffer: Envoy will not buffer a request larger than the
+# connection's own buffer, so setting one without the other silently caps uploads at
+# 32KiB — the default — and presents as a truncated body rather than an error.
+#
+# This is on the Gateway rather than per-app because ClientTrafficPolicy only attaches to
+# a Gateway or one of its listeners. Adding an application does not edit this file; the
+# per-route limit is the app's to set, downward from here.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: office
+  namespace: office-system
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: Gateway, name: office}
+  connection:
+    bufferLimit: 100Mi
+  timeout:
+    http:
+      # Long-lived websockets (Docs' collaborative editor) are idle for minutes at a
+      # time. Envoy's default stream idle timeout would drop them.
+      streamIdleTimeout: 1h

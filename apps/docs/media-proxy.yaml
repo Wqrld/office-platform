@@ -1,0 +1,123 @@
+# Escape hatch, logged as such (P5: used once).
+#
+# `/media` cannot be a plain route to either the backend or the object store. Docs serves
+# attachments by having a proxy ask the backend "may this session read this key?" and,
+# on a 200, replaying the S3 authorization headers the backend returns onto a request to
+# the bucket. Upstream ships that as ingress-nginx `auth-url` +
+# `auth-response-headers` annotations, which is the only reason `ingressMedia` exists.
+#
+# Envoy Gateway's SecurityPolicy extAuth cannot express it: `extAuth.http.path` is a
+# PREFIX, and Envoy appends the original request path to it — so the check would arrive
+# at Django as `/api/v1.0/documents/media-auth/media/<uuid>/attachments/x.png`, which
+# matches no route and 404s, denying every request. Verified against the CRD text and
+# Docs' `media_auth` view, which needs the original URL in a header of its own.
+#
+# So: 45 lines of nginx doing exactly what the legacy stack's `docs-nginx` did, which is
+# known to work against this data.
+#
+# WHAT WOULD REMOVE THIS: Docs serving media through the backend, or Envoy Gateway
+# gaining a fixed (non-prefixed) ext-auth path. Revisit on either.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docs-media-proxy
+  namespace: office-docs
+  annotations:
+    # nginx configuration is full of $variables and Flux's postBuild substitution would
+    # expand every one of them to the empty string — $host, $request_uri and the
+    # auth_request_set values all vanish, and the proxy silently serves 403s.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      charset utf-8;
+      server_tokens off;
+
+      location = /healthz { access_log off; return 200 "ok\n"; }
+
+      client_max_body_size 100m;
+
+      location /media/ {
+        auth_request /media-auth;
+        auth_request_set $authHeader        $upstream_http_authorization;
+        auth_request_set $authDate          $upstream_http_x_amz_date;
+        auth_request_set $authContentSha256 $upstream_http_x_amz_content_sha256;
+
+        proxy_set_header Authorization        $authHeader;
+        proxy_set_header X-Amz-Date           $authDate;
+        proxy_set_header X-Amz-Content-SHA256 $authContentSha256;
+
+        # Garage, addressed as a plain S3 endpoint. The bucket name is part of the path
+        # because the endpoint is path-style, not virtual-host-style.
+        proxy_pass       http://office-s3.office-data.svc.cluster.local:3900/docs/;
+        proxy_set_header Host office-s3.office-data.svc.cluster.local:3900;
+
+        add_header Content-Security-Policy "default-src 'none'" always;
+      }
+
+      location /media-auth {
+        internal;
+        # The session cookie rides along on the subrequest, which is how the backend
+        # knows who is asking. X-Original-URL is what its media_auth view reads to learn
+        # which attachment (MEDIA_AUTH_ORIGINAL_URL_HEADER, default HTTP_X_ORIGINAL_URL).
+        proxy_pass              http://docs-backend.office-docs.svc.cluster.local:80/api/v1.0/documents/media-auth/;
+        proxy_set_header        X-Forwarded-Proto https;
+        proxy_set_header        Host              $host;
+        proxy_set_header        X-Real-IP         $remote_addr;
+        proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Original-URL    $request_uri;
+        proxy_set_header        X-Original-Method $request_method;
+        proxy_pass_request_body off;
+        proxy_set_header        Content-Length "";
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs-media-proxy
+  namespace: office-docs
+  labels: {app.kubernetes.io/name: docs-media-proxy}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: docs-media-proxy}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: docs-media-proxy}
+    spec:
+      priorityClassName: office-app
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: nginx
+          # Fully qualified: this cluster's CRI-O resolves a bare name against quay.io.
+          # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
+          image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
+          ports:
+            - {name: http, containerPort: 8080}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 3
+          volumeMounts:
+            - {name: conf, mountPath: /etc/nginx/conf.d}
+      volumes:
+        - name: conf
+          configMap: {name: docs-media-proxy}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: docs-media-proxy, namespace: office-docs}
+spec:
+  selector: {app.kubernetes.io/name: docs-media-proxy}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080}

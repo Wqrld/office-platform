@@ -8,6 +8,7 @@ resources:
   - gateway/gateway.yaml
   - gateway/certificate.yaml
   - gateway/clusterissuer.yaml
+  - gateway/traffic.yaml
   - secrets/generator.yaml
   - secrets/stores.yaml
   - secrets/valkey-users.yaml
