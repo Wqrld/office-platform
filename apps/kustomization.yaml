@@ -20,3 +20,16 @@ resources:
   - docs/release.yaml
   - docs/media-proxy.yaml
   - docs/surround.yaml
+
+# switcher.js stays a real .js file rather than a block scalar inside a HelmRelease: Flux
+# injects it into one Helm value with `valuesFrom` (see drive/surround.yaml), so it can be
+# read and edited as JavaScript.
+configMapGenerator:
+  - name: drive-switcher
+    namespace: office-drive
+    files: [drive/switcher.js]
+    options:
+      disableNameSuffixHash: true
+      annotations:
+        # The file is full of $variables that postBuild substitution would blank.
+        kustomize.toolkit.fluxcd.io/substitute: disabled

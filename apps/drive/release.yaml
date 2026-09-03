@@ -82,12 +82,12 @@ spec:
         # Defaults to TRUE, and there is no search service: the indexing task would fail
         # on every upload.
         FEATURES_INDEXED_SEARCH: "False"
-        # Drive's app switcher is not ours to fill: it loads a widget script from
-        # static.suite.anct.gouv.fr and reads the French government's service list, both
-        # compiled into the frontend bundle (`cunningham-tokens.ts`), with no runtime
-        # override. Hidden rather than left pointing at another country's services.
-        # Docs' switcher is where this platform's inventory is stated.
+        # The built-in switcher loads a widget script from static.suite.anct.gouv.fr and
+        # the French government's service list, both compiled into the frontend bundle with
+        # no runtime override. Hidden, and replaced by our own through FRONTEND_JS_URL —
+        # the only hook the page offers. `switcher.js`, served by `staticFiles`.
         FRONTEND_HIDE_GAUFRE: "true"
+        FRONTEND_JS_URL: https://drive.${BASE_DOMAIN}/custom/switcher.js
         MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
 
         # WOPI. Each name in WOPI_CLIENTS is read back as WOPI_<NAME>_DISCOVERY_URL.
