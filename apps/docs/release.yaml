@@ -62,8 +62,10 @@ spec:
       replicas: 1
       pdb: {enabled: false}          # one replica: a PDB here can only block a drain
       resources:
-        requests: {cpu: 100m, memory: 512Mi}
-        limits: {memory: 1Gi}
+        # Measured, not guessed: the backend sits at ~960Mi resident when idle, so a 1Gi
+        # limit is an OOMKill waiting for the first heavy request.
+        requests: {cpu: 100m, memory: 768Mi}
+        limits: {memory: 2Gi}
       envFrom:
         - {secretRef: {name: docs-postgres}}
         - {secretRef: {name: docs-cache}}
