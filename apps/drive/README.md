@@ -1,5 +1,15 @@
 # Drive
 
+`./e2e.py` checks the whole thing end to end — OIDC login, a presigned upload, a download
+through the media proxy, and a real Collabora editing session. Run it after any change to
+the Gateway, the object store route, or either application. It needs a realm user:
+
+```sh
+E2E_USER=l.f.haaijer \
+E2E_PASSWORD=$(kubectl -n office-identity get secret realm-user-passwords \
+                 -o jsonpath='{.data.l\.f\.haaijer}' | base64 -d) ./e2e.py
+```
+
 Upstream chart at git tag `v0.21.2`, path `src/helm/drive`. Everything below is a thing
 that cost time to find.
 
@@ -126,6 +136,31 @@ kubectl -n office-drive exec deploy/drive-backend -- python manage.py trigger_wo
 
 The install-time `configure-wopi` Job is not a reliable substitute: it is a plain Job, so a
 Helm upgrade does not re-run it, and a Job that failed once stays failed.
+
+## Envoy must not normalise the path
+
+Collabora addresses an editing session by putting the WOPI source URL, percent-encoded,
+*inside* the websocket path:
+
+    /cool/https%3A%2F%2Fdrive.<domain>%2Fapi%2Fv1.0%2Fwopi%2Ffiles%2F<id>/ws
+
+Envoy's defaults break that. `escapedSlashesAction` defaults to `UnescapeAndRedirect`, so
+`%2F%2F` becomes `//`, slash merging collapses it to `/`, and the client is 307'd to a URL
+whose WOPISrc is corrupt — every editing session redirects instead of upgrading, and the
+document never opens. `platform/gateway/traffic.yaml` sets `KeepUnchanged` and
+`disableMergeSlashes`.
+
+That is Gateway-wide and has one consequence worth knowing: a `PathPrefix` match now sees
+the raw path, so `/browser/dist%2Fadmin/…` no longer matches a deny rule written as
+`/browser/dist/admin`. Collabora's admin console is therefore also disabled in coolwsd
+itself rather than only at the edge — `apps/collabora/README.md`.
+
+## An upload without Content-Type 500s
+
+`upload_ended` reads `head_response["ContentType"]` unguarded. AWS S3 always returns it;
+Garage returns it only if it was set on the PUT. A browser always sets it from the File
+object, so this does not affect users — but any other client that omits it gets a 500 and
+an item stuck in `analyzing`. Worth a one-line PR upstream (`.get("ContentType")`).
 
 ## The app switcher is hidden
 

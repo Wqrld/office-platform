@@ -96,28 +96,21 @@ other WOPI host". Without that flag the list is advisory and Collabora will fetc
 a document from any host that asks — on a public address, that is an open
 document-conversion service run at our expense.
 
-## The admin console
+## The admin console is off, in three places
 
-It is on the same host and port as the editor, at `/browser/dist/admin/admin.html`, with
+It sits on the same host and port as the editor, at `/browser/dist/admin/admin.html`, with
 `/cool/adminws` and `/cool/getMetrics` beside it. `getMetrics` enumerates every open
 document.
 
-Two layers, in this order:
+1. `--o:admin_console.enable=false` — the console does not exist.
+2. `surround.yaml` returns **403 at the Gateway** for all three prefixes.
+3. The credentials are generated in-cluster rather than the chart's `admin`/`examplepass`.
 
-1. `surround.yaml` returns **403 at the Gateway** for all three prefixes, so none of them
-   is reachable from the internet.
-2. The credentials are generated in-cluster by `collabora-deps` and read through
-   `existingSecret`. The chart's default is `admin` / `examplepass`, base64'd out of its
-   own `values.yaml` — the console answers 401 to that pair on a stock install, which is
-   the sort of "it's protected" that is worth nothing.
-
-To reach the console for real, port-forward to the pod and read the credentials:
-
-```sh
-kubectl -n office-collabora get secret collabora-admin \
-  -o go-template='{{range $k,$v := .data}}{{$k}}: {{$v | base64decode}}{{"\n"}}{{end}}'
-kubectl -n office-collabora port-forward deploy/collabora-online 9980:9980
-```
+The first one is load-bearing, not belt-and-braces. The Gateway stopped unescaping `%2F` so
+that Collabora's own session URLs survive (`apps/drive/README.md`), and a `PathPrefix` deny
+rule matches the raw path — so `/browser/dist%2Fadmin/admin.html` slipped past the edge and
+reached coolwsd, which answered 401. Measured. Turning the console off removes the target
+instead of chasing path spellings.
 
 ## No WOPI proof key
 
