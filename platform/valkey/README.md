@@ -38,19 +38,30 @@ and that Celery's own keys honour it. Worth doing at the second application, not
 
 ## Adding an application's ACL user
 
-Two files, and the order in them matters less than the shape:
+Two files:
 
 1. `platform/valkey/{cache,broker}.yaml` — one line each under `auth.aclUsers`.
-2. `platform/secrets/valkey-users.yaml` — a **new** `creationPolicy: Merge` ExternalSecret
-   per instance. Do **not** add a `dataFrom` entry to the shared `valkey-*-users` objects.
+2. `platform/secrets/valkey-users.yaml` — a new `valkey-user-<app>` ExternalSecret, and one
+   line per assembler.
 
-The reason is a property of ESO that is easy to get backwards. `refreshInterval: "0"` does
-not mean "re-draw when the spec changes"; it means the ExternalSecret is written once and
-never again. Adding an entry to a generate-once object bumps its `metadata.generation`, ESO
-leaves `status.syncedResourceVersion` pointing at the previous generation, and it goes on
-reporting `Ready=True / secret synced` — while the Secret never gains the key.
+Never add a `dataFrom` entry to `valkey-{cache,broker}-users`. That was the original shape
+and it does not work; the file's header comment has the full account. Short version, all
+three measured against this cluster:
 
-What that looks like from the outside is Valkey's init container refusing to start:
+- `refreshInterval: "0"` means *written once and never again*, not "re-draw on a spec
+  change". Adding an entry bumps `metadata.generation`, ESO leaves
+  `status.syncedResourceVersion` on the previous generation, and it keeps reporting
+  `Ready=True / secret synced` while the Secret never gains the key.
+- Forcing the refresh re-draws every entry, so adding the Nth application rotates the other
+  N−1 passwords and takes their caches and Celery brokers down until each is restarted.
+- A `creationPolicy: Merge` ExternalSecret is refused with `SecretOwnedByOther`: ESO will
+  not write into a Secret another ExternalSecret owns.
+
+Hence the split. `valkey-user-<app>` generates and never changes; `valkey-{cache,broker}-acl`
+only reads, so it is idempotent and free to change shape. The chart consumes the assembled
+Secret.
+
+What the original failure looks like, so it is recognisable:
 
 ```
 Generating ACL entries for users
@@ -59,11 +70,6 @@ Using password from existing secret for user docs
 ERROR: No password found for user drive
 ```
 
-The Deployment sits in `Init:CrashLoopBackOff` with the previous pod still serving, so the
-HelmRelease times out and the `30-platform` layer goes unhealthy — loud, and non-destructive.
-This was measured in production while adding `drive`.
-
-Forcing the refresh is worse than leaving it: `force-sync` re-draws every entry in the
-object, so adding the Nth application rotates the passwords of the other N−1 and takes
-their caches and Celery brokers down until each one is restarted. A `Merge` ExternalSecret
-adds exactly one key and touches nothing else — verified against this cluster.
+The Deployment sits in `Init:CrashLoopBackOff` with the previous pod still serving, the
+HelmRelease times out, and `30-platform` goes unhealthy. Loud and non-destructive — the
+running cache is never interrupted.
