@@ -71,7 +71,7 @@ metadata: {name: platform-deps, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
-  ref: {tag: "0.2.3"}
+  ref: {tag: "0.2.4"}
   secretRef: {name: harbor-auth}
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -80,5 +80,5 @@ metadata: {name: platform-app, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
-  ref: {tag: "0.2.3"}
+  ref: {tag: "0.2.4"}
   secretRef: {name: harbor-auth}

@@ -6,13 +6,6 @@ spec:
   interval: 30m
   dependsOn: [{name: drive}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The switcher is a real file — apps/drive/switcher.js — turned into a ConfigMap by
-  # kustomize and injected here, so it never has to live as a block scalar in this file.
-  valuesFrom:
-    - kind: ConfigMap
-      name: drive-switcher
-      valuesKey: switcher.js
-      targetPath: staticFiles.files.switcher\.js
   values:
     app: drive
     baseDomain: ${BASE_DOMAIN}
@@ -62,9 +55,10 @@ spec:
     # French government's service list, both compiled into the frontend bundle. It is hidden
     # (release.yaml) and replaced with this one, served from Drive's own origin through the
     # only hook the page offers, FRONTEND_JS_URL.
+    # switcher.js stays a real file; kustomize turns it into this ConfigMap.
     staticFiles:
       enabled: true
-      files: {}          # switcher.js is injected by valuesFrom above
+      filesConfigMap: drive-switcher
 
     # Emitted, NOT enforced — Flannel has no policy controller (adr/0103). Do not cite it
     # as segmentation.
