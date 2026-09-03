@@ -1,0 +1,49 @@
+# Weekly upstream version bumps. One PR for the whole run, not one per dependency: the
+# config ships as a single versioned artifact anyway, so the bumps are reviewed and
+# released together, and a reviewer reads one diff instead of six.
+name: upstream-updates
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"   # Mondays 08:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  updatecli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: updatecli/updatecli-action@v2
+        with:
+          version: 0.120.1   # pinned: the tool that manages our pins is itself pinned
+
+      # Runs first so the log shows what WOULD change even when the apply step then makes
+      # it so — the diff is the reviewable artefact when a target unexpectedly fails.
+      - name: What is out of date
+        run: updatecli diff --config updatecli/updatecli.d --values updatecli/values.yaml
+
+      - name: Apply
+        run: updatecli apply --config updatecli/updatecli.d --values updatecli/values.yaml
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: updatecli/upstream
+          # Matches .gitlint: an emoji, a parenthesised scope, then the subject.
+          commit-message: "⬆️ (deps) bump upstream pins"
+          title: "⬆️ (deps) bump upstream pins"
+          body: |
+            Opened by `updatecli`. Each changed line is a version pin; nothing else in the
+            repository is touched, and the tool fails rather than skipping when it cannot
+            find a pin it expects.
+
+            Before merging, for anything that moved a major or minor:
+
+            - read the upstream release notes for values-schema changes — a bumped chart
+              with a renamed key installs cleanly and misconfigures the workload
+            - `./release.sh <next version>` after merge; the bump is not live until the
+              config artifact is re-pushed and the layers report the new revision

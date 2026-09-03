@@ -1,14 +1,11 @@
-# The Garage S3 API, published — for one bucket. See platform/docs/adr/0110.
+# The Garage S3 API, published — for one bucket. adr/0110.
 #
-# Drive hands the browser a presigned PUT URL and the browser uploads the file body
-# straight to the object store. A SigV4 signature covers the host, so the URL has to be
-# signed against a host the browser can reach; there is no in-application fallback, so
-# without this route Drive cannot upload a file at all.
+# Drive hands the browser a presigned PUT URL, and a SigV4 signature covers the host, so it
+# must be signed against a host the browser can reach. There is no in-application fallback.
 #
-# THE PATH PREFIX IS THE SCOPE. Garage is addressed path-style, so a bucket *is* a path
-# prefix: `/drive/` is reachable from the internet and `/docs/` is not — a request for it
-# matches no route and 404s at the edge, before Garage sees it. Adding a prefix here makes
-# that bucket internet-reachable and is a security decision, not a routing tweak.
+# THE PATH PREFIX IS THE SCOPE. Garage is path-style, so a bucket is a path prefix:
+# `/docs/` matches no route and 404s at the edge. Adding a prefix here publishes that
+# bucket — a security decision, not a routing tweak.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -24,13 +21,9 @@ spec:
       backendRefs:
         - {name: office-s3, port: 3900}
 ---
-# CORS for the browser upload. Garage's own bucket CORS configuration is not reachable
-# through the operator's CRDs, and doing it at the edge keeps the rule beside the route it
-# belongs to. Envoy answers the preflight itself, so it never reaches Garage.
-#
-# `allowOrigins` is the whole control: only a page served from Drive may use these URLs
-# from a browser. It is not a defence against a leaked URL — that is what the 60-second
-# expiry and the single-key, PUT-only signature are for.
+# CORS for the browser upload, at the edge because Garage's bucket CORS is not reachable
+# through the operator's CRDs. `allowOrigins` stops another site's page using these URLs;
+# a leaked URL is covered by the 60-second expiry and the single-key PUT-only signature.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
@@ -42,16 +35,13 @@ spec:
   cors:
     allowOrigins: ["https://drive.${BASE_DOMAIN}"]
     allowMethods: [GET, HEAD, PUT, OPTIONS]
-    # The signature covers the headers boto3 signed, and which ones those are is decided by
-    # botocore, not by us. Naming them here would break on a botocore upgrade.
+    # Which headers boto3 signs is botocore's decision; naming them breaks on an upgrade.
     allowHeaders: ["*"]
     exposeHeaders: [ETag]
     maxAge: 10m
 ---
-# No requestBuffer. `requestBuffer` makes Envoy hold the whole body before forwarding, which
-# on a multi-gigabyte upload trades the upload for an OOM — and Drive already caps upload
-# size itself (DATA_UPLOAD_MAX_MEMORY_SIZE). Only the timeout is set, because a large upload
-# over a slow line is slow, not hung.
+# No requestBuffer: it holds the whole body in Envoy, which on a large upload trades the
+# upload for an OOM. Drive caps size itself. A slow upload is slow, not hung.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: BackendTrafficPolicy
 metadata:

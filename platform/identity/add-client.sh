@@ -34,7 +34,7 @@ import json, os, sys, yaml
 want, domain, secret = os.environ["CLIENT"], os.environ["BASE_DOMAIN"], os.environ["SECRET"]
 # realm.yaml is a multi-document file; the import is the KeycloakRealmImport.
 docs = [d for d in yaml.safe_load_all(open(sys.argv[1])) if d]
-realm = next(d for d in docs if d["kind"] == "KeycloakRealmImport")["realm"]
+realm = next(d for d in docs if d["kind"] == "KeycloakRealmImport")["spec"]["realm"]
 client = next(c for c in realm["clients"] if c["clientId"] == want)
 
 def resolve(v):

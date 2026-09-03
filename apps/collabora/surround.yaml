@@ -14,29 +14,22 @@ spec:
       - host: collabora
         backend: {name: collabora-online, port: 9980}
         paths: [/]
-        # The editor holds a websocket open for the whole session, and it is one request
-        # that legitimately lasts all day. No requestBuffer: setting one here is a
-        # render-time error, and Collabora's own uploads are bounded by Drive.
-        websocket: true
+        websocket: true                 # the editor holds one open all session
 
-        # coolwsd publishes its admin console and its metrics on the same host and port as
-        # the editor. 403 at the edge, so neither is reachable from the internet at all.
-        # The generated password in collabora-deps is the second layer, not the first.
-        #
-        # `/cool/getMetrics` in particular is unauthenticated in some coolwsd versions and
-        # enumerates every open document.
+        # coolwsd puts its admin console and metrics on the same host and port as the
+        # editor. `/cool/getMetrics` enumerates every open document. 403 at the edge; the
+        # generated password is the second layer, not the first.
         deny:
           - /browser/dist/admin
           - /cool/adminws
           - /cool/getMetrics
 
-    # Emitted, NOT enforced (adr/0103). Collabora's egress graph is unusually small and
-    # unusually worth writing down: it fetches documents from Drive and talks to nothing
-    # else. It reaches Drive at its PUBLIC name, because that is the WOPISrc Drive signs
-    # into the token — so this is an external rule, not an app rule.
+    # Emitted, NOT enforced — Flannel has no policy controller (adr/0103). Do not cite it
+    # as segmentation.
     networkPolicy:
       enabled: true
       egress:
+        # Drive, at its PUBLIC name — that is the WOPISrc Drive signs into the token.
         - {external: true, port: 443}
 
     pdb: {enabled: false}

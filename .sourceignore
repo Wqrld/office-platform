@@ -1,0 +1,4 @@
+# Kept out of the Flux OCI artifact: these run in CI, never in the cluster. Everything the
+# cluster reads lives in infra/, platform/, apps/ and clusters/prod.
+/.github/
+/updatecli/

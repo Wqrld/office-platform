@@ -1,11 +1,7 @@
-# Release 1 of 3. Collabora has no database, no cache, no bucket and no OIDC client — it is
-# handed a short-lived WOPI access token by Drive and never talks to Keycloak. So this is
-# `platform-deps` used for the one thing that is left: a credential generated in the
-# cluster instead of written in git.
-#
-# The chart's own default is `username: admin` / `password: examplepass`, base64'd straight
-# into a Secret from the release values. `existingSecret` in release.yaml points at this one
-# instead, so neither half is ever in the repository.
+# Release 1 of 3. Collabora has no database, cache, bucket or OIDC client — it is handed a
+# short-lived WOPI token by Drive and never talks to Keycloak. All that is left is the admin
+# credential, which the chart otherwise base64s straight out of its own values.yaml
+# (`admin` / `examplepass`).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: collabora-deps, namespace: office-collabora}
@@ -16,13 +12,8 @@ spec:
     app: collabora
     baseDomain: ${BASE_DOMAIN}
 
-    # A LIST, not a map — `dataFrom` is ordered and its order is part of the spec, so a
-    # re-sort makes ESO draw again. Both entries take their own draw, so the username is not
-    # the password.
-    #
-    # The username is generated too. Nothing human types it: the admin console is 403'd at
-    # the Gateway (surround.yaml) and this pair exists only so that the console is not
-    # protected by a password that is printed in the chart's values.yaml.
+    # The username is generated too — nothing types it by hand, and the console is 403'd at
+    # the Gateway anyway (surround.yaml).
     generated:
       collabora-admin:
         - {env: username, draw: adminuser}

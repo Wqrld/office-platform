@@ -11,40 +11,28 @@ spec:
 
     postgres: {enabled: true, env: django}
 
-    # Two instances, same reasoning as Docs: the cache evicts and does not persist, the
-    # broker must not evict. An evicting broker silently drops queued Celery tasks, which
-    # for Drive means an upload that never finishes processing.
+    # Two instances: an evicting broker silently drops queued Celery tasks.
     cache: {enabled: true, env: django, uses: [cache, broker]}
 
     objectstore:
       enabled: true
       env: django-s3
       quota: {maxSize: 50Gi}
-      # THE ONE LINE THAT MAKES THIS BUCKET INTERNET-REACHABLE — adr/0110.
-      #
-      # Drive does not upload through Django. `generate_upload_policy` hands the browser a
-      # presigned PUT URL and the browser writes the body straight to the object store. A
-      # SigV4 signature covers the host, so the URL has to be signed against the host the
-      # browser will use; there is no in-application fallback, and without this uploading a
-      # file does not work at all.
-      #
-      # The endpoint is published for the `/drive/` path prefix only
-      # (platform/objectstore/public-route.yaml). Docs' bucket stays unreachable.
+      # Makes this bucket internet-reachable — adr/0110. The browser PUTs to a presigned
+      # URL, and a SigV4 signature covers the host, so it must be signed against the host
+      # the browser uses. Published for the `/drive/` prefix only.
       publicEndpoint: https://s3.${BASE_DOMAIN}
 
-    # Open provisioning, unlike Docs. Docs has a restored database that already holds every
-    # user and matches them by sub; Drive starts empty, so a realm user who has never
-    # logged in must be created on first login or nobody can get in at all.
+    # Open provisioning, unlike Docs: Drive starts with an empty user table, so a realm
+    # user who has never logged in has to be created on first login.
     oidc: {enabled: true, createUser: true}
 
-    # A LIST, not a map: `dataFrom` is ordered and its order is part of the spec, so a
-    # re-sort would make ESO draw new values and log every user out. Each entry takes its
-    # own draw, so no two variables are ever equal.
+    # A list, not a map: `dataFrom` is ordered and Helm sorts map keys, so a map would let
+    # a re-sort rewrite the object. This cannot gain an entry later — see platform-deps.
+    #
+    # No DJANGO_SERVER_TO_SERVER_API_TOKENS: upstream's dev values set it, but
+    # SERVER_TO_SERVER_API_TOKENS appears nowhere in Drive v0.21.2.
     generated:
       drive-django:
         - {env: DJANGO_SECRET_KEY, draw: secretkey}
         - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
-        # DJANGO_SERVER_TO_SERVER_API_TOKENS is deliberately absent, although upstream's own
-        # dev values set it: `SERVER_TO_SERVER_API_TOKENS` does not appear anywhere in
-        # Drive's backend at v0.21.2. It is a Docs setting that was copied across. Adding it
-        # would be a generated secret nothing ever reads.
