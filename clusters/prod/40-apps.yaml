@@ -7,7 +7,7 @@ spec:
   timeout: 10m
   prune: true
   wait: true
-  sourceRef: {kind: OCIRepository, name: flux-system}
+  sourceRef: {kind: OCIRepository, name: office-config}
   path: ./apps
   dependsOn: [{name: 30-platform}]
   postBuild:

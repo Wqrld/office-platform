@@ -19,3 +19,43 @@ the number are kept free; the layer arrives the first time a CRD upgrade actuall
 managing separately, rather than existing empty.
 
 Scalars come from `vars.yaml` via `postBuild.substituteFrom`.
+
+## Two tags, and why
+
+`office/config` carries a moving `:latest` and immutable `:X.Y.Z` version tags.
+
+| | read from | moves when |
+|---|---|---|
+| `clusters/prod` (this dir) | `:latest`, via `FluxInstance.spec.sync` | any push |
+| `infra/`, `platform/`, `apps/` | `:X.Y.Z`, via `OCIRepository/office-config` | the tag in `config-source.yaml` is edited |
+
+So production advances only by editing a version number. A stray `flux push` to `:latest`
+changes the layer definitions and the pointer — it cannot move the workloads.
+
+The `FluxInstance` itself deliberately stays on `:latest`. It cannot be pinned: it lives
+inside the path it syncs, so the pointer to a new version would only exist inside a version
+Flux is not yet pulling, and it could never learn that version exists. Putting the pointer
+in a separate object breaks the cycle.
+
+## Releasing and rolling back
+
+Both are `./release.sh <version>` from `config/`:
+
+```
+./release.sh 1.1.0     # publish :1.1.0, point at it, push :latest
+./release.sh 1.0.0     # roll back — repoints and pushes :latest only
+```
+
+The script never re-pushes a version tag that already exists, so published versions stay
+immutable and a rollback cannot rewrite its own target. The artifact revision records the
+git SHA, and a dirty tree is marked `-dirty` in it.
+
+For an emergency rollback without a push:
+
+```
+kubectl -n flux-system patch ocirepository office-config --type=merge \
+  -p '{"spec":{"ref":{"tag":"1.0.0"}}}'
+```
+
+That drifts from the artifact and the next `:latest` reconcile reverts it — follow up with
+a real `./release.sh 1.0.0`.
