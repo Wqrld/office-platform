@@ -34,6 +34,24 @@ can never be reached that way. Verified working: a restricted document's attachm
 anonymously and 200 with a session, and public documents are readable by anyone — which is
 what `link_reach` says should happen.
 
+## The theme file REPLACES upstream's default, it does not merge
+
+`backend.themeCustomization` renders a ConfigMap mounted over the whole theme directory
+at `/app/impress/configuration/theme`, so our `default.json` hides upstream's. Anything
+in upstream's `backend/impress/configuration/theme/default.json` that we do not restate
+is simply gone.
+
+This is not cosmetic. Dropping `header.icon` removes the top-left logo *and* hides the
+product title: `LeftPanelHeader.tsx` renders no `<Image>` when `icon` is absent, and gives
+the `<h1>` the class `sr-only` when `icon.withTitle` is not true. The header therefore
+degrades to an empty 68px box with an invisible heading, which reads as a broken CSS rule
+rather than a missing config key. The same replacement silently dropped `favicon`,
+`home.icon-banner`, `onboarding` and `help`; `onboarding.enabled` is the only truthy key
+keeping the help menu rendered at all (`HelpMenu.tsx`).
+
+All five are restored in `release.yaml` at upstream's values. When bumping the Docs
+version, diff that file against the new tag's `default.json` before anything else.
+
 ## The theme JSON is cached in Redis for 24 hours
 
 `backend.themeCustomization.file_content` renders into a ConfigMap that Django reads once

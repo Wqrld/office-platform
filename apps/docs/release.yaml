@@ -151,13 +151,48 @@ spec:
           limits: {memory: 1Gi}
       themeCustomization:
         enabled: true
-        # THE GAUFRE. Without a `waffle` key the switcher does not render at all; with
-        # `waffle.apiUrl` it renders the French government's service list. This is the
-        # third option: our own services, served from our own domains, no call out to
-        # lasuite.numerique.gouv.fr at any point.
-        # Add an entry here as each application lands — it is the only place the suite's
-        # inventory is stated to users.
+        # Our ConfigMap is mounted over the whole theme directory, so it REPLACES
+        # upstream's `backend/impress/configuration/theme/default.json` — it does not
+        # merge with it. Every key the default carried has to be restated here or it is
+        # silently lost. That is how the top-left logo vanished: with no `header.icon`,
+        # LeftPanelHeader renders no <Image> at all and marks the "Docs" title `sr-only`.
+        # The five keys below are upstream's defaults, restored verbatim.
         file_content:
+          header:
+            logo: {}                     # wide brand logo, home page only; upstream ships none
+            icon:
+              src: /assets/icon-docs.svg
+              width: 36
+              height: 42
+              style: {width: 36px, height: auto}
+              alt: ""
+              withTitle: true            # renders the <h1> next to the icon; false = icon only
+          favicon:
+            light: {href: /assets/favicon-light.png, type: image/png}
+            dark: {href: /assets/favicon-dark.png, type: image/png}
+          home:
+            with-proconnect: false
+            icon-banner:
+              src: /assets/icon-docs.svg
+              width: 64
+              height: 74
+              style: {width: 64px, height: auto}
+              alt: ""
+          # Empty strings are falsy in the frontend, so every entry below renders nothing;
+          # `onboarding.enabled` is what keeps the help menu present at all — HelpMenu.tsx
+          # hides the whole menu when no help key is truthy.
+          onboarding: {enabled: true, learn_more_url: "", ready_template_url: ""}
+          help:
+            documentation_url: ""
+            support_mailto: ""
+            legal_links:
+              {personal_data: "", terms_of_use: "", accessibility_statement: "", legal_notice: ""}
+          # THE GAUFRE. Without a `waffle` key the switcher does not render at all; with
+          # `waffle.apiUrl` it renders the French government's service list. This is the
+          # third option: our own services, served from our own domains, no call out to
+          # lasuite.numerique.gouv.fr at any point.
+          # Add an entry here as each application lands — it is the only place the suite's
+          # inventory is stated to users.
           waffle:
             label: Office
             showMoreLimit: 9
