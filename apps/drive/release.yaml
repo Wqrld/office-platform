@@ -82,6 +82,12 @@ spec:
         # Defaults to TRUE, and there is no search service: the indexing task would fail
         # on every upload.
         FEATURES_INDEXED_SEARCH: "False"
+        # Drive's app switcher is not ours to fill: it loads a widget script from
+        # static.suite.anct.gouv.fr and reads the French government's service list, both
+        # compiled into the frontend bundle (`cunningham-tokens.ts`), with no runtime
+        # override. Hidden rather than left pointing at another country's services.
+        # Docs' switcher is where this platform's inventory is stated.
+        FRONTEND_HIDE_GAUFRE: "true"
         MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
 
         # WOPI. Each name in WOPI_CLIENTS is read back as WOPI_<NAME>_DISCOVERY_URL.
@@ -91,6 +97,13 @@ spec:
         WOPI_COLLABORA_DISCOVERY_URL: http://collabora-online.office-collabora.svc.cluster.local:9980/hosting/discovery
         WOPI_SRC_BASE_URL: https://drive.${BASE_DOMAIN}   # Collabora calls back from outside
         WOPI_DISABLE_CHAT: "1"          # unmoderated side channel inside the editor
+        # Every ten minutes, not nightly. The client configuration lives in the Django
+        # cache, which is `allkeys-lru` and does not survive a Valkey restart — and on a
+        # miss `get_wopi_configuration()` returns an empty default, so every document
+        # reads as "unsupported format" until the next run. Upstream's default of 03:00
+        # makes that outage up to a day long. The task is one in-cluster HTTP GET.
+        WOPI_CONFIGURATION_CRONTAB_MINUTE: "*/10"
+        WOPI_CONFIGURATION_CRONTAB_HOUR: "*"
 
         LOGGING_LEVEL_LOGGERS_APP: INFO
         LOGGING_LEVEL_LOGGERS_ROOT: INFO

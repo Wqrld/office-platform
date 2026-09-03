@@ -84,6 +84,9 @@ spec:
         DJANGO_CORS_ALLOW_ALL_ORIGINS: "false"
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
         DJANGO_EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+        # The "Welcome to Docs" marketing homepage. Off: the entry point for this platform
+        # is the document list, and an anonymous visitor gets the login page.
+        FRONTEND_HOMEPAGE_FEATURE_ENABLED: "false"
         DJANGO_EMAIL_BRAND_NAME: Office
         DJANGO_EMAIL_FROM: noreply@${BASE_DOMAIN}
         LANGUAGE_CODE: nl-nl

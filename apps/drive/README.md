@@ -103,6 +103,41 @@ The `configure-wopi` Job runs at install and needs Collabora up, which is why th
 the `WOPI_CONFIGURATION_CRONTAB_*` schedule, so a one-off failure heals — and so a
 Collabora upgrade is picked up without a Drive deploy. That is why Beat is enabled.
 
+## The WOPI client configuration lives in an evicting cache
+
+`configure_wopi_clients` fetches Collabora's discovery document and writes the extension and
+mimetype tables into the **Django cache** — `valkey-cache` db 1, which is `allkeys-lru` and
+does not survive a restart. On a miss `get_wopi_configuration()` returns an empty default
+and every document reads as **"unsupported format"** in the UI. Nothing re-fetches on
+demand; only the Celery Beat schedule refills it.
+
+Upstream's default schedule is 03:00 daily, which makes that outage up to a day long. It
+happened here the first time Valkey restarted. `WOPI_CONFIGURATION_CRONTAB_*` is therefore
+set to every ten minutes; the task is one in-cluster HTTP GET.
+
+To check, or to fix it immediately:
+
+```sh
+kubectl -n office-drive exec deploy/drive-backend -- python manage.py shell -c \
+  "from django.core.cache import cache; c=cache.get('wopi_configuration'); \
+   print(len(c['extensions']) if c else 'EMPTY')"
+kubectl -n office-drive exec deploy/drive-backend -- python manage.py trigger_wopi_configuration
+```
+
+The install-time `configure-wopi` Job is not a reliable substitute: it is a plain Job, so a
+Helm upgrade does not re-run it, and a Job that failed once stays failed.
+
+## The app switcher is hidden
+
+`FRONTEND_HIDE_GAUFRE` is true. Drive's switcher loads a widget script from
+`static.suite.anct.gouv.fr` and reads the French government's service list; both the script
+path and the API URL are compiled into the frontend bundle (`cunningham-tokens.ts`) and
+selected only by theme name, so there is no runtime way to point it at our own services.
+Docs' switcher is where this platform's inventory is stated.
+
+`FRONTEND_JS_URL` is the hook if we ever want one here — it injects a script of ours into
+the page, which is how mijn-bureau replaced the gaufre with their own button.
+
 ## Postgres needs three extensions, and only two are visible from the migrations
 
 `django_ltree.0001` and `core.00006` both run `CREATE EXTENSION IF NOT EXISTS`, which the
