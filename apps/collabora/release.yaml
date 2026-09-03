@@ -35,10 +35,17 @@ spec:
       # `mode=groups` is what makes the alias list an ALLOW-LIST. Without it Collabora
       # edits a document from any host that asks — on a public address, an open
       # document-conversion service.
+      #
+      # `admin_console.enable=false` removes the console at the source. The Gateway denies
+      # its paths too, but that is prefix matching on the raw path, and since the Gateway
+      # stopped unescaping `%2F` (platform/gateway/traffic.yaml) a request for
+      # `/browser/dist%2Fadmin/admin.html` slips past the prefix and reaches coolwsd —
+      # measured, it answered 401 rather than 403. Nothing here needs the console.
       extra_params: >-
         --o:ssl.enable=false
         --o:ssl.termination=true
         --o:storage.wopi.alias_groups.mode=groups
+        --o:admin_console.enable=false
       aliasgroups:
         - host: "https://drive.${BASE_DOMAIN}"
 
