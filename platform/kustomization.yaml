@@ -19,6 +19,7 @@ resources:
   - valkey/broker.yaml
   - objectstore/admin-token.yaml
   - objectstore/cluster.yaml
+  - objectstore/reference-grants.yaml
   - identity/namespace.yaml
   - identity/operator          # vendored upstream, pinned 26.7.3 — see its kustomization
   - identity/keycloak.yaml

@@ -4,18 +4,6 @@
 # the chart consumes it with `envFrom` and there is no ESO reshaping hop at all — the
 # credential never exists in a second place to drift from.
 ---
-# Cross-namespace references into office-data are opt-in on the target side. Without this
-# grant the bucket and key below stay Pending with a permission error.
-apiVersion: garage.rajsingh.info/v1beta1
-kind: GarageReferenceGrant
-metadata: {name: office-docs, namespace: office-data}
-spec:
-  from:
-    - {kind: GarageBucket, namespace: office-docs}
-    - {kind: GarageKey, namespace: office-docs}
-  to:
-    - {kind: GarageCluster, name: office-s3}
----
 apiVersion: garage.rajsingh.info/v1beta1
 kind: GarageBucket
 metadata: {name: docs, namespace: office-docs}
