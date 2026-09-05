@@ -22,7 +22,7 @@ resources:
   - objectstore/reference-grants.yaml
   - objectstore/public-route.yaml
   - identity/namespace.yaml
-  - identity/operator          # vendored upstream, pinned 26.7.3 — see its kustomization
+  - identity/vendor/keycloak-operator   # vendored upstream, pinned 26.7.3 — see its kustomization
   - identity/keycloak.yaml
   - identity/realm.yaml
   # gateway/deferred/ is deliberately absent — see gateway/deferred/README.md

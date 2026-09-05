@@ -30,6 +30,12 @@ jobs:
       - name: Apply
         run: updatecli apply --config updatecli/updatecli.d --values updatecli/values.yaml
 
+      # Not an updatecli target: a version bump here is five whole files, not a line, and
+      # updatecli's kind:file can only rewrite a line. Idempotent — no-op if already
+      # current — so it costs nothing to run every week. See updatecli/README.md.
+      - name: Keycloak operator
+        run: platform/identity/vendor/keycloak-operator/update.sh
+
       - uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676   # v7.0.11
         with:
           branch: updatecli/upstream
@@ -37,13 +43,16 @@ jobs:
           commit-message: "⬆️ (deps) bump upstream pins"
           title: "⬆️ (deps) bump upstream pins"
           body: |
-            Opened by `updatecli`. Each changed line is a version pin; nothing else in the
-            repository is touched, and the tool fails rather than skipping when it cannot
-            find a pin it expects.
+            Opened by `updatecli`, plus the Keycloak operator check
+            (`platform/identity/vendor/keycloak-operator/update.sh`) if it found a newer
+            tag. Nothing outside these pins is touched, and both steps fail rather than
+            skip when something they expect to find is missing.
 
             Before merging, for anything that moved a major or minor:
 
             - read the upstream release notes for values-schema changes — a bumped chart
               with a renamed key installs cleanly and misconfigures the workload
+            - a Keycloak bump touches five vendored files — diff them against the release
+              notes, not just the version comment
             - `./release.sh <next version>` after merge; the bump is not live until the
               config artifact is re-pushed and the layers report the new revision

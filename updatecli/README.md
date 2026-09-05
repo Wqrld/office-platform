@@ -74,13 +74,20 @@ There is no document selector. A pattern that cannot match them is the fix.
 layout, and one of the two is `office/config` — our own release pointer, which `release.sh`
 owns and a bot must never touch. Explicit manifests cost a few lines and cannot surprise us.
 
-## Deliberately not covered
+## Deliberately not covered by updatecli
 
 **Keycloak.** Its version is not a string anywhere; it is five vendored manifest files that
-are byte-identical copies of a GitHub tag (`platform/identity/operator/`). Upgrading means
-re-downloading all five and diffing them. A bot that bumped a version string while leaving
-those files at the old release would produce a repository that lies about what it runs, so
-this pin stays manual — see the header of `platform/identity/operator/kustomization.yaml`.
+are byte-identical copies of a GitHub tag (`platform/identity/vendor/keycloak-operator/`).
+A bot that bumped a version string while leaving those files at the old release would
+produce a repository that lies about what it runs, and updatecli's `kind: file` can only
+ever rewrite one string — it cannot re-download five files. So this pin does not get an
+updatecli manifest.
+
+It still isn't manual, though: `platform/identity/vendor/keycloak-operator/update.sh` checks
+for a newer tag and, when there is one, re-downloads all five files and bumps the version
+comment in the same commit — atomically, so the two can never disagree. The
+`upstream-updates` workflow runs it as its own step alongside `updatecli apply`, into the
+same weekly PR; it is also safe to run by hand.
 
 **Our own artifacts.** `platform-deps`, `platform-app` and `office-config` are released by
 `platform/scripts/publish.sh` and `release.sh`. They are pins, but they are ours.

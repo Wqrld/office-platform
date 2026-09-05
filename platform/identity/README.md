@@ -1,9 +1,11 @@
 # Identity — Keycloak
 
-Operator and server are one release. `operator/` is a verbatim copy of
+Operator and server are one release. `vendor/keycloak-operator/` is a verbatim copy of
 `keycloak/keycloak-k8s-resources` at **26.7.3**; everything we change about it is in
-`operator/kustomization.yaml`. To upgrade: re-download all five files at the new tag in
-one commit, diff, and bump nothing else — the CRDs and the server version move together.
+`vendor/keycloak-operator/kustomization.yaml`. `vendor/keycloak-operator/update.sh` checks
+for a newer tag and, if there is one, re-downloads all five files and bumps the version
+comment in the same commit — run by hand, or weekly by CI alongside updatecli
+(`.github/workflows/upstream-updates.yaml`). Never hand-edit the five files themselves.
 
 The operator watches only its own namespace (`JOSDK_WATCH_CURRENT`), so it and the
 `Keycloak` CR must share one.

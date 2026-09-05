@@ -1,0 +1,3 @@
+# Vendored upstream, not ours to review line-by-line — collapsed in PR diffs and excluded
+# from language stats. See platform/identity/vendor/keycloak-operator/kustomization.yaml.
+platform/identity/vendor/** linguist-generated=true
