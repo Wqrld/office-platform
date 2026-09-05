@@ -1,0 +1,74 @@
+# Size profile `large` — the platform layer. 500-5,000 people.
+#
+# NOT VALIDATED, AND MOSTLY NOT APPLICABLE TO THIS CLUSTER. Every entry below needs a
+# second and third node to mean anything; on one node a CNPG replica is a slower copy of
+# the primary that dies with it.
+#
+# One entry is deliberately absent. Garage's `replication.factor` CANNOT be changed in
+# place — raising it is a rebuild of the cluster, not a profile patch — so moving an
+# installation from small to large does not make its object store redundant, and pretending
+# otherwise in this file would be the worst kind of wrong. Choose the replication factor
+# when the Garage cluster is created.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+patches:
+  - target: {kind: Cluster, name: office-pg, namespace: office-data}
+    patch: |
+      apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      metadata: {name: office-pg, namespace: office-data}
+      spec:
+        instances: 3
+        storage:
+          size: 100Gi
+        postgresql:
+          parameters:
+            max_connections: "400"
+        resources:
+          requests: {cpu: "2", memory: 8Gi}
+          limits: {memory: 8Gi}
+
+  - target: {kind: Keycloak, name: keycloak, namespace: office-identity}
+    patch: |
+      apiVersion: k8s.keycloak.org/v2alpha1
+      kind: Keycloak
+      metadata: {name: keycloak, namespace: office-identity}
+      spec:
+        instances: 2
+        resources:
+          requests: {cpu: "1", memory: 2Gi}
+          limits: {memory: 2Gi}
+
+  - target: {kind: HelmRelease, name: valkey-cache, namespace: office-data}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: valkey-cache, namespace: office-data}
+      spec:
+        values:
+          valkeyConfig: |
+            maxmemory 2gb
+            maxmemory-policy allkeys-lru
+            save ""
+
+  - target: {kind: HelmRelease, name: valkey-broker, namespace: office-data}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: valkey-broker, namespace: office-data}
+      spec:
+        values:
+          valkeyConfig: |
+            maxmemory 2gb
+            maxmemory-policy noeviction
+            appendonly yes
+
+  - target: {kind: GarageCluster, name: office-s3, namespace: office-data}
+    patch: |
+      - op: replace
+        path: /spec/storage/data/size
+        value: 500Gi
+      - op: replace
+        path: /spec/storage/metadata/size
+        value: 20Gi

@@ -1,0 +1,32 @@
+# Flux manages itself. This object is applied once by hand to bootstrap, and is then
+# reconciled from the synced config like everything else — so upgrading Flux, or moving
+# the config source from Harbor to GitHub, is an edit to this file rather than a
+# re-bootstrap.
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+spec:
+  distribution:
+    version: "2.x"
+    registry: ghcr.io/fluxcd
+  # Image automation is not installed: we pin image tags deliberately and review
+  # upgrades, so a controller that rewrites tags has nothing to do here (P6).
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+  cluster:
+    type: kubernetes
+    # This cluster's CNI (Flannel) enforces no NetworkPolicy — see adr/0103. Emitting
+    # policies that cannot take effect would only imply protection that is not there.
+    networkPolicy: false
+  sync:
+    kind: OCIRepository
+    url: oci://harbor.mijnbureau.haaijer.dev/office/config
+    ref: latest
+    path: clusters/demo
+    pullSecret: harbor-auth
+    interval: 5m

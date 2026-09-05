@@ -18,6 +18,25 @@ spec:
   storage:
     replicas: 1
     priorityClassName: office-data
+    # The image is FROM scratch with no USER, so every file under /data and /meta was
+    # created root:root (verified live: dirs 0755, files 0644, both no group-write). Root
+    # can always read/write regardless of ownership, so this has run fine so far — but it
+    # also means simply declaring non-root here would EACCES on every existing file.
+    # fsGroup is load-bearing, not decoration: Longhorn's CSIDriver reports
+    # fsGroupPolicy=ReadWriteOnceWithFSType, so on the next mount (this StatefulSet's
+    # single-replica restart) kubelet recursively chgrps AND chmods g+rwX both PVCs to
+    # this GID before the container starts — that is what makes uid 1000 able to write
+    # metadata/data it does not own. Without fsGroup here, the pod would crash-loop on
+    # first metadata write. No general-purpose initContainer hook exists on this CRD to
+    # do the chown by hand instead (checked v0.7.7's StorageSpec).
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+      seccompProfile: {type: RuntimeDefault}
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: ["ALL"]}
     # Sized for this node, not aspirationally: Longhorn has ~85Gi free with the legacy
     # stack still running, and Docs' entire media set is ~100MB. Growing a Longhorn
     # volume is an online expand; shrinking one is a rebuild.

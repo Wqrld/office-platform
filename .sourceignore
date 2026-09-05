@@ -1,4 +1,14 @@
 # Kept out of the Flux OCI artifact: these run in CI, never in the cluster. Everything the
-# cluster reads lives in infra/, platform/, apps/ and clusters/prod.
+# cluster reads lives in infra/, platform/, apps/, environments/ and clusters/.
 /.github/
 /updatecli/
+# The checks themselves, and the rules they run. Rendering, diffing, the binding check and
+# the size-profile assertions all read this repo from outside it; nothing in the cluster
+# reads them back.
+/tests/
+/policy/
+# The size-profile measuring tool and its pinned chart cache. `measure.py` renders and adds
+# up what a profile asks the scheduler for; it belongs in CI, and `.charts/` is hundreds of
+# megabytes of upstream Helm charts that must never travel in the config artifact.
+/measure.py
+/.charts/

@@ -1,0 +1,16 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata: {name: 20-infra, namespace: flux-system}
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  # The operators are not sized by profile: one cert-manager is one cert-manager whether it
+  # serves 5 people or 5,000, and an operator that is too small fails as "nothing
+  # reconciles", which is the worst thing to economise on.
+  path: ./infra
+  postBuild:
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]

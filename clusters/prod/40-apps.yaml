@@ -8,7 +8,11 @@ spec:
   prune: true
   wait: true
   sourceRef: {kind: OCIRepository, name: office-config}
-  path: ./apps
+  # The size profile, and the only place this cluster states one. `medium` is the identity
+  # profile — it renders byte-for-byte what `path: ./apps` rendered before profiles
+  # existed, which `./measure.py compare environments/medium/apps apps` asserts. Moving
+  # this cluster to another size is this line and nothing else.
+  path: ./environments/medium/apps
   dependsOn: [{name: 30-platform}]
   postBuild:
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]

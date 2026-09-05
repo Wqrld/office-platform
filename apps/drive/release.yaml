@@ -51,6 +51,13 @@ spec:
     backend:
       replicas: 1
       pdb: {enabled: false}          # one replica: a PDB here can only block a drain
+      # Chart default is `securityContext: null` — every backend-derived workload (this
+      # Deployment, both celery workloads, both Jobs) reuses this one value verbatim.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities: {drop: ["ALL"]}
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
       resources:
         requests: {cpu: 100m, memory: 640Mi}
         limits: {memory: 2Gi}
@@ -183,6 +190,11 @@ spec:
       image: {tag: v0.21.2}
       replicas: 1
       pdb: {enabled: false}
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities: {drop: ["ALL"]}
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
       resources:
         requests: {cpu: 50m, memory: 128Mi}
         limits: {memory: 512Mi}

@@ -1,3 +1,19 @@
+# PHASE 1 OF THE HANDOVER TO `platform-app`'s `mediaProxy` (adr/0109).
+#
+# These three objects are being handed to the `docs-platform` Helm release. Helm adopts an
+# existing object only when it already carries `app.kubernetes.io/managed-by: Helm` and the
+# two `meta.helm.sh/release-*` annotations naming the release that is claiming it; without
+# them the install fails with "invalid ownership metadata".
+#
+# `kustomize.toolkit.fluxcd.io/prune: disabled` is the other half, and it is what makes this
+# two versions rather than one: kustomize-controller prunes before helm-controller installs,
+# so deleting these manifests and adding the chart values in ONE version would delete the
+# live objects and let Helm build new ones. For a ConfigMap and a Deployment that is a
+# restart; the previous handover proved the pattern on objects where it would have been a
+# credential rotation. Same shape here, same order.
+#
+# Phase 2 deletes this file and adds `mediaProxy:` to surround.yaml.
+#
 # Escape hatch, logged as such (P5: used once).
 #
 # `/media` cannot be a plain route to either the backend or the object store. Docs serves
@@ -23,7 +39,12 @@ kind: ConfigMap
 metadata:
   name: docs-media-proxy
   namespace: office-docs
+  labels:
+    app.kubernetes.io/managed-by: Helm
   annotations:
+    meta.helm.sh/release-name: docs-platform
+    meta.helm.sh/release-namespace: office-docs
+    kustomize.toolkit.fluxcd.io/prune: disabled
     # nginx configuration is full of $variables and Flux's postBuild substitution would
     # expand every one of them to the empty string — $host, $request_uri and the
     # auth_request_set values all vanish, and the proxy silently serves 403s.
@@ -79,7 +100,13 @@ kind: Deployment
 metadata:
   name: docs-media-proxy
   namespace: office-docs
-  labels: {app.kubernetes.io/name: docs-media-proxy}
+  labels:
+    app.kubernetes.io/name: docs-media-proxy
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: docs-platform
+    meta.helm.sh/release-namespace: office-docs
+    kustomize.toolkit.fluxcd.io/prune: disabled
 spec:
   replicas: 1
   selector:
@@ -101,6 +128,7 @@ spec:
             - {name: http, containerPort: 8080}
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities: {drop: ["ALL"]}
           resources:
             requests: {cpu: 10m, memory: 32Mi}
@@ -110,13 +138,27 @@ spec:
             initialDelaySeconds: 3
           volumeMounts:
             - {name: conf, mountPath: /etc/nginx/conf.d}
+            - {name: cache, mountPath: /var/cache/nginx}
+            - {name: run, mountPath: /var/run}
+            - {name: tmp, mountPath: /tmp}
       volumes:
         - name: conf
           configMap: {name: docs-media-proxy}
+        - {name: cache, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
 ---
 apiVersion: v1
 kind: Service
-metadata: {name: docs-media-proxy, namespace: office-docs}
+metadata:
+  name: docs-media-proxy
+  namespace: office-docs
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: docs-platform
+    meta.helm.sh/release-namespace: office-docs
+    kustomize.toolkit.fluxcd.io/prune: disabled
 spec:
   selector: {app.kubernetes.io/name: docs-media-proxy}
   ports:

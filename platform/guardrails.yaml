@@ -1,0 +1,47 @@
+# Namespace guardrails for the platform's own namespaces.
+#
+# THESE LIMITRANGES SET `defaultRequest` AND NOTHING ELSE, AND THAT IS THE ENTIRE DESIGN.
+#
+# A LimitRange can reject a pod three ways — `min` too high, `max` too low, or a `max` that
+# forces a limit onto a container that then OOMKills. None of those is set here. A
+# LimitRange carrying only `defaultRequest` cannot refuse admission to anything: it fills in
+# a request where a container declared none, and is otherwise invisible. That is the
+# property that makes it safe to apply to a running platform and to a demo environment
+# alike.
+#
+# WHY IT IS NEEDED. `office-data` runs Postgres, Garage and both Valkeys, and not one of
+# those pods declares a request — verified live, the namespace accounts for 0m and 0Mi.
+# Kubernetes classes a pod with no requests as BestEffort, which means:
+#   - the scheduler believes the node is emptier than it is, and will keep packing it;
+#   - under memory pressure the kubelet evicts BestEffort pods FIRST — so the datastores
+#     every application depends on are the first things killed to save the applications.
+# Those two together are how a node that "had plenty of room" loses its database.
+#
+# The numbers are a floor, not a measurement: 50m/256Mi is roughly what an idle Garage or
+# Valkey holds and is well under Postgres. They exist to stop a container being accounted
+# at zero, not to size it. A workload that deserves a real number should carry its own
+# `resources` and ignore this entirely.
+#
+# CONSEQUENCE TO EXPECT ON AN EXISTING CLUSTER: a LimitRange applies at pod CREATION, so
+# nothing changes until each pod is next replaced. As they cycle, this cluster's accounted
+# requests rise by roughly 300m/1536Mi in `office-data` — capacity that was always being
+# used and never being counted. See `config/measure.py render environments/<size>/platform`.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: office-data
+spec:
+  limits:
+    - type: Container
+      defaultRequest: {cpu: 50m, memory: 256Mi}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: office-identity
+spec:
+  limits:
+    - type: Container
+      defaultRequest: {cpu: 50m, memory: 256Mi}

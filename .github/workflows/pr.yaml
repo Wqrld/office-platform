@@ -1,0 +1,250 @@
+# Everything that can be checked without a cluster, on every PR.
+#
+# Shape from 10-verification.md:
+#   config/ pr.yaml: flux build -> render-diff (all apps) -> binding check -> static rules
+#                    -> size-profile render -> policy -> kubeconform -> gitleaks
+#
+# Every job runs a script from tests/ or policy/ rather than inlining commands here, so the
+# same check runs identically on a laptop and in CI. A workflow that is the only place a
+# command exists is a workflow nobody can reproduce when it goes red.
+#
+# Two jobs need the charts repo beside this one — the surround is rendered from
+# ../platform/charts, not pulled from Harbor, because CI has no registry credentials and
+# because the question worth asking is whether the CURRENT charts still bind. Both
+# checkouts therefore live under the workspace as siblings, and every step that needs them
+# runs with `working-directory: config`.
+#
+# Tools are installed by pinned version with curl rather than through marketplace actions:
+# this repo already pins its actions to commit SHAs, and a version-pinned binary is the
+# same decision applied to the toolchain.
+name: pr
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUX_VERSION: "2.9.1"
+  HELM_VERSION: "3.19.2"
+  CONFTEST_VERSION: "0.61.2"
+  KUBECONFORM_VERSION: "0.7.0"
+  KUBECTL_VERSION: "1.34.2"
+  DYFF_VERSION: "1.12.0"
+  GITLEAKS_VERSION: "8.28.0"
+  GITLINT_VERSION: "0.19.1"
+  PLATFORM_REPO: platform
+
+jobs:
+  build:
+    name: flux build + kubeconform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+
+      - name: Install flux
+        run: |
+          curl -fsSL "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz" \
+            | tar xz -C /tmp flux
+          sudo install -m755 /tmp/flux /usr/local/bin/flux
+
+      - name: Install kubeconform
+        run: |
+          curl -fsSL -o /tmp/kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo install -m755 /tmp/kubeconform /usr/local/bin/kubeconform
+
+      - name: Install python deps
+        run: pip install --quiet pyyaml
+
+      # Builds every cluster the way Flux does and fails on any ${VAR} that survives. An
+      # unknown variable is an error nowhere else: Flux leaves it alone, kustomize is happy,
+      # the API server accepts it, and the app serves a hostname that resolves for nobody.
+      - name: flux build every layer
+        run: ./tests/build.sh built
+
+      - name: kubeconform
+        run: ./tests/kubeconform.sh built
+
+  render-diff:
+    name: render-diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          fetch-depth: 0    # both sides of the diff have to exist locally
+
+      - name: Install flux
+        run: |
+          curl -fsSL "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz" \
+            | tar xz -C /tmp flux
+          sudo install -m755 /tmp/flux /usr/local/bin/flux
+
+      - name: Install dyff
+        run: |
+          curl -fsSL -o /tmp/dyff.tar.gz \
+            "https://github.com/homeport/dyff/releases/download/v${DYFF_VERSION}/dyff_${DYFF_VERSION}_linux_amd64.tar.gz"
+          tar xzf /tmp/dyff.tar.gz -C /tmp dyff
+          sudo install -m755 /tmp/dyff /usr/local/bin/dyff
+
+      - name: Install python deps
+        run: pip install --quiet pyyaml
+
+      # Never fails the build: a render-diff has no opinion about whether a change is right,
+      # it makes the change visible. It goes in the job summary because a diff nobody reads
+      # is the same as no diff — this is the artefact the review is actually about.
+      - name: What this changes about what gets applied
+        run: |
+          {
+            echo '## render-diff'
+            echo
+            echo '```'
+            ./tests/render-diff.sh 2>&1
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  binding:
+    name: binding check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          path: config
+
+      # The surround charts, rendered from source. Deliberately the charts repo's default
+      # branch rather than the version this repo pins: the question is whether what we are
+      # about to release still attaches to the upstream releases we already run.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          repository: ${{ github.repository_owner }}/${{ env.PLATFORM_REPO }}
+          path: platform
+
+      - name: Install helm
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar xz -C /tmp linux-amd64/helm
+          sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
+
+      - name: Install python deps
+        run: pip install --quiet pyyaml
+
+      # Renders each upstream release at its pin together with our surround and asserts they
+      # still fit: every backendRef resolves to a Service on the port it names, and no
+      # upstream release emits a PDB, ServiceMonitor, HPA, NetworkPolicy or Ingress of its
+      # own. This is the one check that notices an upstream rename — our own output does not
+      # change at all, so goldens, render-diff and kubeconform are all green while the
+      # routes point at nothing. It fetches the pinned charts, so it needs network.
+      - name: binding
+        working-directory: config
+        run: ./tests/binding.py
+
+  profiles:
+    name: size profiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          path: config
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          repository: ${{ github.repository_owner }}/${{ env.PLATFORM_REPO }}
+          path: platform
+
+      - name: Install helm
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar xz -C /tmp linux-amd64/helm
+          sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
+
+      # `kubectl kustomize` is the kustomize build, components included. Pinned, because the
+      # profiles ARE kustomize components and a kustomize behaviour change would move every
+      # number this job checks.
+      - name: Install kubectl
+        run: |
+          curl -fsSL -o /tmp/kubectl \
+            "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          sudo install -m755 /tmp/kubectl /usr/local/bin/kubectl
+
+      - name: Install python deps
+        run: pip install --quiet pyyaml
+
+      # Renders all three profiles and asserts the invariants they claim: replicas > 1 comes
+      # with a PDB that really selects those pods, replicas == 1 comes with none, every PDB
+      # matches a live pod template, and the datastores are HA only where the profile says
+      # so. This does not prove the platform serves 5,000 people; it proves the profiles
+      # still say what they claim, which is the part that rots.
+      - name: profiles
+        working-directory: config
+        run: ./tests/profiles.py
+
+  policy:
+    name: static rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+
+      - name: Install conftest
+        run: |
+          curl -fsSL -o /tmp/conftest.tar.gz \
+            "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz"
+          tar xzf /tmp/conftest.tar.gz -C /tmp conftest
+          sudo install -m755 /tmp/conftest /usr/local/bin/conftest
+
+      # Both directions for every rule, and the rule tests run BEFORE the rules are applied
+      # to anything: a policy suite that has only ever seen compliant input is
+      # indistinguishable from an empty one.
+      - name: policy unit tests
+        run: conftest verify --policy policy
+
+      # Over the SOURCE files, not the built output — a pin lives in the source. These are
+      # decisions already made (adr/0003, adr/0012, the migration-retry rule from 04),
+      # encoded so they survive the person who made them.
+      - name: pins and remediation
+        run: conftest test --policy policy --parser yaml --all-namespaces apps/ platform/ clusters/ infra/
+
+  secrets:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          fetch-depth: 0     # history too: adr/0005 is about what ever reached git
+
+      - name: Install gitleaks
+        run: |
+          curl -fsSL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          sudo install -m755 /tmp/gitleaks /usr/local/bin/gitleaks
+
+      - name: Working tree
+        run: gitleaks dir . --no-banner --redact
+
+      - name: History
+        run: gitleaks git . --no-banner --redact
+
+  commits:
+    name: commit messages
+    runs-on: ubuntu-latest
+    # Only a PR has a range to lint. On a push to main the commits are already in.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Install gitlint
+        run: pip install --quiet "gitlint==${GITLINT_VERSION}"
+
+      # The gitmoji convention, enforced by .gitlint. `create-pull-request` in
+      # upstream-updates.yaml writes its commit in the same shape, so the bump PR passes
+      # this job like any other.
+      - name: gitlint
+        run: |
+          gitlint --commits "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"

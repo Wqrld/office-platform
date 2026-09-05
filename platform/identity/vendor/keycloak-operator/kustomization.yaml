@@ -46,3 +46,18 @@ patches:
       - op: replace
         path: /subjects/0/namespace
         value: office-identity
+
+  # Upstream ships the operator's own Deployment with no securityContext at all. The image
+  # (quay.io/keycloak/keycloak-operator) already runs as uid 1000 via its own Dockerfile
+  # USER directive, so this only enforces what is already true rather than changing
+  # behaviour. NOT setting readOnlyRootFilesystem here: fabric8's kubernetes-client can
+  # write a discovery/schema cache under $HOME (typically ~/.kube/cache) and that has not
+  # been verified against this image — test in a maintenance window before adding it.
+  - target: {kind: Deployment, name: keycloak-operator}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/securityContext
+        value: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      - op: add
+        path: /spec/template/spec/containers/0/securityContext
+        value: {allowPrivilegeEscalation: false, capabilities: {drop: ["ALL"]}}

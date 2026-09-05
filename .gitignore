@@ -1,3 +1,8 @@
 *.tgz
 charts/*/charts/
 .DS_Store
+# measure.py's pinned chart cache — rebuilt by `./measure.py fetch`.
+.charts/
+__pycache__/
+# Local build output — `./tests/build.sh built`, also what the CI job writes.
+built/

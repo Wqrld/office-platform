@@ -1,0 +1,92 @@
+# Upstream chart sources.
+#
+# IDENTICAL TO clusters/prod/sources.yaml, and that is deliberate: demo exists to rehearse
+# what prod will run, so it runs the same pins. If these two files ever diverge, demo has
+# stopped being a rehearsal and has become a second thing to maintain — which is the
+# failure mode the whole environments/ mechanism is built to avoid. Keep them in step, or
+# fold them into a shared file when a third environment appears.
+#
+# La Suite publishes no Helm repository, so its charts come from pinned git tags — see
+# platform/docs/adr/0104.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: cloudnative-pg, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://cloudnative-pg.github.io/charts
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: external-secrets, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://charts.external-secrets.io
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: valkey, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://valkey.io/valkey-helm/
+---
+# Chart lives in-tree at src/helm/impress; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: suitenumerique-docs, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/docs
+  ref: {tag: v5.5.0}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Chart lives in-tree at src/helm/drive; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: suitenumerique-drive, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/drive
+  ref: {tag: v0.21.2}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Collabora is the exception to adr/0104: it is not a La Suite application and it DOES
+# publish a chart repository, so it is an ordinary pinned HelmRelease.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: collabora, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://collaboraonline.github.io/online
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: garage-operator, namespace: flux-system}
+spec:
+  interval: 24h
+  type: oci
+  url: oci://ghcr.io/rajsinghtech/charts
+---
+# Our own charts. Pinned exactly, never a semver range in prod (05-app-contract.md).
+# Published by platform/scripts/publish.sh; platform-lib is vendored into the two
+# application charts at package time, so nothing references it directly.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata: {name: platform-deps, namespace: flux-system}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
+  ref: {tag: "0.2.4"}
+  secretRef: {name: harbor-auth}
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata: {name: platform-app, namespace: flux-system}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  ref: {tag: "0.2.4"}
+  secretRef: {name: harbor-auth}

@@ -1,0 +1,11 @@
+# Environment selector: the `large` profile over the shared application set.
+#
+# This directory is the whole environment mechanism. A cluster does not get its own copy of
+# the apps — it points its `40-apps` Kustomization at one of these three paths, and the
+# profile is the only difference. `clusters/<env>/40-apps.yaml`.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../apps
+components:
+  - ../../../apps/overlays/size-large
