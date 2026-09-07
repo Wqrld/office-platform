@@ -1,0 +1,64 @@
+# Release 1 of 3: everything Calendars must have before it starts.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: calendars-deps, namespace: office-calendars}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  values:
+    app: calendars
+    baseDomain: ${BASE_DOMAIN}
+
+    # One database, two schemas: Django owns `public` and SabreDAV's tables go in `sabre`.
+    # The caldav container reads the same credentials under PG* names — see release.yaml.
+    postgres: {enabled: true, env: django}
+
+    # THREE URLs, which is why this app has its own profile. Dramatiq keeps task results in
+    # a second store, and DRAMATIQ_RESULT_BACKEND_URL carries the password, so it cannot be
+    # assembled from `valueFrom` in release.yaml — it has to come out of this Secret.
+    #
+    # `results` points at the CACHE instance, not the broker. Results are held for 30 days;
+    # on the broker (`noeviction`, by design) a filled result set stops the queue, while on
+    # the cache (`allkeys-lru`) a lost result is a `/tasks/<id>/` poll that returns nothing.
+    # That is the cheaper failure. Same instance as `cache`, so it is the same ACL user and
+    # one password draw — a separate `db` only keeps result payloads out of the session keys.
+    cache:
+      enabled: true
+      env: dramatiq
+      uses: [cache, broker, results]
+      instances:
+        results:
+          host: valkey-cache.office-data.svc.cluster.local
+          port: 6379
+          db: 2
+          credentialSecret: valkey-cache-acl
+
+    # Open provisioning, like Drive and unlike Docs: there is no restored user table here,
+    # so a realm user who has never logged in has to be created on first login.
+    oidc: {enabled: true, createUser: true}
+
+    # The bare EMAIL_* spelling, not Docs' and Drive's DJANGO_-prefixed one: this settings
+    # module passes `environ_prefix=None` on every mail value, and its from-address is
+    # Django's stock DEFAULT_FROM_EMAIL. The relay account itself is applied by hand into
+    # office-data once and is not in git — docs/bootstrap.md.
+    smtp: {enabled: true, env: django}
+
+    # Both blocks are ORDERED LISTS, and neither can ever gain an entry: `refreshInterval:
+    # "0"` means written once and never again, not "re-draw on a spec change", so a variable
+    # added later never appears while ESO keeps reporting `secret synced`. Everything these
+    # two objects will ever hold has to be here before the first install.
+    generated:
+      calendars-django:
+        - {env: DJANGO_SECRET_KEY, draw: secretkey}
+        - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
+        # SALT_KEY derives Fernet keys from SECRET_KEY (PBKDF2) for the EncryptedJSONField
+        # that holds channel tokens. Its upstream default is the literal string
+        # `calendars-default-salt-change-in-production`. Generate-once is exactly right:
+        # rotating it makes every stored token undecryptable, with no error at write time.
+        - {env: SALT_KEY, draw: salt}
+      # Three keys read by BOTH Django and SabreDAV, so both pods envFrom this one Secret.
+      # Never three literals in the HelmRelease: they would be in git and they would drift.
+      calendars-caldav:
+        - {env: CALDAV_INBOUND_API_KEY,  draw: inbound}
+        - {env: CALDAV_OUTBOUND_API_KEY, draw: outbound}
+        - {env: CALDAV_INTERNAL_API_KEY, draw: internal}

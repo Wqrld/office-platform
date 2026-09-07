@@ -84,3 +84,53 @@ spec:
     - {name: ltree, ensure: present}
     - {name: pg_trgm, ensure: present}
     - {name: unaccent, ensure: present}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata: {name: find, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: find
+  ensure: present
+  login: true
+  passwordSecret: {name: find-db}
+---
+# No extensions. Find's Postgres holds only the Service registry and Django's own tables;
+# the documents and the index live in OpenSearch.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: find, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: find
+  owner: find
+  ensure: present
+  databaseReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata: {name: calendars, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: calendars
+  ensure: present
+  login: true
+  passwordSecret: {name: calendars-db}
+---
+# No extensions. ONE database, TWO schemas: Django owns `public`, and SabreDAV's tables go
+# in `sabre` (CALDAV_DB_SCHEMA), created by the caldav initdb Job as the owning role. So
+# there is no second Database object for the CalDAV half.
+#
+# `init-database.sh` opens `PGDATABASE=postgres` first, to create the target database if it
+# is missing. CNPG has already created `calendars`, so nothing is created — but the role
+# still needs CONNECT on `postgres`, which PUBLIC grants by default on a stock cluster.
+# If that grant is ever revoked, this Job is the thing that breaks.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: calendars, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: calendars
+  owner: calendars
+  ensure: present
+  databaseReclaimPolicy: retain

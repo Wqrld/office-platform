@@ -1,7 +1,7 @@
 # config
 
 Flux-reconciled configuration for the office platform. Thin by design: the charts live in
-the `platform` repo and arrive as versioned OCI artifacts.
+the `helm-charts` repo and arrive as versioned OCI artifacts.
 
 ```
 clusters/prod/   Flux entrypoint — sources, vars, four ordered Kustomizations
@@ -27,11 +27,26 @@ the check you can run here:
 | `conftest verify --policy policy` | do the static rules still fire, both directions? |
 | `conftest test --policy policy --parser yaml --all-namespaces apps/ platform/ clusters/ infra/` | are the pins and remediation settings still as decided? |
 
-`binding.py` and `profiles.py` render our own charts from `../platform/charts`, so they need
+`binding.py` and `profiles.py` render our own charts from `../helm-charts/charts`, so they need
 the charts repo checked out beside this one, and they fetch the pinned upstream charts, so
 they need network. Everything else is offline.
 
 Nothing here needs a cluster. What does — bootstrap-from-scratch, the upgrade test, the auth
 smoke test, external-mode rotation — is nightly, and is not written yet.
+
+## DNS
+
+`./dns.py [cluster] [--check] [--zone]` prints the records a cluster needs, read out of the
+config that will use them: the Gateway certificate's SAN list and every HTTPRoute hostname,
+including the ones `platform-app` renders from `routes[].host`. `--check` resolves each one
+and reports what disagrees.
+
+Create them all *before* the first release: Let's Encrypt fails the whole certificate if a
+single SAN fails validation, so one mispointed record is an outage for every application.
+
+## Runbooks
+
+`docs/bootstrap.md` — empty VM to a serving platform, with what is required and what is not.
+`docs/gateway-cutover.md` — moving the public IP off an existing ingress controller.
 
 Licence: EUPL-1.2.

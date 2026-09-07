@@ -73,3 +73,12 @@ ERROR: No password found for user drive
 The Deployment sits in `Init:CrashLoopBackOff` with the previous pod still serving, the
 HelmRelease times out, and `30-platform` goes unhealthy. Loud and non-destructive — the
 running cache is never interrupted.
+
+## One user needs more than the shared shape
+
+Every ACL user here is `~* &* +@all -@dangerous`, plus `+flushdb` on the cache. Calendars'
+BROKER user also carries `+keys`: Dramatiq dispatches through a Lua script that calls `KEYS`,
+which is in `@dangerous`. Celery does not, so this is the first application to need it.
+
+The symptom if it is ever dropped is quiet — `ACL failure in script` in the worker log and a
+queue that never drains, with the pod still Ready.

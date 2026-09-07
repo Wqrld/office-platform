@@ -70,11 +70,12 @@ spec:
         DJANGO_CORS_ALLOWED_ORIGINS: https://drive.${BASE_DOMAIN}
         DJANGO_CORS_ALLOW_ALL_ORIGINS: "false"
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
-        # No SMTP yet. `console` logs the mail instead of failing the request, so an
-        # invitation still creates the access — it just does not notify.
-        DJANGO_EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+        # Branding, and nothing else about mail. DJANGO_EMAIL_BACKEND, _HOST, _PORT,
+        # _HOST_USER, _HOST_PASSWORD, _USE_TLS/_SSL and _FROM all arrive in `drive-smtp`,
+        # attached by the post-renderer below. THEY MUST NOT ALSO BE SET HERE: a
+        # container's `env` beats `envFrom` for the same name, so a leftover line here
+        # would silently override the relay.
         DJANGO_EMAIL_BRAND_NAME: Office
-        DJANGO_EMAIL_FROM: noreply@${BASE_DOMAIN}
         DJANGO_LANGUAGE_CODE: nl-nl    # prefixed, unlike Docs' bare LANGUAGE_CODE
 
         MEDIA_BASE_URL: https://drive.${BASE_DOMAIN}
@@ -94,6 +95,9 @@ spec:
         # no runtime override. Hidden, and replaced by our own through FRONTEND_JS_URL —
         # the only hook the page offers. `switcher.js`, served by `staticFiles`.
         FRONTEND_HIDE_GAUFRE: "true"
+        # Skips the intermediate login-advertising page on a 401: the frontend retries
+        # OIDC auth silently and only falls back to the manual login screen if that fails.
+        FRONTEND_SILENT_LOGIN_ENABLED: "true"
         FRONTEND_JS_URL: https://drive.${BASE_DOMAIN}/custom/switcher.js
         MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
 
@@ -202,7 +206,7 @@ spec:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://drive.${BASE_DOMAIN}
 
-  # The chart has no `envFrom`, so drive-deps' five Secrets are attached after rendering
+  # The chart has no `envFrom`, so drive-deps' six Secrets are attached after rendering
   # rather than as ~40 `secretKeyRef` entries.
   #
   # THE NAME SELECTOR IS THE SECURITY BOUNDARY. kustomize matches `name` as a FULL-STRING
@@ -222,6 +226,7 @@ spec:
                   - {secretRef: {name: drive-s3}}
                   - {secretRef: {name: drive-oidc}}
                   - {secretRef: {name: drive-django}}
+                  - {secretRef: {name: drive-smtp}}
           # A CronJob buries the pod spec a level deeper and no target spans both shapes.
           - target: {kind: CronJob, name: "drive-backend.*"}
             patch: |
@@ -233,3 +238,4 @@ spec:
                   - {secretRef: {name: drive-s3}}
                   - {secretRef: {name: drive-oidc}}
                   - {secretRef: {name: drive-django}}
+                  - {secretRef: {name: drive-smtp}}

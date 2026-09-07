@@ -40,11 +40,23 @@ spec:
   placeholders:
     CLIENT_SECRET_DOCS:  {secret: {name: oidc-client-docs, key: secret}}
     CLIENT_SECRET_DRIVE: {secret: {name: oidc-client-drive, key: secret}}
+    CLIENT_SECRET_FIND:  {secret: {name: oidc-client-find, key: secret}}
+    CLIENT_SECRET_CALENDARS: {secret: {name: oidc-client-calendars, key: secret}}
     PW_LFHAAIJER:      {secret: {name: realm-user-passwords, key: l.f.haaijer}}
     PW_KEROELOFS:      {secret: {name: realm-user-passwords, key: k.e.roelofs}}
     PW_OADAMS:         {secret: {name: realm-user-passwords, key: o.adams}}
     PW_RIRUPERT:       {secret: {name: realm-user-passwords, key: r.i.rupert}}
     PW_SMOLINAGARCIA:  {secret: {name: realm-user-passwords, key: s.molinagarcia}}
+    # The relay account, read into this namespace by smtp.yaml. Placeholders are the only
+    # way a secret reaches the realm, and smtpServer is a map of STRINGS in the CRD — hence
+    # the TLS flags travelling as "true"/"false" rather than as booleans.
+    SMTP_HOST:     {secret: {name: smtp-credentials, key: host}}
+    SMTP_PORT:     {secret: {name: smtp-credentials, key: port}}
+    SMTP_USER:     {secret: {name: smtp-credentials, key: username}}
+    SMTP_PASSWORD: {secret: {name: smtp-credentials, key: password}}
+    SMTP_STARTTLS: {secret: {name: smtp-credentials, key: useTLS}}
+    SMTP_SSL:      {secret: {name: smtp-credentials, key: useSSL}}
+    SMTP_FROM:     {secret: {name: smtp-credentials, key: from}}
   realm:
     realm: office
     displayName: Office
@@ -55,9 +67,40 @@ spec:
     registrationAllowed: false
     editUsernameAllowed: false
     loginWithEmailAllowed: true
+    # Needs smtpServer below, and is worthless without it: without a relay the "Forgot
+    # password?" link renders and then fails on the send. `verifyEmail` stays OFF — turning
+    # it on retroactively locks every existing user out until they verify.
+    resetPasswordAllowed: true
     duplicateEmailsAllowed: false
     rememberMe: true
     revokeRefreshToken: true
+    # Rotation stays on, but zero reuse cannot survive a browser. Docs searches as you type,
+    # so several XHRs hit the refresh middleware at once; the first rotates the token and
+    # the rest present the consumed one. Keycloak answers "Maximum allowed refresh token
+    # reuse exceeded", then "Session doesn't have required client" for everything after —
+    # the session is dead and every search 401s until the user logs in again.
+    refreshTokenMaxReuse: 3
+    # Outbound mail. Every value is a placeholder resolved at import time except the display
+    # name — none of the relay's details are in git, not even the host.
+    #
+    # `$${NAME}` and not `${NAME}`: the second is Flux's own postBuild syntax and would be
+    # blanked before Keycloak ever saw it. See the header of this file.
+    #
+    # 587/STARTTLS or 465/SSL, never 25: outbound TCP 25 is blocked by this platform's
+    # provider (measured). The two flags are mutually exclusive and both come from the one
+    # hand-applied Secret, so the realm cannot disagree with the applications about which
+    # of them is in use.
+    smtpServer:
+      host: "$${SMTP_HOST}"
+      port: "$${SMTP_PORT}"
+      from: "$${SMTP_FROM}"
+      fromDisplayName: Office
+      auth: "true"
+      user: "$${SMTP_USER}"
+      password: "$${SMTP_PASSWORD}"
+      starttls: "$${SMTP_STARTTLS}"
+      ssl: "$${SMTP_SSL}"
+
     internationalizationEnabled: true
     supportedLocales: [en, nl]
     defaultLocale: nl
@@ -102,6 +145,26 @@ spec:
           frontchannel.logout.url: https://docs.${BASE_DOMAIN}/api/v1.0/logout/
           frontchannel.logout.session.required: "false"
           post.logout.redirect.uris: https://docs.${BASE_DOMAIN}/*
+          # Per-client, and it MUST exceed 900. At login mozilla-django-oidc sets
+          # `oidc_id_token_expiration = now + OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS`, whose
+          # default is 900s and which Docs does not expose — so the refresh middleware does
+          # nothing for the first 15 minutes. At the realm's 300s the token dies at minute 5
+          # and search silently falls back to titles until minute 15. After the first
+          # refresh lasuite tracks the real `expires_in`, so only the first window is wrong.
+          # The realm default stays 300s for every other client.
+          access.token.lifespan: "1200"
+        # Puts `find` in the access token's `aud`. Without it Keycloak refuses to introspect
+        # a Docs token for Find and returns `active: false` — Find 400s, and Docs swallows
+        # that into the title-only search fallback. Verified: a freshly minted token
+        # introspects as inactive until this mapper exists.
+        protocolMappers:
+          - name: find-audience
+            protocol: openid-connect
+            protocolMapper: oidc-audience-mapper
+            config:
+              included.client.audience: find
+              access.token.claim: "true"
+              id.token.claim: "false"
       # Drive. Same shape as Docs — a confidential browser client, no password grant, no
       # service account. Collabora is NOT a client here: it never talks to Keycloak. It is
       # handed a short-lived WOPI access token minted by Drive, and it authenticates back to
@@ -131,6 +194,52 @@ spec:
           frontchannel.logout.url: https://drive.${BASE_DOMAIN}/api/v1.0/logout/
           frontchannel.logout.session.required: "false"
           post.logout.redirect.uris: https://drive.${BASE_DOMAIN}/*
+      - clientId: calendars
+        name: Calendars
+        description: Calendars — agenda's delen en vergaderingen plannen
+        enabled: true
+        alwaysDisplayInConsole: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "$${CLIENT_SECRET_CALENDARS}"
+        rootUrl: https://calendars.${BASE_DOMAIN}
+        baseUrl: https://calendars.${BASE_DOMAIN}
+        adminUrl: https://calendars.${BASE_DOMAIN}
+        redirectUris: ["https://calendars.${BASE_DOMAIN}/*"]
+        webOrigins: ["https://calendars.${BASE_DOMAIN}"]
+        standardFlowEnabled: true
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        frontchannelLogout: true
+        attributes:
+          backchannel.logout.url: https://calendars.${BASE_DOMAIN}/api/v1.0/logout/
+          backchannel.logout.session.required: "true"
+          frontchannel.logout.url: https://calendars.${BASE_DOMAIN}/api/v1.0/logout/
+          frontchannel.logout.session.required: "false"
+          post.logout.redirect.uris: https://calendars.${BASE_DOMAIN}/*
+      # Find is a resource SERVER, not a login client: it only introspects access tokens
+      # other clients already issued. So no browser ever reaches it, and it needs no grant
+      # of its own — a confidential client authenticates to the introspection endpoint with
+      # its secret alone. Hence no rootUrl, no redirectUris, no logout attributes, and every
+      # flow off.
+      #
+      # `clientId` is also the audience Find resolves its searchable indices from, so it
+      # must stay `find` and must match config/apps/find/deps.yaml's OIDC_RS_CLIENT_ID.
+      - clientId: find
+        name: Find
+        description: Find — zoeken over alle applicaties
+        enabled: true
+        alwaysDisplayInConsole: false
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "$${CLIENT_SECRET_FIND}"
+        standardFlowEnabled: false
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
     # These emails are load-bearing: the restored Docs database identifies users by
     # `sub` first and falls back to email, so an email that does not match here orphans
     # that user's documents. Taken from `select email from impress_user`.

@@ -6,8 +6,9 @@
  * hook the page offers, so the switcher is rebuilt in ~80 lines rather than left pointing
  * at another country's services.
  *
- * Keep the service list here in step with Docs' `waffle.data.services`; that list and this
- * one are the only places the suite's inventory is stated to users.
+ * Keep the service list here in step with the other two: Docs' `waffle.data.services` and
+ * `apps/calendars/services.json`. One list per switcher, and an application added to one and
+ * not the rest is missing from a switcher.
  */
 (function () {
   "use strict";

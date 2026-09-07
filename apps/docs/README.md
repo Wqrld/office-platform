@@ -78,8 +78,9 @@ about:
 - **`waffle.data.services`** — our own list, served from our own domains, no external call.
   This is what is configured.
 
-Add an entry per application as it lands; this list is the only place the suite's inventory
-is stated to users.
+Add an entry per application as it lands. This is one of three lists of the same services,
+one per switcher: `apps/drive/switcher.js` and `apps/calendars/services.json` are the others.
+An application added to one and not the rest is missing from a switcher.
 
 ## Restoring the legacy data
 

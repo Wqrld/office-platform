@@ -168,7 +168,9 @@ an item stuck in `analyzing`. Worth a one-line PR upstream (`.get("ContentType")
 `static.suite.anct.gouv.fr` and reads the French government's service list; both the script
 path and the API URL are compiled into the frontend bundle (`cunningham-tokens.ts`) and
 selected only by theme name, so there is no runtime way to point it at our own services.
-Docs' switcher is where this platform's inventory is stated.
+Calendars, whose gaufre takes both as runtime settings, does not need any of this — it
+keeps its own button and is pointed at our own files (`apps/calendars/README.md`). Drive is
+the one application where the list has to be restated in JavaScript.
 
 `FRONTEND_JS_URL` is the hook if we ever want one here — it injects a script of ours into
 the page, which is how mijn-bureau replaced the gaufre with their own button.

@@ -1,5 +1,5 @@
 # Upstream chart sources. La Suite publishes no Helm repository, so its charts come
-# from pinned git tags — see platform/docs/adr/0104.
+# from pinned git tags — see helm-charts/docs/adr/0104.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata: {name: cloudnative-pg, namespace: flux-system}
@@ -20,6 +20,13 @@ metadata: {name: valkey, namespace: flux-system}
 spec:
   interval: 24h
   url: https://valkey.io/valkey-helm/
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: opensearch, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://opensearch-project.github.io/helm-charts
 ---
 # Chart lives in-tree at src/helm/impress; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -45,6 +52,20 @@ spec:
     /*
     !/src/helm
 ---
+# Chart lives in-tree at src/helm/find; there is no tag to pin. `suitenumerique/find` has
+# never cut a release — zero git tags — so this is the one source pinned to a COMMIT, the
+# single departure from adr/0104. See config/apps/find/README.md.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: suitenumerique-find, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/find
+  ref: {branch: main, commit: 025e6d02ea08c46ef831a70f0ae1a41036c5a7c9}
+  ignore: |
+    /*
+    !/src/helm
+---
 # Collabora is the exception to adr/0104: it is not a La Suite application and it DOES
 # publish a chart repository, so it is an ordinary pinned HelmRelease.
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -53,6 +74,31 @@ metadata: {name: collabora, namespace: flux-system}
 spec:
   interval: 24h
   url: https://collaboraonline.github.io/online
+---
+# Calendars. The chart is written IN the application's own repo (src/helm/calendars) the way
+# adr/0104 expects, but it is not in any upstream tag yet — v0.1.0 predates it and the
+# upstreaming PR is open. Rather than pin a moving branch (which policy/pins.rego denies,
+# correctly) or make a second commit-pin exception of Find's, that chart is packaged and
+# published to our own Helm repository, and consumed here as an ordinary versioned chart.
+#
+# When the PR lands this becomes a GitRepository on suitenumerique/calendars at a tag, and
+# apps/calendars/release.yaml's `chart.spec` is the only other thing that changes.
+#
+# The IMAGES come from the same fork, and have to. `dockerflow`, which serves the
+# `/__heartbeat__` and `/__lbheartbeat__` probes this chart configures, was added after
+# upstream's `v0.1.0`, and upstream's own `:main` tag was last built months before it — so
+# every published upstream image 404s the chart's default probes. The fork's `v0.1.1`
+# carries the chart commit plus the CI fix that makes those images run non-root.
+#
+# The chart version and the image tags stay independent pins: the chart declares
+# `appVersion: latest`, and the images are tagged from git tags with the `v` stripped
+# (`v0.1.1` publishes `…-backend:0.1.1`). See updatecli/updatecli.d/calendars.yaml.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata: {name: calendars, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://gh.haaijer.dev
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
@@ -63,7 +109,7 @@ spec:
   url: oci://ghcr.io/rajsinghtech/charts
 ---
 # Our own charts. Pinned exactly, never a semver range in prod (05-app-contract.md).
-# Published by platform/scripts/publish.sh; platform-lib is vendored into the two
+# Published by helm-charts/scripts/publish.sh; platform-lib is vendored into the two
 # application charts at package time, so nothing references it directly.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -71,7 +117,7 @@ metadata: {name: platform-deps, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
-  ref: {tag: "0.2.4"}
+  ref: {tag: "0.2.7"}
   secretRef: {name: harbor-auth}
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -80,5 +126,5 @@ metadata: {name: platform-app, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
-  ref: {tag: "0.2.4"}
+  ref: {tag: "0.2.7"}
   secretRef: {name: harbor-auth}

@@ -1,0 +1,39 @@
+# Release 1 of 4: everything Find must have before it starts.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: find-deps, namespace: office-find}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  values:
+    app: find
+    baseDomain: ${BASE_DOMAIN}
+
+    postgres: {enabled: true, env: django}
+
+    # Cache only. Find has no Celery tasks, so it never needs a broker.
+    cache: {enabled: true, env: django, uses: [cache]}
+
+    opensearch: {enabled: true, env: find, indexPrefix: find}
+
+    # Find is a resource SERVER: it validates access tokens other clients issued, and logs
+    # nobody in. The login half of this block is emitted and unused.
+    oidc:
+      enabled: true
+      createUser: false
+      extraEnv:
+        # Must equal the `iss` in Keycloak's introspection response BYTE FOR BYTE. Keycloak
+        # returns the external issuer even when the call arrives on the internal Service, so
+        # this URL and the endpoint below deliberately disagree. A mismatch fails every
+        # search and reads exactly like a wrong client secret.
+        OIDC_OP_URL: https://id.${BASE_DOMAIN}/realms/office
+        OIDC_OP_INTROSPECTION_ENDPOINT: http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token/introspect
+        OIDC_RS_CLIENT_ID: find
+        # Resolved by ESO, not by Helm: `extraEnv` values pass through into the target
+        # template, so the client secret still never reaches Helm values (adr/0005).
+        OIDC_RS_CLIENT_SECRET: "{{ .secret }}"
+        OIDC_RS_SCOPES: openid
+
+    generated:
+      find-django:
+        - {env: DJANGO_SECRET_KEY, draw: secretkey}

@@ -1,0 +1,69 @@
+# Calendars has TWO independent pins, and they are shaped differently on purpose.
+#
+#   * the CHART comes from our own Helm repository, because the chart lives in the
+#     application's repo but is not in any upstream tag yet (clusters/prod/sources.yaml);
+#   * the IMAGES come from THE SAME FORK's git tags, with the leading `v` STRIPPED —
+#     `docker-publish.yml` uses `type=semver,pattern={{version}}`, so `v0.1.1` publishes
+#     `…-backend:0.1.1`. Docs and Drive publish and are pinned as `v5.5.0`, so the shared
+#     pattern in docs.yaml does not fit and cannot be reused.
+#
+# THE SOURCE IS THE FORK, NOT UPSTREAM, and pointing it at `suitenumerique/calendars` would
+# be a silent DOWNGRADE: upstream's newest tag is v0.1.0, which predates the `dockerflow`
+# health endpoints the chart's probes need. See apps/calendars/README.md.
+#
+# When the upstreaming PR lands and upstream cuts a release carrying both the chart and
+# these endpoints, this whole file goes back to `suitenumerique/calendars` and the chart
+# target becomes a GitRepository tag like Docs'.
+name: "La Suite Calendars"
+
+sources:
+  release:
+    name: "latest Calendars release"
+    kind: gittag
+    spec:
+      url: "https://github.com/Wqrld/calendars"
+      versionfilter:
+        kind: semver
+        pattern: ">=0.1.1"
+    # The tag is `vX.Y.Z` and the image tag is `X.Y.Z`. Strip it here rather than in the
+    # target, so the transformed value is what every target sees.
+    transformers:
+      - trimprefix: "v"
+
+  chart:
+    name: "latest calendars chart"
+    kind: helmchart
+    spec:
+      url: "https://gh.haaijer.dev"
+      name: calendars
+      versionfilter:
+        kind: semver
+        pattern: ">=0.1.0"
+
+targets:
+  # sources.yaml holds several documents and updatecli's yamlpath engine writes to EVERY
+  # document whose path matches — there is no document selector. So this is a text match,
+  # anchored to the chart name on the preceding line for the same reason docs.yaml is
+  # anchored to a repository URL: an unanchored `version:` pattern once rewrote Drive's pin
+  # to a Docs version.
+  chart:
+    name: "HelmRelease chart version"
+    kind: file
+    sourceid: chart
+    spec:
+      file: "apps/calendars/release.yaml"
+      matchpattern: 'chart: calendars\n      version: "[0-9]+\.[0-9]+\.[0-9]+"'
+      replacepattern: 'chart: calendars\n      version: "{{ source "chart" }}"'
+
+  # Three tags in one file — backend (the top-level `image`), frontend and caldav. One
+  # pattern rather than three yamlpath keys because they must never hold different values:
+  # a partial match is not a state worth being able to express. Quoted and without a `v`,
+  # which is also what keeps this pattern away from Docs' and Drive's `tag: vX.Y.Z` pins.
+  images:
+    name: "workload image tags"
+    kind: file
+    sourceid: release
+    spec:
+      file: "apps/calendars/release.yaml"
+      matchpattern: 'tag: "[0-9]+\.[0-9]+\.[0-9]+"'
+      replacepattern: 'tag: "{{ source "release" }}"'

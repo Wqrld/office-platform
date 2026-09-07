@@ -24,3 +24,11 @@ spec:
     # The Garage S3 API, published for ONE bucket so Drive's browser uploads can be
     # presigned against a host the browser can reach — platform/docs/adr/0110.
     - s3.${BASE_DOMAIN}
+    # Find. No browser reaches it, but Docs does — over the public URL, because a
+    # pod-to-pod call carries no X-Forwarded-Proto and Find 301s it (apps/find/README.md).
+    # Without this SAN the handshake fails and search silently falls back to title-only.
+    - find.${BASE_DOMAIN}
+    # Calendars. A browser reaches this one directly, and it is also the host CalDAV
+    # clients (Thunderbird, iOS) connect to — so an unlisted SAN is not a quiet
+    # degradation here, it is every client failing the handshake at once.
+    - calendars.${BASE_DOMAIN}

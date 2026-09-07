@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-calendars
+  labels:
+    # The Gateway's allowedRoutes selector. Without it the HTTPRoutes in surround.yaml are
+    # silently ignored — they report no error, they simply never attach.
+    office.haaijer.dev/gateway-access: "true"
+    # `baseline`, not `restricted`, and for once that is load-bearing rather than habit:
+    # the caldav pod runs Apache bound to :80, so it keeps NET_BIND_SERVICE and is the one
+    # workload on this platform that is not runAsNonRoot. `restricted` stays on audit/warn
+    # and WILL flag it — that is the documented exception, not a regression.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

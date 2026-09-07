@@ -75,6 +75,9 @@ spec:
         - {secretRef: {name: docs-oidc}}
         - {secretRef: {name: docs-django}}
         - {secretRef: {name: docs-collaboration}}
+        - {secretRef: {name: docs-search}}
+        - {secretRef: {name: docs-oidc-refresh}}
+        - {secretRef: {name: docs-smtp}}
       envVars:
         DJANGO_SETTINGS_MODULE: impress.settings
         DJANGO_CONFIGURATION: Production
@@ -83,12 +86,14 @@ spec:
         DJANGO_CORS_ALLOWED_ORIGINS: https://docs.${BASE_DOMAIN}
         DJANGO_CORS_ALLOW_ALL_ORIGINS: "false"
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
-        DJANGO_EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
         # The "Welcome to Docs" marketing homepage. Off: the entry point for this platform
         # is the document list, and an anonymous visitor gets the login page.
         FRONTEND_HOMEPAGE_FEATURE_ENABLED: "false"
+        # Branding, and nothing else about mail. DJANGO_EMAIL_BACKEND, _HOST, _PORT,
+        # _HOST_USER, _HOST_PASSWORD, _USE_TLS/_SSL and _FROM all arrive in `docs-smtp`
+        # above. THEY MUST NOT ALSO BE SET HERE: a container's `env` beats `envFrom` for
+        # the same name, so a leftover line here would silently override the relay.
         DJANGO_EMAIL_BRAND_NAME: Office
-        DJANGO_EMAIL_FROM: noreply@${BASE_DOMAIN}
         LANGUAGE_CODE: nl-nl
         MEDIA_BASE_URL: https://docs.${BASE_DOMAIN}
         LOGIN_REDIRECT_URL: https://docs.${BASE_DOMAIN}
@@ -110,6 +115,14 @@ spec:
         LOGGING_LEVEL_LOGGERS_APP: INFO
         LOGGING_LEVEL_LOGGERS_ROOT: INFO
         MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
+        # Full-text search through Find. PUBLIC urls, not the cluster Service: Find's
+        # Production settings 301 a request that arrives without X-Forwarded-Proto, and
+        # `requests` downgrades a 301'd POST to a GET — so a pod-to-pod call silently
+        # indexes nothing. See config/apps/find/surround.yaml.
+        SEARCH_INDEXER_CLASS: core.services.search_indexers.FindDocumentIndexer
+        SEARCH_INDEXER_COUNTDOWN: "10"   # Celery debounce; 0 makes every save synchronous
+        INDEXING_URL: https://find.${BASE_DOMAIN}/api/v1.0/documents/index/
+        SEARCH_URL: https://find.${BASE_DOMAIN}/api/v1.0/documents/search/
         STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
         SPECTACULAR_SETTINGS_ENABLE_DJANGO_DEPLOY_CHECK: "false"
         # The rendered theme JSON is cached in Redis for a day. Editing the values below
@@ -144,6 +157,29 @@ spec:
             user.save()
             print("superuser ready:", email)
             PY
+      # WITHOUT THIS THE WHOLE FEATURE IS DARK: `_get_search_type()` returns TITLE and Docs
+      # never calls Find at all. The chart's generic job slot was unused (`command: []`), so
+      # no extraObjects escape hatch is needed. The `waffle_flag` CLI is unreliable — use
+      # the ORM. Hook annotations for the same immutability reason as Find's migrate Job.
+      job:
+        name: search-flags
+        annotations:
+          helm.sh/hook: post-install,post-upgrade
+          helm.sh/hook-delete-policy: before-hook-creation
+        command:
+          - /bin/sh
+          - -c
+          - |
+            python manage.py shell <<'PY'
+            from waffle.models import Flag
+
+            flag, _ = Flag.objects.update_or_create(
+                name="flag_find_full_text_search",
+                defaults={"everyone": True},
+            )
+            print("flag ready:", flag.name, flag.everyone)
+            PY
+
       celery:
         replicas: 1
         # The chart's default args carry no --concurrency, so Celery preforks one process
@@ -196,8 +232,10 @@ spec:
           # `waffle.apiUrl` it renders the French government's service list. This is the
           # third option: our own services, served from our own domains, no call out to
           # lasuite.numerique.gouv.fr at any point.
-          # Add an entry here as each application lands — it is the only place the suite's
-          # inventory is stated to users.
+          # Add an entry here as each application lands. This is one of THREE lists of the
+          # same services — `apps/drive/switcher.js` and `apps/calendars/services.json` are
+          # the others, one per switcher — and an application added to one and not the rest
+          # is missing from a switcher.
           waffle:
             label: Office
             showMoreLimit: 9
@@ -213,6 +251,11 @@ spec:
                   # Drive ships no `icon-docs.svg` equivalent; `logo-icon_beta.svg` is the mark its own
                   # header renders (cunningham-tokens.ts), served from the frontend at /assets.
                   logo: https://drive.${BASE_DOMAIN}/assets/logo-icon_beta.svg
+                - name: Calendars
+                  url: https://calendars.${BASE_DOMAIN}
+                  maturity: beta
+                  # Calendars' own favicon, served by its frontend from /favicon.png.
+                  logo: https://calendars.${BASE_DOMAIN}/favicon.png
                 - name: Account
                   url: https://id.${BASE_DOMAIN}/realms/office/account
                   maturity: stable

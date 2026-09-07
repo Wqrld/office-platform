@@ -88,6 +88,27 @@ def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[s
     return docs_in(out.stdout)
 
 
+def git_checkout(url: str, ref: dict, dest: pathlib.Path) -> None:
+    """Shallow-checkout a GitRepository ref, which may be a tag OR a bare commit.
+
+    `--branch` takes a branch or a tag and rejects a SHA, so a commit pin needs the
+    fetch-then-checkout form. Find is pinned that way because upstream has never cut a
+    release — see config/apps/find/README.md.
+    """
+    if tag := ref.get("tag"):
+        subprocess.run(["git", "clone", "--depth", "1", "--branch", tag, "--quiet", url, str(dest)],
+                       check=True, capture_output=True, text=True)
+        return
+
+    commit = ref["commit"]
+    dest.mkdir(parents=True)
+    for cmd in (["git", "init", "--quiet"],
+                ["git", "remote", "add", "origin", url],
+                ["git", "fetch", "--depth", "1", "--quiet", "origin", commit],
+                ["git", "checkout", "--quiet", "FETCH_HEAD"]):
+        subprocess.run(cmd, cwd=dest, check=True, capture_output=True, text=True)
+
+
 def fetch_upstream(rel: dict, srcs: dict, work: pathlib.Path) -> str | None:
     """Return a local chart path for a HelmRelease's chart, fetching the pinned version."""
     spec = rel["spec"]
@@ -100,14 +121,9 @@ def fetch_upstream(rel: dict, srcs: dict, work: pathlib.Path) -> str | None:
 
     if src["kind"] == "GitRepository":
         ref = src["spec"]["ref"]
-        pin = ref.get("tag") or ref.get("commit")
         dest = work / src["metadata"]["name"]
         if not dest.exists():
-            subprocess.run(
-                ["git", "clone", "--depth", "1", "--branch", pin, "--quiet",
-                 src["spec"]["url"], str(dest)],
-                check=True, capture_output=True, text=True,
-            )
+            git_checkout(src["spec"]["url"], ref, dest)
         return str(dest / cs["chart"])
 
     if src["kind"] == "HelmRepository":
@@ -131,11 +147,11 @@ def fetch_upstream(rel: dict, srcs: dict, work: pathlib.Path) -> str | None:
 
 
 def local_chart(rel: dict) -> str | None:
-    """Our own charts, rendered from ../platform rather than pulled from Harbor."""
+    """Our own charts, rendered from ../helm-charts rather than pulled from Harbor."""
     ref = rel["spec"].get("chartRef")
     if not ref:
         return None
-    p = HERE.parent / "platform" / "charts" / ref["name"]
+    p = HERE.parent / "helm-charts" / "charts" / ref["name"]
     return str(p) if p.is_dir() else None
 
 
@@ -177,7 +193,7 @@ def check_app(app_dir: pathlib.Path, srcs: dict, work: pathlib.Path, bd: str) ->
             # lie that sends the reader looking in the wrong repo.
             problems.append(
                 f"{app}/{name}: chartRef {rel['spec']['chartRef']['name']!r} did not resolve to a "
-                f"chart under ../platform/charts — the binding check needs the platform repo "
+                f"chart under ../helm-charts/charts — the binding check needs the helm-charts repo "
                 f"checked out beside this one"
             )
             continue

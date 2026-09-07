@@ -14,6 +14,6 @@ answer at all.
 Regenerate them when garage-operator is bumped. A stale schema validates the old shape and
 passes, which is worse than skipping it, because it looks like coverage.
 
-`platform/tests/schemas/` in the charts repo vendors GarageBucket and GarageKey for the same
+`helm-charts/tests/schemas/` vendors GarageBucket and GarageKey for the same
 reason; the split is by which repo emits the kind. Everything else — Flux's own kinds, CNPG,
 Keycloak, ExternalSecret, the Gateway API — comes from the catalog at run time.

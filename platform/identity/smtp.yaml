@@ -1,0 +1,26 @@
+# The relay account, read into Keycloak's namespace.
+#
+# It is applied by hand into office-data exactly once (docs/bootstrap.md) — an SMTP account
+# is issued by a mail provider, so it is one of the two credentials on this platform that
+# cannot be generated in-cluster. This is the same office-data bridge the applications use
+# through platform-deps; the difference is only that Keycloak wants a realm placeholder
+# rather than an env var, so the keys stay canonical and realm.yaml does the spelling.
+#
+# `refreshInterval` is a real interval, not the `"0"` of the generate-once objects: nothing
+# here is drawn, so re-reading it is how a rotated relay password reaches the cluster. The
+# realm still has to be told — `./set-smtp.sh`.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: smtp-credentials, namespace: office-identity}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target: {name: smtp-credentials, creationPolicy: Owner}
+  data:
+    - {secretKey: host,     remoteRef: {key: smtp-credentials, property: host}}
+    - {secretKey: port,     remoteRef: {key: smtp-credentials, property: port}}
+    - {secretKey: username, remoteRef: {key: smtp-credentials, property: username}}
+    - {secretKey: password, remoteRef: {key: smtp-credentials, property: password}}
+    - {secretKey: useTLS,   remoteRef: {key: smtp-credentials, property: useTLS}}
+    - {secretKey: useSSL,   remoteRef: {key: smtp-credentials, property: useSSL}}
+    - {secretKey: from,     remoteRef: {key: smtp-credentials, property: from}}

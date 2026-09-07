@@ -1,0 +1,16 @@
+# The mirror image of config/apps/find/token.yaml: the same one value in office-data, read
+# into the key name Docs' indexer expects.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: docs-search, namespace: office-docs}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: docs-search
+    creationPolicy: Owner
+    template:
+      data:
+        SEARCH_INDEXER_SECRET: "{{ .docs }}"
+  data:
+    - {secretKey: docs, remoteRef: {key: find-service-tokens, property: docs}}

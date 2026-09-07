@@ -1,0 +1,133 @@
+# Release 3 of 4: Find, from the upstream in-tree chart at `src/helm/find`.
+#
+# Pinned to a COMMIT, not a tag — the one departure from adr/0104. `suitenumerique/find` has
+# never cut a release: zero git tags, and one floating `main` image on Docker Hub. See
+# README.md.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: find
+  namespace: office-find
+spec:
+  interval: 30m
+  dependsOn: [{name: find-deps}]
+  chart:
+    spec:
+      chart: src/helm/find
+      sourceRef: {kind: GitRepository, name: suitenumerique-find, namespace: flux-system}
+      # ChartVersion, NOT Revision as Docs and Drive use. `Revision` appends the commit to
+      # the chart version, and Find's helper does `replace "+" "_"` on it to build the
+      # migrate Job's name — yielding `find-backend-migrate-0.0.4_025e6d02ea08`, which the
+      # API server rejects.
+      #
+      # Cost: a commit bump alone no longer triggers an upgrade. Covered because
+      # updatecli.d/find.yaml moves the commit and the digest below together, and the digest
+      # is in this spec. Keep those two targets in one manifest.
+      reconcileStrategy: ChartVersion
+  install:
+    disableWaitForJobs: true
+  upgrade:
+    disableWaitForJobs: true
+    remediation:
+      # A rollback reverts the code and leaves the schema migrated. Also required by
+      # config/policy/pins.rego for any release carrying a migrate job.
+      retries: 0
+
+  # The chart concatenates `repository:tag`, so a digest cannot be expressed in `image.*`.
+  # This states the pin without forking the chart. The two references — the GitRepository
+  # commit and this digest — correspond today and nothing enforces that they keep doing so.
+  postRenderers:
+    - kustomize:
+        images:
+          - name: lasuite/find
+            digest: sha256:37cf17a3c45759136b600cd3b22839030310ec1e79f974b568e5f1839cba7469
+
+  values:
+    image:
+      # NOT the chart default. It ships `lasuite/find-backend`, which does not exist on
+      # Docker Hub — the published image is `lasuite/find`. Left alone this is an
+      # ImagePullBackOff on a repository that has never existed.
+      repository: lasuite/find
+      tag: main
+
+    # Routing is ours — surround.yaml. Both are already false at this commit; stated anyway
+    # so a default flip upstream cannot quietly publish an unauthenticated path.
+    ingress: {enabled: false}
+    ingressAdmin: {enabled: false}
+
+    backend:
+      replicas: 1                    # the chart defaults to 3
+      resources:
+        requests: {cpu: 50m, memory: 384Mi}
+        limits: {memory: 1Gi}
+
+      # The Job is named `find-backend-migrate-<chartVersion>`, which never moves, and a
+      # Job's spec.template is immutable — so without a hook annotation every env change
+      # fails the upgrade with `field is immutable`. `before-hook-creation` deletes the
+      # previous Job first. The chart threads these straight through.
+      migrateJobAnnotations:
+        helm.sh/hook: pre-install,pre-upgrade
+        helm.sh/hook-delete-policy: before-hook-creation
+
+      # Migrate, then register Docs as a service. Idempotent, because this runs on every
+      # upgrade. `client_id` MUST be `docs`, matching the Keycloak client: Find resolves the
+      # searchable indices from the introspected audience, so a mismatch indexes fine and
+      # 400s on search — which Docs swallows into a silent title-search fallback.
+      migrate:
+        command:
+          - /bin/sh
+          - -c
+          - |
+            python manage.py migrate --no-input
+            python manage.py shell <<'PY'
+            import os
+            from core.models import Service
+
+            service, _ = Service.objects.update_or_create(
+                name="docs",
+                defaults={
+                    "token": os.environ["FIND_SERVICE_TOKEN_DOCS"],
+                    "client_id": "docs",
+                    "is_active": True,
+                },
+            )
+            print("service registered:", service.name, service.client_id)
+            PY
+
+      # The chart has no `envFrom`, so every variable is an explicit reference. Verbose, but
+      # it keeps secrets out of git. This one map feeds the Deployment AND the migrate Job,
+      # which is what puts the service token in front of the registration step above.
+      envVars:
+        DJANGO_SETTINGS_MODULE: find.settings
+        DJANGO_CONFIGURATION: Production
+        DJANGO_ALLOWED_HOSTS: find.${BASE_DOMAIN}
+        DJANGO_SECRET_KEY: {secretKeyRef: {name: find-django, key: DJANGO_SECRET_KEY}}
+        LOGGING_LEVEL_LOGGERS_APP: INFO
+        LOGGING_LEVEL_LOGGERS_ROOT: INFO
+
+        DB_ENGINE:   {secretKeyRef: {name: find-postgres, key: DB_ENGINE}}
+        DB_HOST:     {secretKeyRef: {name: find-postgres, key: DB_HOST}}
+        DB_PORT:     {secretKeyRef: {name: find-postgres, key: DB_PORT}}
+        DB_NAME:     {secretKeyRef: {name: find-postgres, key: DB_NAME}}
+        DB_USER:     {secretKeyRef: {name: find-postgres, key: DB_USER}}
+        DB_PASSWORD: {secretKeyRef: {name: find-postgres, key: DB_PASSWORD}}
+
+        REDIS_URL: {secretKeyRef: {name: find-cache, key: REDIS_URL}}
+
+        OPENSEARCH_HOST:         {secretKeyRef: {name: find-opensearch, key: OPENSEARCH_HOST}}
+        OPENSEARCH_PORT:         {secretKeyRef: {name: find-opensearch, key: OPENSEARCH_PORT}}
+        OPENSEARCH_USER:         {secretKeyRef: {name: find-opensearch, key: OPENSEARCH_USER}}
+        OPENSEARCH_PASSWORD:     {secretKeyRef: {name: find-opensearch, key: OPENSEARCH_PASSWORD}}
+        OPENSEARCH_USE_SSL:      {secretKeyRef: {name: find-opensearch, key: OPENSEARCH_USE_SSL}}
+        OPENSEARCH_INDEX_PREFIX: {secretKeyRef: {name: find-opensearch, key: OPENSEARCH_INDEX_PREFIX}}
+
+        # Find introspects with plain RFC 7662 JSON, so the OIDC_RS_ENCRYPTION_* set and
+        # OIDC_RS_PRIVATE_KEY_STR that the mijn-bureau reference configures are not needed —
+        # that is a different backend class.
+        OIDC_OP_URL:                    {secretKeyRef: {name: find-oidc, key: OIDC_OP_URL}}
+        OIDC_OP_INTROSPECTION_ENDPOINT: {secretKeyRef: {name: find-oidc, key: OIDC_OP_INTROSPECTION_ENDPOINT}}
+        OIDC_RS_CLIENT_ID:              {secretKeyRef: {name: find-oidc, key: OIDC_RS_CLIENT_ID}}
+        OIDC_RS_CLIENT_SECRET:          {secretKeyRef: {name: find-oidc, key: OIDC_RS_CLIENT_SECRET}}
+        OIDC_RS_SCOPES:                 {secretKeyRef: {name: find-oidc, key: OIDC_RS_SCOPES}}
+
+        FIND_SERVICE_TOKEN_DOCS: {secretKeyRef: {name: find-service-token, key: FIND_SERVICE_TOKEN_DOCS}}

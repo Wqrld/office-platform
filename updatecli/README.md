@@ -90,7 +90,7 @@ comment in the same commit — atomically, so the two can never disagree. The
 same weekly PR; it is also safe to run by hand.
 
 **Our own artifacts.** `platform-deps`, `platform-app` and `office-config` are released by
-`platform/scripts/publish.sh` and `release.sh`. They are pins, but they are ours.
+`helm-charts/scripts/publish.sh` and `release.sh`. They are pins, but they are ours.
 
 ## A bump is not live when it merges
 

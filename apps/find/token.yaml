@@ -1,0 +1,21 @@
+# Release 2 of 4: the Docs↔Find service token.
+#
+# Plain rather than a `platform-deps.generated` entry because the value must be SHARED with
+# Docs, and `generated` draws a fresh one per call. The mirror image of this object is
+# config/apps/docs/search-token.yaml; both read the one value in office-data.
+#
+# Promote this to a chart feature if a second app-to-app token ever appears.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: find-service-token, namespace: office-find}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: find-service-token
+    creationPolicy: Owner
+    template:
+      data:
+        FIND_SERVICE_TOKEN_DOCS: "{{ .docs }}"
+  data:
+    - {secretKey: docs, remoteRef: {key: find-service-tokens, property: docs}}

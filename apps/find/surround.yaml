@@ -1,0 +1,36 @@
+# Release 4 of 4: the surround.
+#
+# ONE route. Not `/`, not `/api`, not `/admin` — the mijn-bureau reference publishes all
+# three; here the Django admin is reachable by port-forward only.
+#
+# It has to be published at all (rather than reached pod-to-pod) because Find's Production
+# settings set SECURE_SSL_REDIRECT with SECURE_PROXY_SSL_HEADER: a direct pod-to-pod call
+# carries no X-Forwarded-Proto, so Django 301s and `requests` downgrades the 301'd POST to a
+# GET. Indexing then silently does nothing.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: find-platform, namespace: office-find}
+spec:
+  interval: 30m
+  dependsOn: [{name: find}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  values:
+    app: find
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      - host: find
+        backend: {name: find-backend, port: 80}
+        paths: [/api/v1.0/documents/]
+
+    # Emitted, NOT enforced (adr/0103). Do not cite it as segmentation.
+    networkPolicy:
+      enabled: true
+      egress:
+        - {datastore: postgres}
+        - {datastore: cache}
+        - {datastore: opensearch}
+        - {identity: true}
+        - {external: true, port: 443}
+
+    pdb: {enabled: false}

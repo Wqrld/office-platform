@@ -53,6 +53,7 @@ spec:
         - {datastore: cache}
         - {datastore: objectstore}
         - {identity: true}
+        # Covers Find, which Docs reaches at its PUBLIC url rather than pod-to-pod.
         - {external: true, port: 443}
 
     # One replica at this size, so no PDB: it could only block drains.

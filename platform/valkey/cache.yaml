@@ -32,3 +32,5 @@ spec:
         default:   {permissions: "off -@all"}
         docs:      {permissions: "~* &* +@all -@dangerous +flushdb"}
         drive:     {permissions: "~* &* +@all -@dangerous +flushdb"}
+        find:      {permissions: "~* &* +@all -@dangerous +flushdb"}
+        calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}

@@ -50,6 +50,44 @@ spec:
     - sourceRef:
         generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
 ---
+# The `find` client secret. Find never logs anyone in; it presents this at Keycloak's
+# introspection endpoint to validate the access tokens Docs forwards.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: oidc-client-find, namespace: office-identity}
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-find
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
+---
+# The `calendars` client secret. Same shape as `docs` and `drive`: a login client, so the
+# realm import writes this value into Keycloak and the application reads it back.
+#
+# It has to EXIST before `add-client.sh calendars` runs — the script reads it out of this
+# Secret to build the client body, because the realm import is import-once and adding the
+# client to realm.yaml creates nothing on a realm that is already imported.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: oidc-client-calendars, namespace: office-identity}
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-calendars
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
+---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: keycloak-db, namespace: office-identity}

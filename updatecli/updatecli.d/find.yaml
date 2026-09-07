@@ -1,0 +1,45 @@
+# Find has no releases at all — zero git tags — so there is no version to track. What moves
+# is the HEAD of `main`, and the two pins that must move together with it: the GitRepository
+# commit in sources.yaml and the image digest in the release's post-renderer.
+#
+# They are two independent references to the same upstream state and nothing enforces that
+# they correspond. Keeping them in ONE manifest is what makes a bump a single reviewable
+# change rather than two that can half-land.
+name: "La Suite Find"
+
+sources:
+  commit:
+    name: "HEAD of find/main"
+    kind: gitbranch
+    spec:
+      url: "https://github.com/suitenumerique/find"
+      branch: main
+
+  digest:
+    name: "digest of lasuite/find:main"
+    kind: dockerdigest
+    spec:
+      image: "lasuite/find"
+      tag: main
+
+targets:
+  # Anchored to the repository URL for the same reason docs.yaml is: sources.yaml holds
+  # several GitRepositories and an unanchored pattern already rewrote Drive's tag to a Docs
+  # version once.
+  chart:
+    name: "GitRepository commit"
+    kind: file
+    sourceid: commit
+    spec:
+      file: "clusters/prod/sources.yaml"
+      matchpattern: 'url: https://github\.com/suitenumerique/find\n  ref: \{branch: main, commit: [0-9a-f]{40}\}'
+      replacepattern: 'url: https://github.com/suitenumerique/find\n  ref: {branch: main, commit: {{ source "commit" }}}'
+
+  image:
+    name: "post-renderer image digest"
+    kind: file
+    sourceid: digest
+    spec:
+      file: "apps/find/release.yaml"
+      matchpattern: 'digest: sha256:[0-9a-f]{64}'
+      replacepattern: 'digest: {{ source "digest" }}'

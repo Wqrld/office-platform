@@ -86,6 +86,53 @@ patches:
   # needs the chart's `reverseProxy` sidecar and a WOPI proof key, which is a design change,
   # not a profile entry.
 
+  - target: {kind: HelmRelease, name: find, namespace: office-find}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: find, namespace: office-find}
+      spec:
+        values:
+          backend:
+            replicas: 3
+            resources:
+              requests: {cpu: 250m, memory: 512Mi}
+              limits: {memory: 1536Mi}
+
+  - target: {kind: HelmRelease, name: calendars, namespace: office-calendars}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: calendars, namespace: office-calendars}
+      spec:
+        values:
+          backend:
+            replicas: 3
+            resources:
+              requests: {cpu: 500m, memory: 1Gi}
+              limits: {memory: 3Gi}
+            envVars:
+              WORKER_CONCURRENCY: "4"
+            worker:
+              replicas: 2
+              resources:
+                requests: {cpu: 250m, memory: 768Mi}
+                limits: {memory: 2Gi}
+          frontend:
+            replicas: 3
+            resources:
+              requests: {cpu: 100m, memory: 128Mi}
+              limits: {memory: 384Mi}
+          # caldav stays at ONE, and not because it is stateful — every byte it owns is in
+          # Postgres. It stays at one because nothing here has ever run two of them, and a
+          # second SabreDAV is only reached through Django's proxy anyway, so the capacity
+          # it would add is capacity the backend has to feed it first. Raise it with the
+          # backend, after measuring, and add its PDB in the same edit.
+          caldav:
+            resources:
+              requests: {cpu: 100m, memory: 256Mi}
+              limits: {memory: 1Gi}
+
   # PDBs belong to the surround, not to the upstream chart: `platform-app` is the one
   # release that owns routes, policy and disruption budgets (05-app-contract.md), and the
   # upstream charts each spell their own PDB differently. Enabling both would give every
@@ -151,3 +198,46 @@ patches:
               celery-default:
                 {app.kubernetes.io/name: drive, app.kubernetes.io/instance: drive,
                  app.kubernetes.io/component: backend-celery-worker-default}
+
+  # Find scales above one replica above, so it needs a budget here — the pairing
+  # tests/profiles.py asserts. One component, so one entry.
+  - target: {kind: HelmRelease, name: find-platform, namespace: office-find}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: find-platform, namespace: office-find}
+      spec:
+        values:
+          pdb:
+            enabled: true
+            maxUnavailable: 1
+            components:
+              backend:
+                {app.kubernetes.io/name: find, app.kubernetes.io/instance: find,
+                 app.kubernetes.io/component: backend}
+
+  - target: {kind: HelmRelease, name: calendars-platform, namespace: office-calendars}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: calendars-platform, namespace: office-calendars}
+      spec:
+        values:
+          pdb:
+            enabled: true
+            maxUnavailable: 1
+            components:
+              # Read off the render, not guessed. The worker's component label is `worker`
+              # even though its values key is `backend.worker`, and its Deployment is
+              # `calendars-worker`, not `calendars-backend-worker`. `caldav` is absent on
+              # purpose: it is still at one replica above, and tests/profiles.py fails a
+              # PDB that selects a single-replica workload.
+              backend:
+                {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
+                 app.kubernetes.io/component: backend}
+              frontend:
+                {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
+                 app.kubernetes.io/component: frontend}
+              worker:
+                {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
+                 app.kubernetes.io/component: worker}

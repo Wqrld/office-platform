@@ -9,7 +9,7 @@
 # command exists is a workflow nobody can reproduce when it goes red.
 #
 # Two jobs need the charts repo beside this one — the surround is rendered from
-# ../platform/charts, not pulled from Harbor, because CI has no registry credentials and
+# ../helm-charts/charts, not pulled from Harbor, because CI has no registry credentials and
 # because the question worth asking is whether the CURRENT charts still bind. Both
 # checkouts therefore live under the workspace as siblings, and every step that needs them
 # runs with `working-directory: config`.
@@ -37,7 +37,7 @@ env:
   DYFF_VERSION: "1.12.0"
   GITLEAKS_VERSION: "8.28.0"
   GITLINT_VERSION: "0.19.1"
-  PLATFORM_REPO: platform
+  CHARTS_REPO: helm-charts
 
 jobs:
   build:
@@ -121,8 +121,8 @@ jobs:
       # about to release still attaches to the upstream releases we already run.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
-          repository: ${{ github.repository_owner }}/${{ env.PLATFORM_REPO }}
-          path: platform
+          repository: ${{ github.repository_owner }}/${{ env.CHARTS_REPO }}
+          path: helm-charts
 
       - name: Install helm
         run: |
@@ -153,8 +153,8 @@ jobs:
 
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
-          repository: ${{ github.repository_owner }}/${{ env.PLATFORM_REPO }}
-          path: platform
+          repository: ${{ github.repository_owner }}/${{ env.CHARTS_REPO }}
+          path: helm-charts
 
       - name: Install helm
         run: |

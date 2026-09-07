@@ -80,6 +80,39 @@ the backchannel/frontchannel logout attributes, and the client id comes from
 `metadata.name`. Reconciling a client continuously is worth having, but not at the cost of
 silently dropping single-logout.
 
+## Configuring SMTP on a realm that is already imported
+
+Same consequence again, and the reason the platform had no password-reset path for so long:
+**adding `smtpServer` to `realm.yaml` does not configure mail.** `realm.yaml` stays the
+source of truth so a clean reimport produces a realm that can send, but on this cluster the
+realm already exists, so it has to be applied once through the admin API:
+
+```sh
+./set-smtp.sh
+```
+
+It reads `smtpServer` (and `resetPasswordAllowed`) straight out of `realm.yaml`, resolves the
+`$${SMTP_*}` placeholders from the `smtp-credentials` Secret in this namespace — the same
+Secret the import would have read — and PUTs the merged realm back.
+
+Two differences from `add-client.sh`, both deliberate:
+
+- **It PUTs rather than refusing to touch what exists.** There is no generated secret here
+  that a re-run could replace with a different value, so re-asserting what git says is the
+  right behaviour. Run it again after rotating the relay password; that is its real use.
+- **It reads the whole realm and puts the whole realm back.** A bare `{"smtpServer": …}` is
+  a RealmRepresentation with every other field absent, and the fields in this realm were
+  tuned deliberately — the brute-force thresholds, `refreshTokenMaxReuse: 3`. Not worth
+  finding out which of them reset.
+
+Confirm by sending, not by looking: Keycloak masks the SMTP password on read, so the admin
+console's **Realm settings → Email → Test connection** is the check, followed by a real
+"Forgot password?" from the login page.
+
+The relay account itself is applied by hand into `office-data` once and read into this
+namespace by `smtp.yaml` — see `docs/bootstrap.md` step 4b. Nothing about it is in git, not
+even the host.
+
 ## Placeholder syntax
 
 Two forms look right and are not:

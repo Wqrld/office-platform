@@ -28,3 +28,13 @@ spec:
         default:   {permissions: "off -@all"}
         docs:      {permissions: "~* &* +@all -@dangerous"}
         drive:     {permissions: "~* &* +@all -@dangerous"}
+        # `+keys` on top of the shared shape, and ONLY here. Dramatiq's dispatch is a Lua
+        # script that calls KEYS, which lives in @dangerous — so the worker fails with
+        # `ACL failure in script: User calendars has no permissions to run the 'keys'
+        # command` and retries forever, three seconds at a time. Celery never calls KEYS,
+        # which is why Docs and Drive have never needed this.
+        #
+        # It grants no reach these users do not already have: every pattern here is `~*`.
+        # It does make the case for narrowing those patterns sharper, since KEYS turns
+        # "can read any key" into "can enumerate every key" — see README.md.
+        calendars: {permissions: "~* &* +@all -@dangerous +keys"}

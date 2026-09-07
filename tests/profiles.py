@@ -72,8 +72,8 @@ def render_releases(docs: list[dict], srcs: dict, work: pathlib.Path, base_domai
         values = binding.substitute(rel["spec"].get("values") or {}, base_domain)
         chart = binding.local_chart(rel)
         if chart is None and rel["spec"].get("chartRef"):
-            problems.append(f"{ns}/{name}: chartRef did not resolve under ../platform/charts — "
-                            f"this check needs the platform repo checked out beside this one")
+            problems.append(f"{ns}/{name}: chartRef did not resolve under ../helm-charts/charts — "
+                            f"this check needs the helm-charts repo checked out beside this one")
             continue
         if chart is None:
             try:

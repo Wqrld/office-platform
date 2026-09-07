@@ -1,0 +1,62 @@
+# An internal CA, private to this cluster. The Let's Encrypt ClusterIssuer in
+# gateway/clusterissuer.yaml issues for public names and cannot sign a `.svc.cluster.local`.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata: {name: opensearch-selfsign, namespace: office-data}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: {name: opensearch-ca, namespace: office-data}
+spec:
+  isCA: true
+  commonName: opensearch-ca
+  secretName: opensearch-ca
+  duration: 87600h      # 10y. Rotating this means re-issuing both leaves and restarting.
+  renewBefore: 8760h
+  privateKey: {algorithm: RSA, size: 4096, encoding: PKCS8}
+  issuerRef: {name: opensearch-selfsign, kind: Issuer}
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata: {name: opensearch-ca, namespace: office-data}
+spec:
+  ca: {secretName: opensearch-ca}
+---
+# Serves the REST layer and identifies the node on the transport layer.
+#
+# PKCS8 is load-bearing: the security plugin cannot parse cert-manager's default PKCS1 key
+# and the node dies at startup on an unhelpful "Unable to read the private key".
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: {name: opensearch-node, namespace: office-data}
+spec:
+  secretName: opensearch-node-tls
+  commonName: opensearch-cluster-master
+  subject: {organizations: [office]}
+  privateKey: {algorithm: RSA, size: 2048, encoding: PKCS8}
+  usages: [server auth, client auth, digital signature, key encipherment]
+  dnsNames:
+    - opensearch-cluster-master
+    - opensearch-cluster-master.office-data
+    - opensearch-cluster-master.office-data.svc
+    - opensearch-cluster-master.office-data.svc.cluster.local
+    - opensearch-cluster-master-headless
+    - opensearch-cluster-master-headless.office-data.svc.cluster.local
+  issuerRef: {name: opensearch-ca, kind: Issuer}
+---
+# The admin certificate. Nothing uses it in steady state — it is the only way to change the
+# security config once the `.opendistro_security` index exists, because
+# `allow_default_init_securityindex` seeds that index and then never looks at the files
+# again. See README.md, "Changing the security config".
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: {name: opensearch-admin, namespace: office-data}
+spec:
+  secretName: opensearch-admin-tls
+  commonName: opensearch-admin
+  subject: {organizations: [office]}
+  privateKey: {algorithm: RSA, size: 2048, encoding: PKCS8}
+  usages: [client auth, digital signature, key encipherment]
+  issuerRef: {name: opensearch-ca, kind: Issuer}

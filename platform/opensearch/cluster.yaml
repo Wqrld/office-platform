@@ -1,0 +1,89 @@
+# One shared OpenSearch for every application that needs full-text search; today that is
+# Find alone, on the `find-*` index pattern. Per-app isolation is the index prefix plus an
+# internal user whose role grants only that prefix — adr/0111.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: opensearch, namespace: office-data}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: opensearch
+      version: "3.8.0"
+      sourceRef: {kind: HelmRepository, name: opensearch, namespace: flux-system}
+  install: {disableWaitForJobs: true}
+  upgrade: {disableWaitForJobs: true}
+  values:
+    singleNode: true
+    replicas: 1
+    priorityClassName: office-data
+
+    # Pinned separately from the chart, which would otherwise take the tag from its
+    # appVersion and move the server on a chart bump.
+    image:
+      tag: "3.8.0"
+
+    # The chart asks for 1000m and 100Mi. The first is more than this node should promise
+    # to an idle search server; the second is below the JVM heap set below, which is how a
+    # pod gets OOMKilled while its request claims it needs nothing.
+    resources:
+      requests: {cpu: 200m, memory: 1Gi}
+    opensearchJavaOpts: "-Xmx1g -Xms1g"
+
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: ${STORAGE_CLASS}
+      # The fsgroup-volume initContainer, whose image defaults to `busybox:latest`.
+      imageTag: "1.37.0"
+
+    # sysctlInit would run a privileged initContainer to raise vm.max_map_count, which this
+    # namespace's baseline PSA refuses. It is not needed: the node is already at 1048576.
+    sysctlInit: {enabled: false}
+
+    extraEnvs:
+      # We supply certificates and a security config, so the image must not install its
+      # demo ones. Leaving this unset also makes the image demand
+      # OPENSEARCH_INITIAL_ADMIN_PASSWORD and refuse to start without it.
+      - name: DISABLE_INSTALL_DEMO_CONFIG
+        value: "true"
+
+    secretMounts:
+      - name: node-tls
+        secretName: opensearch-node-tls
+        path: /usr/share/opensearch/config/certs
+      - name: admin-tls
+        secretName: opensearch-admin-tls
+        path: /usr/share/opensearch/config/admin-certs
+
+    securityConfig:
+      enabled: true
+      config:
+        # Rendered by ESO so the bcrypt hash of the `find` password never enters git —
+        # platform/secrets/opensearch-users.yaml.
+        securityConfigSecret: opensearch-security-config
+
+    config:
+      # Replaces the chart's default file wholesale. Paths are relative to the config dir.
+      opensearch.yml: |
+        cluster.name: opensearch-cluster
+        network.host: 0.0.0.0
+
+        plugins.security.ssl.transport.pemcert_filepath: certs/tls.crt
+        plugins.security.ssl.transport.pemkey_filepath: certs/tls.key
+        plugins.security.ssl.transport.pemtrustedcas_filepath: certs/ca.crt
+        plugins.security.ssl.transport.enforce_hostname_verification: false
+
+        plugins.security.ssl.http.enabled: true
+        plugins.security.ssl.http.pemcert_filepath: certs/tls.crt
+        plugins.security.ssl.http.pemkey_filepath: certs/tls.key
+        plugins.security.ssl.http.pemtrustedcas_filepath: certs/ca.crt
+
+        # Seeds .opendistro_security from the mounted files on FIRST boot only.
+        plugins.security.allow_default_init_securityindex: true
+        plugins.security.nodes_dn:
+          - "CN=opensearch-cluster-master,O=office"
+        plugins.security.authcz.admin_dn:
+          - "CN=opensearch-admin,O=office"
+        plugins.security.audit.type: internal_opensearch
+        plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]

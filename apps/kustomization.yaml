@@ -15,15 +15,30 @@ resources:
   - drive/deps.yaml
   - drive/release.yaml
   - drive/surround.yaml
+  # Find before Docs: Docs' search-flags Job and its reindex both assume Find exists.
+  - find/namespace.yaml
+  - find/deps.yaml
+  - find/token.yaml
+  - find/release.yaml
+  - find/surround.yaml
   - docs/namespace.yaml
   - docs/deps.yaml
+  - docs/search-token.yaml
+  - docs/oidc-refresh-key.yaml
   - docs/release.yaml
   - docs/media-proxy.yaml
   - docs/surround.yaml
+  # docs/reindex.yaml is applied by hand, not here — see its header.
+  # Calendars depends on no other app, so its position here is free. Last, because it is
+  # the newest and the ordering above encodes real dependencies that this one does not join.
+  - calendars/namespace.yaml
+  - calendars/deps.yaml
+  - calendars/release.yaml
+  - calendars/surround.yaml
 
-# switcher.js stays a real .js file rather than a block scalar inside a HelmRelease: Flux
-# injects it into one Helm value with `valuesFrom` (see drive/surround.yaml), so it can be
-# read and edited as JavaScript.
+# The app switchers' files stay real .js/.json files rather than block scalars inside a
+# HelmRelease, so they can be read, linted and edited as what they are. Each surround points
+# at the ConfigMap by name (`staticFiles.filesConfigMap`).
 configMapGenerator:
   - name: drive-switcher
     namespace: office-drive
@@ -33,3 +48,15 @@ configMapGenerator:
       annotations:
         # The file is full of $variables that postBuild substitution would blank.
         kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Calendars' switcher is a REPLACEMENT for the widget script and the service list the
+  # gaufre would otherwise load from static.suite.anct.gouv.fr and lasuite.numerique.gouv.fr;
+  # both URLs are runtime settings there (apps/calendars/release.yaml), so nothing has to be
+  # hidden the way it is for Drive. No `substitute: disabled` here, deliberately:
+  # services.json needs ${BASE_DOMAIN} resolved, and gaufre.js is written with no dollar
+  # sign in it so that substituting over the same ConfigMap cannot touch it.
+  - name: calendars-gaufre
+    namespace: office-calendars
+    files: [calendars/gaufre.js, calendars/services.json]
+    options:
+      disableNameSuffixHash: true
