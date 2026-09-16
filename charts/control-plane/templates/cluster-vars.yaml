@@ -2,7 +2,7 @@
 # values above rather than written by hand: one input, one artifact, nothing twice.
 apiVersion: v1
 kind: ConfigMap
-metadata: {name: cluster-vars, namespace: flux-system}
+{{ include "platform.metadata" "cluster-vars" }}
 data:
   BASE_DOMAIN: {{ .Values.domain | quote }}
   STORAGE_CLASS: {{ .Values.storageClass | quote }}

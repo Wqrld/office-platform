@@ -4,7 +4,10 @@
 # values above rather than written by hand: one input, one artifact, nothing twice.
 apiVersion: v1
 kind: ConfigMap
-metadata: {name: cluster-vars, namespace: flux-system}
+metadata:
+  name: cluster-vars
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 data:
   BASE_DOMAIN: "demo.haaijer.dev"
   STORAGE_CLASS: "longhorn"
@@ -18,7 +21,10 @@ data:
 # Chart lives in-tree at src/helm/impress; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-docs, namespace: flux-system}
+metadata:
+  name: suitenumerique-docs
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/docs
@@ -31,7 +37,10 @@ spec:
 # Chart lives in-tree at src/helm/drive; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-drive, namespace: flux-system}
+metadata:
+  name: suitenumerique-drive
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/drive
@@ -46,7 +55,10 @@ spec:
 # single departure from adr/0104. See apps/find/README.md.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-find, namespace: flux-system}
+metadata:
+  name: suitenumerique-find
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/find
@@ -59,7 +71,10 @@ spec:
 # Chart lives in-tree at src/helm/meet; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-meet, namespace: flux-system}
+metadata:
+  name: suitenumerique-meet
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/meet
@@ -78,7 +93,10 @@ spec:
 # apps/livekit/release.yaml — the charts' appVersion lags the images by several releases.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: livekit-helm, namespace: flux-system}
+metadata:
+  name: livekit-helm
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://github.com/livekit/livekit-helm
@@ -94,7 +112,10 @@ spec:
 # repository, so its charts come from pinned git tags — see docs/adr/0104.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: cloudnative-pg, namespace: flux-system}
+metadata:
+  name: cloudnative-pg
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://cloudnative-pg.github.io/charts
@@ -102,7 +123,10 @@ spec:
 # Source: control-plane/templates/sources.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: external-secrets, namespace: flux-system}
+metadata:
+  name: external-secrets
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://charts.external-secrets.io
@@ -110,7 +134,10 @@ spec:
 # Source: control-plane/templates/sources.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: valkey, namespace: flux-system}
+metadata:
+  name: valkey
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://valkey.io/valkey-helm/
@@ -118,7 +145,10 @@ spec:
 # Source: control-plane/templates/sources.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: opensearch, namespace: flux-system}
+metadata:
+  name: opensearch
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://opensearch-project.github.io/helm-charts
@@ -128,7 +158,10 @@ spec:
 # publish a chart repository, so it is an ordinary pinned HelmRelease.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: collabora, namespace: flux-system}
+metadata:
+  name: collabora
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://collaboraonline.github.io/online
@@ -154,7 +187,10 @@ spec:
 # (`v0.1.1` publishes `…-backend:0.1.1`). See updatecli/updatecli.d/calendars.yaml.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: calendars, namespace: flux-system}
+metadata:
+  name: calendars
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   url: https://gh.haaijer.dev
@@ -162,7 +198,10 @@ spec:
 # Source: control-plane/templates/sources.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: garage-operator, namespace: flux-system}
+metadata:
+  name: garage-operator
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 24h
   type: oci
@@ -171,7 +210,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-calendars, namespace: flux-system}
+metadata:
+  name: app-calendars
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -189,7 +231,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-collabora, namespace: flux-system}
+metadata:
+  name: app-collabora
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -207,7 +252,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-docs, namespace: flux-system}
+metadata:
+  name: app-docs
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -226,7 +274,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-drive, namespace: flux-system}
+metadata:
+  name: app-drive
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -245,7 +296,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-find, namespace: flux-system}
+metadata:
+  name: app-find
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -263,7 +317,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-livekit, namespace: flux-system}
+metadata:
+  name: app-livekit
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -281,7 +338,10 @@ spec:
 # Source: control-plane/templates/apps.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: app-meet, namespace: flux-system}
+metadata:
+  name: app-meet
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -315,7 +375,10 @@ spec:
 
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: infra, namespace: flux-system}
+metadata:
+  name: infra
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -330,7 +393,10 @@ spec:
 # Source: control-plane/templates/layers.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: platform, namespace: flux-system}
+metadata:
+  name: platform
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -348,7 +414,10 @@ spec:
 # Source: control-plane/templates/layers.yaml
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-metadata: {name: objectstore, namespace: flux-system}
+metadata:
+  name: objectstore
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -371,7 +440,10 @@ spec:
 # existed only because the pointer used to live inside the tree it pointed at).
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
-metadata: {name: office-config, namespace: flux-system}
+metadata:
+  name: office-config
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 5m
   url: oci://harbor.mijnbureau.haaijer.dev/office/config
@@ -386,7 +458,10 @@ spec:
 # directly. The registry is the organisation's one knob in this file.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
-metadata: {name: platform-deps, namespace: flux-system}
+metadata:
+  name: platform-deps
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
@@ -396,7 +471,10 @@ spec:
 # Source: control-plane/templates/sources.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
-metadata: {name: platform-app, namespace: flux-system}
+metadata:
+  name: platform-app
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app

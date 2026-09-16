@@ -5,9 +5,9 @@
 # existed only because the pointer used to live inside the tree it pointed at).
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
-metadata: {name: office-config, namespace: flux-system}
+{{ include "platform.metadata" "office-config" }}
 spec:
   interval: 5m
   url: {{ .Values.registry.url }}/config
-  ref: {tag: {{ .Chart.Version | quote }}}
+  ref: {tag: {{ include "platform.version" . | quote }}}
   {{- include "platform.pullSecret" . | nindent 2 }}

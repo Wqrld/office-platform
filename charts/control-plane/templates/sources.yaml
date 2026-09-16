@@ -3,28 +3,28 @@
 # repository, so its charts come from pinned git tags — see docs/adr/0104.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: cloudnative-pg, namespace: flux-system}
+{{ include "platform.metadata" "cloudnative-pg" }}
 spec:
   interval: 24h
   url: https://cloudnative-pg.github.io/charts
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: external-secrets, namespace: flux-system}
+{{ include "platform.metadata" "external-secrets" }}
 spec:
   interval: 24h
   url: https://charts.external-secrets.io
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: valkey, namespace: flux-system}
+{{ include "platform.metadata" "valkey" }}
 spec:
   interval: 24h
   url: https://valkey.io/valkey-helm/
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: opensearch, namespace: flux-system}
+{{ include "platform.metadata" "opensearch" }}
 spec:
   interval: 24h
   url: https://opensearch-project.github.io/helm-charts
@@ -32,7 +32,7 @@ spec:
 # Chart lives in-tree at src/helm/impress; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-docs, namespace: flux-system}
+{{ include "platform.metadata" "suitenumerique-docs" }}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/docs
@@ -44,7 +44,7 @@ spec:
 # Chart lives in-tree at src/helm/drive; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-drive, namespace: flux-system}
+{{ include "platform.metadata" "suitenumerique-drive" }}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/drive
@@ -58,7 +58,7 @@ spec:
 # single departure from adr/0104. See apps/find/README.md.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-find, namespace: flux-system}
+{{ include "platform.metadata" "suitenumerique-find" }}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/find
@@ -71,7 +71,7 @@ spec:
 # publish a chart repository, so it is an ordinary pinned HelmRelease.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: collabora, namespace: flux-system}
+{{ include "platform.metadata" "collabora" }}
 spec:
   interval: 24h
   url: https://collaboraonline.github.io/online
@@ -96,14 +96,14 @@ spec:
 # (`v0.1.1` publishes `…-backend:0.1.1`). See updatecli/updatecli.d/calendars.yaml.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: calendars, namespace: flux-system}
+{{ include "platform.metadata" "calendars" }}
 spec:
   interval: 24h
   url: https://gh.haaijer.dev
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
-metadata: {name: garage-operator, namespace: flux-system}
+{{ include "platform.metadata" "garage-operator" }}
 spec:
   interval: 24h
   type: oci
@@ -116,26 +116,26 @@ spec:
 # directly. The registry is the organisation's one knob in this file.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
-metadata: {name: platform-deps, namespace: flux-system}
+{{ include "platform.metadata" "platform-deps" }}
 spec:
   interval: 30m
   url: {{ .Values.registry.url }}/charts/platform-deps
-  ref: {tag: {{ .Chart.Version | quote }}}
+  ref: {tag: {{ include "platform.version" . | quote }}}
   {{- include "platform.pullSecret" . | nindent 2 }}
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
-metadata: {name: platform-app, namespace: flux-system}
+{{ include "platform.metadata" "platform-app" }}
 spec:
   interval: 30m
   url: {{ .Values.registry.url }}/charts/platform-app
-  ref: {tag: {{ .Chart.Version | quote }}}
+  ref: {tag: {{ include "platform.version" . | quote }}}
   {{- include "platform.pullSecret" . | nindent 2 }}
 ---
 # Chart lives in-tree at src/helm/meet; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: suitenumerique-meet, namespace: flux-system}
+{{ include "platform.metadata" "suitenumerique-meet" }}
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/meet
@@ -153,7 +153,7 @@ spec:
 # apps/livekit/release.yaml — the charts' appVersion lags the images by several releases.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-metadata: {name: livekit-helm, namespace: flux-system}
+{{ include "platform.metadata" "livekit-helm" }}
 spec:
   interval: 24h
   url: https://github.com/livekit/livekit-helm

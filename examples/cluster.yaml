@@ -36,7 +36,7 @@ metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/control-plane
-  ref: {tag: "2.0.0"}
+  ref: {tag: "2.0.1"}
   secretRef: {name: harbor-auth}       # created at bootstrap; omit for a public registry
 ---
 # 3. Everything this organisation chooses. charts/control-plane/values.yaml documents each key
@@ -48,6 +48,12 @@ metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
   chartRef: {kind: OCIRepository, name: platform}
+  # The control plane is Flux objects; their readiness is watched on them, not through
+  # Helm. Waiting here once timed out on a bad pin, and a first install that fails is
+  # uninstalled by helm-controller — the chart's objects are marked `keep` so that can no
+  # longer take anything with it, and this makes sure it cannot happen at all.
+  install: {disableWait: true}
+  upgrade: {disableWait: true}
   values:
     domain: example.org
     storageClass: longhorn

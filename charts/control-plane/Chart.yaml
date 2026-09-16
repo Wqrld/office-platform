@@ -5,5 +5,7 @@ description: >-
   One release of this chart is one version of the platform: the config artifact it points
   at carries the same version.
 type: application
-# The platform version. release.sh sets it in all four charts at once; never by hand.
+# The platform version. release.sh sets both in all four charts at once; never by hand.
+# Templates read appVersion — helm-controller suffixes `version` with the OCI digest.
 version: 2.0.0
+appVersion: "2.0.0"

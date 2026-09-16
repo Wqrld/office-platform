@@ -53,7 +53,7 @@ for repo in config "${CHARTS[@]/#/charts/}"; do
 done
 
 for c in "${CHARTS[@]}"; do
-  sed -i "s/^version: .*/version: $VERSION/" "$HERE/charts/$c/Chart.yaml"
+  sed -i "s/^version: .*/version: $VERSION/; s/^appVersion: .*/appVersion: \"$VERSION\"/" "$HERE/charts/$c/Chart.yaml"
   sed -i "s|^\(    version: \).*|\1\"$VERSION\"|" "$HERE/charts/$c/Chart.yaml"   # the platform-lib dependency
 done
 
