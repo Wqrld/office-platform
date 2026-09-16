@@ -224,7 +224,6 @@ metadata:
     kustomize.toolkit.fluxcd.io/substitute: disabled
 data:
   default.conf: |
-    
     server {
       listen 8080;
       charset utf-8;
@@ -392,7 +391,7 @@ spec:
     metadata:
       annotations:
         # nginx reads its config once at startup, so a ConfigMap change needs a restart.
-        checksum/config: 28a252dcf3a43f569882da4e1f48398aefd5874ecd50387bb632cbe12f3925bd
+        checksum/config: 11ff21a570caf606294e174d8cfc76a7c879bc3badd3c9ab80e30faf7f0dd10a
       labels:
         app.kubernetes.io/name: full-media-proxy
     spec:

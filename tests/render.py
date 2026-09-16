@@ -77,8 +77,11 @@ def platform(size: str) -> list[dict]:
 def substitute(node, variables: dict[str, str]):
     """What postBuild.substituteFrom does, the way Flux does it: on the YAML text, so a
     variable can stand in for a whole value (`dnsNames: ${TLS_HOSTS}` becomes a list).
-    Unknown variables are left alone, not blanked."""
-    return yaml.safe_load(VAR.sub(lambda m: variables.get(m.group(1), m.group(0)), yaml.safe_dump(node)))
+    Unknown variables are left alone, not blanked; `$${X}` is the escape for a literal
+    `${X}`, which is how Keycloak's own placeholders get through."""
+    text = yaml.safe_dump(node).replace("$${", "\0")
+    text = VAR.sub(lambda m: variables.get(m.group(1), m.group(0)), text)
+    return yaml.safe_load(text.replace("\0", "${"))
 
 
 def clusters() -> list[pathlib.Path]:

@@ -3,7 +3,7 @@
        does (0.2.9's proxy_hide_header did not, and the old config ran until a restart by
        hand). Top-level because `define` must be; the values come in through the dict. */ -}}
 {{- define "platform.mediaProxy.conf" -}}
-{{- $root := .root }}{{- $m := .m }}{{- $s3 := .s3 }}
+{{- $root := .root }}{{- $m := .m }}{{- $s3 := .s3 -}}
 server {
   listen 8080;
   charset utf-8;
