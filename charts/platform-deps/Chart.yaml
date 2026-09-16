@@ -2,8 +2,8 @@ apiVersion: v2
 name: platform-deps
 description: Everything an app must have before it starts — datastores and the Secrets it reads.
 type: application
-version: 2.0.0
+version: 2.0.1
 dependencies:
   - name: platform-lib
-    version: "2.0.0"
+    version: "2.0.1"
     repository: "file://../platform-lib"
