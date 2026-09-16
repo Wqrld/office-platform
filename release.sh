@@ -57,10 +57,14 @@ for c in "${CHARTS[@]}"; do
   sed -i "s|^\(    version: \).*|\1\"$VERSION\"|" "$HERE/charts/$c/Chart.yaml"   # the platform-lib dependency
 done
 
+# `.sourceignore` is what source-controller honours for git and bucket sources; `flux push`
+# reads nothing but --ignore-paths, so the same file is handed to it here. Without this
+# the artifact carried tests/, the charts and a local build — nothing the cluster reads.
+IGNORE="$(grep -Ev '^\s*(#|$)' "$HERE/.sourceignore" | paste -sd,)"
 echo "config:$VERSION"
 flux push artifact "oci://${REGISTRY}/config:$VERSION" \
   --path="$HERE" --source=office-platform --revision="${VERSION}@sha1:${SHA}" \
-  --creds="$USER:$PASS"
+  --ignore-paths=".git/,$IGNORE" --creds="$USER:$PASS"
 
 echo "$PASS" | helm registry login "${REGISTRY%%/*}" --username "$USER" --password-stdin
 for c in "${CHARTS[@]}"; do
