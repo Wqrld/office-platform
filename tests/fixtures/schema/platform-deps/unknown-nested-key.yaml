@@ -1,0 +1,6 @@
+# expect: additional properties 'enbaled' not allowed
+# `postgres.enbaled: true` is an app that comes up with no database credentials and fails
+# at first query, several minutes after the release reports Ready.
+app: typo
+postgres:
+  enbaled: true

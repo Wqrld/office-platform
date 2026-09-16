@@ -1,0 +1,10 @@
+# The small-profile rehearsal environment: a different domain, its own two addresses
+# (the Gateway is a cluster-scoped singleton per install, so demo cannot share prod's —
+# see docs/bootstrap.md on why demo is a separate cluster), and the small profile.
+# Everything else is prod's.
+domain: demo.haaijer.dev
+gateway:
+  ip: 45.136.141.166
+livekit:
+  ip: 45.136.141.156
+size: small

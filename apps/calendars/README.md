@@ -23,12 +23,12 @@ Jobs: `calendars-backend-migrate`, `calendars-backend-createsuperuser`,
 The chart is written in the application's own repo at `src/helm/calendars`, which is exactly
 what `adr/0104` expects. It is **not in any upstream tag**: `v0.1.0` predates it and the
 upstreaming PR is open. So it is packaged and served from our own Helm repository
-(`https://gh.haaijer.dev`, `clusters/prod/sources.yaml`) and consumed as an ordinary
+(`https://gh.haaijer.dev`, `charts/control-plane/templates/sources.yaml`) and consumed as an ordinary
 versioned chart.
 
 The alternatives were worse. Pinning `suitenumerique/calendars` at `main` is denied by
 `policy/pins.rego`, correctly. Pinning a commit is Find's exception and should stay an
-exception of one. Vendoring the chart into `helm-charts/charts` means maintaining it in two
+exception of one. Vendoring the chart into `charts/` means maintaining it in two
 places for the length of the review.
 
 **When the PR lands:** the `HelmRepository` becomes a `GitRepository` on
@@ -313,7 +313,7 @@ that id and `init` must be repeatable, tearing its own listeners down.
 `apps/docs/release.yaml`'s `waffle.data.services` and `apps/switcher.js`. An
 application added to one and not the others is missing from a switcher.
 
-**The one trap in the wiring:** the ConfigMap is generated in `apps/kustomization.yaml`
+**The one trap in the wiring:** the ConfigMap is generated in `kustomization.yaml`
 *without* `substitute: disabled`, because `services.json` needs `${BASE_DOMAIN}` resolved.
 Flux substitutes over every key in that ConfigMap, so `gaufre.js` beside it is written with
 **no dollar sign anywhere** — a template literal there would come out blanked, in a file no

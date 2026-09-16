@@ -28,6 +28,7 @@ spec:
     objectstore:
       enabled: true
       env: django-s3
+      mode: ${S3_MODE}     # the organisation's — see apps/docs/deps.yaml
       quota: {maxSize: 20Gi}
 
     # Open provisioning, like Drive and Calendars: a realm user who has never logged in

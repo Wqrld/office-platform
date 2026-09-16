@@ -30,7 +30,7 @@ targets:
     kind: file
     sourceid: docs
     spec:
-      file: "clusters/prod/sources.yaml"
+      file: "charts/control-plane/templates/sources.yaml"
       matchpattern: 'url: https://github\.com/suitenumerique/docs\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
       replacepattern: 'url: https://github.com/suitenumerique/docs\n  ref: {tag: {{ source "docs" }}}'
 

@@ -1,0 +1,24 @@
+{{- $size := .Values.size }}
+{{- $profile := printf "size-%s" $size }}
+# The layers, in reconcile order. Each waits for the previous one to be healthy.
+#
+# infra       operators — CNPG, External Secrets, the Garage operator. Not sized by
+#             profile: one cert-manager is one cert-manager whether it serves 5 people or
+#             5,000, and an operator that is too small fails as "nothing reconciles".
+# platform    the shared stateful layer — gateway, postgres, cache, search, identity, and
+#             the datastores and credentials of EVERY application, enabled or not, which
+#             is what lets a disabled app come back with its data.
+# objectstore Garage, only when the platform runs the object store itself.
+#
+# There is deliberately no `crds` layer yet. Every CRD relied on is either pre-existing in
+# the cluster (Gateway API, cert-manager) or installed by an operator chart on first
+# install; the layer arrives the first time a CRD upgrade needs managing separately.
+{{ include "platform.kustomization" (dict "root" . "name" "infra" "path" "./infra") }}
+---
+{{ include "platform.kustomization" (dict "root" . "name" "platform" "path" "./platform"
+     "components" (list (printf "./overlays/%s" $profile)) "dependsOn" (list "infra")) }}
+{{- if eq .Values.objectStore.mode "garage" }}
+---
+{{ include "platform.kustomization" (dict "root" . "name" "objectstore" "path" "./platform/objectstore"
+     "components" (list (printf "../overlays/%s" $profile)) "dependsOn" (list "platform")) }}
+{{- end }}

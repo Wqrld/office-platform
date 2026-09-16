@@ -1,0 +1,49 @@
+# Docs' surround. Compare with the 97 hand-written lines in config/apps/docs/routes.yaml.
+app: docs
+baseDomain: haaijer.dev
+
+routes:
+  - host: docs
+    backend: {name: docs-frontend, port: 80}
+    paths: [/]
+
+  - name: api
+    host: docs
+    backend: {name: docs-backend, port: 80}
+    # /static is Django's own admin CSS. Not in the upstream ingress set, which is why
+    # /admin renders unstyled there; the frontend serves nothing under /static.
+    paths: [/api, /admin, /static]
+    requestBuffer: 100Mi
+    timeout: 300s          # attachment uploads and conversion are slow, not hung
+
+  - name: media
+    host: docs
+    backend: {name: docs-media-proxy, port: 8080}
+    paths: [/media]
+    timeout: 300s
+
+  - name: collaboration
+    host: docs
+    backend: {name: docs-y-provider, port: 443}
+    # The websocket the editor holds open, and the server-to-server API the backend calls
+    # at its PUBLIC url — so this path has to be routable from outside as well as inside.
+    paths: [/collaboration/ws, /collaboration/api]
+    websocket: true
+
+# Not enforced on this cluster (adr/0103) — stated so it is true the day a policy-capable
+# CNI arrives, and so the egress graph is written down somewhere.
+networkPolicy:
+  enabled: true
+  egress:
+    - {datastore: postgres}
+    - {datastore: cache}
+    - {datastore: objectstore}
+    - {identity: true}
+    - {external: true, port: 443}
+
+# Single replica at `small`, so no PDB: one would only block drains.
+pdb:
+  enabled: false
+  components:
+    backend:  {app.kubernetes.io/component: backend}
+    frontend: {app.kubernetes.io/component: frontend}

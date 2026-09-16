@@ -23,8 +23,8 @@ late and indirectly — usually as a Kustomization that never reports Ready.
 |---|---|---|
 | Kubernetes + a CRI | — | 1.34.2, CRI-O |
 | A CNI | — | Flannel. It enforces **no** NetworkPolicy (adr/0103), so `platform-app`'s policies are declarative only |
-| A default StorageClass matching `STORAGE_CLASS` | Postgres, Valkey, Garage and OpenSearch all claim volumes | Longhorn |
-| A LoadBalancer that honours `metallb.universe.tf/loadBalancerIPs` | `platform/gateway/envoyproxy.yaml` pins the Gateway to `${GATEWAY_IP}` with that annotation. Another provider ignores it and the address is whatever it allocates | MetalLB |
+| A default StorageClass matching `storageClass` | Postgres, Valkey, Garage and OpenSearch all claim volumes | Longhorn |
+| A LoadBalancer that honours `metallb.universe.tf/loadBalancerIPs` | `platform/gateway/envoyproxy.yaml` pins the Gateway to `gateway.ip` with that annotation. Another provider ignores it and the address is whatever it allocates | MetalLB |
 | Gateway API CRDs + Envoy Gateway, GatewayClass **`eg`** | `platform/gateway/gateway.yaml` names that class | Envoy Gateway v1.7.0 |
 | cert-manager, with the controller's **`enableGatewayAPI: true`** | The ClusterIssuer solves HTTP-01 by attaching a temporary HTTPRoute to our own Gateway. Without the flag the challenge never routes and the certificate never issues | — |
 | An OCI registry you can push to | Charts and config are delivered as OCI artifacts, not files | Harbor |
@@ -37,8 +37,8 @@ create.
 ## 1. DNS — Required, and first
 
 ```sh
-./dns.py prod            # the records
-./dns.py prod --check    # what already resolves, and what disagrees
+./dns.py ../clusters/prod/cluster.yaml            # the records
+./dns.py ../clusters/prod/cluster.yaml --check    # what already resolves, and what disagrees
 ```
 
 Create every record it prints **before** step 3. cert-manager solves HTTP-01 through this
@@ -48,43 +48,49 @@ application, not for one. A wildcard is fine and is what the script suggests.
 
 Your registry's own hostname must resolve too, or the FluxInstance simply never syncs.
 
-## 2. Point the repos at your world — Required
+## 2. Your cluster's file — Required
+
+The platform is one repository you never edit to deploy it, and one file that is yours: `cluster.yaml`, kept in a source of your own that only your cluster
+reads. `examples/cluster.yaml` is the one to copy; `charts/control-plane/values.yaml` documents
+every value and `charts/control-plane/values.schema.json` rejects anything else.
 
 ```sh
-git clone <config> && git clone <helm-charts>     # side by side: tests render ../helm-charts
+git clone <office-platform> && cd office-platform
+mkdir -p ../clusters/prod && cp examples/cluster.yaml ../clusters/prod/cluster.yaml
 ```
 
-| File | Change |
+| Where | Change |
 |---|---|
-| `clusters/prod/vars.yaml` | `BASE_DOMAIN`, `GATEWAY_IP`, `LIVEKIT_IP`, `STORAGE_CLASS`, `TLS_ISSUER` |
+| `cluster.yaml` `spec.values` | `domain`, `gateway.ip`, `livekit.ip`, `storageClass`, `size`, which `apps`, the `objectStore` mode |
+| `cluster.yaml` `FluxInstance.spec.sync` | where this file is read from — your git repository, or an OCI artifact (`../clusters/push.sh`) |
+| `cluster.yaml` `OCIRepository/platform` | the registry the platform is published to, and the version to run |
 | `platform/gateway/clusterissuer.yaml` | the ACME contact address |
-| `release.sh`, `../helm-charts/scripts/publish.sh` | `REGISTRY` / `REPO` |
-| `clusters/prod/{sources,config-source,flux-instance}.yaml` | the same registry, in every `url:` |
+| `release.sh`, `charts/control-plane/values.yaml` `registry:` | your registry, if you publish the platform yourself |
 | `platform/identity/realm.yaml` | the five users are ours. Replace them, or delete the block and create users in Keycloak later |
 | `platform/identity/realm.yaml` | `smtpServer.fromDisplayName` is the name recipients see on password-reset mail. Everything else about the relay comes from the Secret in step 4b |
 | `~/.harbor-robot` | line 1 username, line 2 password (`HARBOR_ROBOT_FILE` overrides the path) |
 
-Then, offline and without a cluster:
+Then, offline and without a cluster — with your values as one of the clusters CI builds:
 
 ```sh
-./tests/build.sh && ./tests/kubeconform.sh && conftest test --policy policy --parser yaml \
-  --all-namespaces apps/ platform/ clusters/ infra/
+cp <your values> tests/cases/cluster-mine.yaml   # the HelmRelease's `values:` block; add it to cases/index.yaml
+./tests/schema.sh && ./tests/golden.py --update && ./tests/build.py && ./tests/kubeconform.sh
 ```
 
-`build.sh` is the one that catches a typo'd `${BASE_DOMIAN}` — Flux would leave it in place
-and the app would serve a hostname that resolves for nobody.
+`schema.sh` proves a misspelt key or an app whose dependency is off is refused; `build.py` is
+the one that catches a typo'd `${BASE_DOMIAN}` — Flux would leave it in place and the app
+would serve a hostname that resolves for nobody.
 
 ## 3. Publish — Required
 
 ```sh
-../helm-charts/scripts/publish.sh 0.2.6    # bumps Chart.yaml and pushes all three charts
-./release.sh 1.6.0                          # pushes :1.6.0, repoints the pointer, pushes :latest
-git commit -am 'release 1.6.0'              # release.sh leaves the rewritten pointer behind
+./release.sh 2.0.0               # the config artifact and all four charts, one version
+git commit -am 'release 2.0.0'   # the Chart.yaml bumps it leaves behind
 ```
 
 Release from a clean tree. A dirty tree is stamped `-dirty` in the artifact revision and that
-version can never be traced back to a commit. The chart version in `clusters/prod/sources.yaml`
-and the one you publish must match.
+version can never be traced back to a commit. Then set `ref: {tag: "2.0.0"}` in your
+`cluster.yaml`.
 
 ## 4. Bootstrap Flux — Required. Four commands, and the only objects ever applied by hand
 
@@ -93,16 +99,17 @@ kubectl create namespace flux-system
 kubectl -n flux-system create secret docker-registry harbor-auth \
   --docker-server=<registry> --docker-username=<robot> --docker-password=<token>
 # flux-operator 0.59.0 — install per its own documentation; it is not vendored here
-kubectl apply -f clusters/prod/flux-instance.yaml
+kubectl apply -f ../clusters/prod/cluster.yaml
 ```
 
-`harbor-auth` is referenced by the FluxInstance, the config `OCIRepository` and both chart
-repositories, and is created by nothing in this repo.
+`harbor-auth` is referenced by the FluxInstance, the platform chart, the config
+`OCIRepository` and both chart repositories, and is created by nothing in this repo.
 
-From here it is unattended: the FluxInstance installs Flux, syncs `clusters/prod` from
-`:latest`, and drives `20-infra` → `30-platform` → `40-apps`, each waiting on the previous.
-Every other secret — database roles, Valkey passwords, OIDC client secrets, the Keycloak
-bootstrap admin, the realm user passwords, Garage keys — is generated in-cluster, once.
+From here it is unattended: the FluxInstance installs Flux, syncs your file from your
+source, and the control-plane chart drives `infra` → `platform` → `objectstore` → one
+`app-<name>` per enabled application, each waiting on the previous. Every other secret —
+database roles, Valkey passwords, OIDC client secrets, the Keycloak bootstrap admin, the
+realm user passwords, Garage keys — is generated in-cluster, once.
 
 ## 4b. The relay account — Required, and it has an order
 
@@ -125,8 +132,8 @@ this one command and nothing about mail is in git. `useTLS` is STARTTLS and `use
 implicit TLS; they are mutually exclusive. **587 or 465, never 25**: outbound TCP 25 is
 blocked from this host by the provider (measured; 53, 443 and 587 all connect).
 
-The order: `office-data` is created by `30-platform`, and `40-apps` will not settle without
-this Secret, so apply it while `30-platform` is coming up. `kubectl create namespace
+The order: `office-data` is created by `platform`, and no app will settle without this
+Secret, so apply it while `platform` is coming up. `kubectl create namespace
 office-data` first is fine — Flux adopts the namespace and adds its own labels.
 
 Four ExternalSecrets read it back: one per application namespace through `platform-deps`
@@ -145,7 +152,7 @@ platform/identity/set-smtp.sh                      # Keycloak keeps its own copy
 ```
 
 ```sh
-flux get kustomizations --watch      # four objects, all Ready
+flux get kustomizations --watch      # every layer and every enabled app, all Ready
 ```
 
 Expect this to take a while: CNPG, Keycloak and OpenSearch each initialise before the layer
@@ -169,9 +176,31 @@ kubectl -n office-data create secret generic huggingface --from-literal=token='h
 Read back by one ExternalSecret, `meet-whisperx` in `office-meet`. Without it the whisperx
 pod never becomes Ready and every transcript fails; everything else about Meet works.
 
-Also needed before Meet's first release: the `turn.<domain>` A record to `LIVEKIT_IP`
-(`./dns.py prod` prints it; it must NOT point at the Gateway), and the `livekit.<domain>`
-name resolving to the Gateway like every other — see `apps/livekit/README.md`.
+Also needed before Meet's first release: the `turn.<domain>` A record to `livekit.ip`
+(`./dns.py` prints it; it must NOT point at the Gateway), and the `livekit.<domain>` name
+resolving to the Gateway like every other — see `apps/livekit/README.md`.
+
+## 4d. Your own S3 — only with `objectStore: {mode: external}`
+
+The platform runs Garage by default and this step does not exist. With an S3 provider of
+your own, the credential is the fourth thing you type, shaped exactly like the relay
+account — everything about the store, endpoint and region included, lives in the Secret
+and nothing about it is in git:
+
+```sh
+kubectl -n office-data create secret generic object-store \
+  --from-literal=endpoint=https://s3.example.net \
+  --from-literal=region=eu-west-1 \
+  --from-literal=accessKeyId='...' \
+  --from-literal=secretAccessKey='...'
+```
+
+Before the first release: create the buckets, named after the apps that use one (`docs`,
+`drive`, `meet`), and put a CORS rule on `drive` allowing `https://drive.<domain>` with
+`GET, HEAD, PUT` — the browser uploads to Drive's bucket directly by presigned URL, and
+the platform cannot configure a store it does not run. One ExternalSecret per app reads
+the credential back (`platform-deps`, `objectstore.mode: external`); the same key names
+reach the app either way, so nothing in `apps/` knows which mode it is running in.
 
 ## 5. After the layers are green — Required
 
@@ -190,7 +219,7 @@ name resolving to the Gateway like every other — see `apps/livekit/README.md`.
 - **Verify** — the point of a bootstrap you cannot otherwise trust:
 
 ```sh
-./dns.py prod --check          # every name on the certificate, resolving to the Gateway
+./dns.py ../clusters/prod/cluster.yaml --check   # every name on the certificate, resolving to the Gateway
 kubectl -n office-system get certificate office-tls    # Ready=True; one SAN failure fails all
 apps/drive/check-secrets.sh    # the post-renderer attached all ten workloads
 apps/meet/check-secrets.sh     # same for Meet's thirteen
@@ -208,11 +237,11 @@ client secret (`KC_HOSTNAME_BACKCHANNEL_DYNAMIC`, `07-identity-and-secrets.md`).
 
 | Step | When |
 |---|---|
-| `TLS_ISSUER: letsencrypt-gateway-staging` for the first run | Proves the chain without spending rate limit on a hostname that has never validated. Switch to the real issuer and delete the `office-tls` Secret to reissue |
+| `gateway.tlsIssuer: letsencrypt-gateway-staging` for the first run | Proves the chain without spending rate limit on a hostname that has never validated. Switch to the real issuer and delete the `office-tls` Secret to reissue |
 | Restore legacy data | Only if migrating. `backups/<stamp>/MANIFEST.md` — the PG dump **and** the objects; neither is useful alone |
-| `apps/docs/reindex.yaml` | Only after a restore, or after an OpenSearch rebuild. Indexing is driven by `post_save`, so restored documents are invisible to search until this backfills them. Applied by hand on purpose — it depends on Find being up, and a failed Job inside `40-apps` stalls the whole layer |
+| `apps/docs/reindex.yaml` | Only after a restore, or after an OpenSearch rebuild. Indexing is driven by `post_save`, so restored documents are invisible to search until this backfills them. Applied by hand on purpose — it depends on Find being up, and a failed Job inside `app-docs` stalls that app |
 | `platform/gateway/deferred/` | Only when retiring an existing ingress controller that still holds the public IP — see `gateway-cutover.md` |
-| `clusters/demo` | A second cluster on its own domain and its own address. Same four commands |
+| A second cluster | Its own `cluster.yaml` on its own domain and addresses — `../clusters/demo/` is ours. Same four commands |
 | Prometheus operator | Nothing enables a ServiceMonitor yet |
 
 ## 7. Traps a first install actually hits

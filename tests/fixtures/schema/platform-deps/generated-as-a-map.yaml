@@ -1,0 +1,7 @@
+# expect: got object, want array
+# `generated` is an ordered LIST because `dataFrom` is ordered. Written as a map, Helm sorts
+# the keys — and a re-sort rewrites a generate-once Secret's spec, which cannot be redrawn.
+app: mapshape
+generated:
+  mapshape-django:
+    DJANGO_SECRET_KEY: secretkey

@@ -1,0 +1,71 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $app := include "platform.app.name" . }}
+{{- $np := .Values.networkPolicy }}
+# NOT ENFORCED HERE. Flannel has no policy controller, so this object is decorative on this
+# cluster and has been verified to have no effect (adr/0103). It is emitted anyway because
+# the egress graph below is hard-won knowledge that is worth stating declaratively — and
+# because the day a policy-capable CNI arrives, it starts working without an app change.
+#
+# Do not cite this object as network segmentation in a security review.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $app }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list $) | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # The shared Gateway is the only way in.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{ $np.namespaceLabel }}: {{ $.Values.gateway.namespace }}
+    # Pods of this app talk to each other.
+    - from:
+        - podSelector: {}
+  egress:
+    # DNS, or nothing else resolves. The single most common omission.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{ $np.namespaceLabel }}: kube-system
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - podSelector: {}
+    {{- range $rule := $np.egress }}
+    {{- if $rule.datastore }}
+    {{- $d := index $np.datastores $rule.datastore }}
+    {{- if not $d }}{{ fail (printf "networkPolicy.egress names datastore %q (have: %s)" $rule.datastore (keys $np.datastores | sortAlpha | join ", ")) }}{{ end }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{ $np.namespaceLabel }}: {{ $d.namespace }}
+      ports: [{protocol: TCP, port: {{ $d.port }}}]
+    {{- else if $rule.identity }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{ $np.namespaceLabel }}: {{ $np.identity.namespace }}
+      ports: [{protocol: TCP, port: {{ $np.identity.port }}}]
+    {{- else if $rule.app }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{ $np.namespaceLabel }}: {{ printf "%s-%s" $.Values.tenant $rule.app }}
+      ports: [{protocol: TCP, port: {{ required "an app egress rule needs a port" $rule.port }}}]
+    {{- else if $rule.external }}
+    # Off-cluster. Cannot be narrowed to a namespace, so it is narrowed to a port and the
+    # cluster's own ranges are excluded to stop it becoming an ambient allow-all.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+      ports: [{protocol: TCP, port: {{ required "an external egress rule needs a port" $rule.port }}}]
+    {{- end }}
+    {{- end }}
+{{- end }}

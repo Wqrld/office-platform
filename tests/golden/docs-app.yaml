@@ -1,0 +1,240 @@
+---
+# Source: platform-app/templates/networkpolicy.yaml
+# NOT ENFORCED HERE. Flannel has no policy controller, so this object is decorative on this
+# cluster and has been verified to have no effect (adr/0103). It is emitted anyway because
+# the egress graph below is hard-won knowledge that is worth stating declaratively — and
+# because the day a policy-capable CNI arrives, it starts working without an app change.
+#
+# Do not cite this object as network segmentation in a security review.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: docs
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # The shared Gateway is the only way in.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-system
+    # Pods of this app talk to each other.
+    - from:
+        - podSelector: {}
+  egress:
+    # DNS, or nothing else resolves. The single most common omission.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - podSelector: {}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-data
+      ports: [{protocol: TCP, port: 5432}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-data
+      ports: [{protocol: TCP, port: 6379}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-data
+      ports: [{protocol: TCP, port: 3900}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-identity
+      ports: [{protocol: TCP, port: 8080}]
+    # Off-cluster. Cannot be narrowed to a namespace, so it is narrowed to a port and the
+    # cluster's own ranges are excluded to stop it becoming an ambient allow-all.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+      ports: [{protocol: TCP, port: 443}]
+---
+# Source: platform-app/templates/traffic.yaml
+# Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
+# request before forwarding and reject anything larger — nginx's client_max_body_size — and
+# it is only safe paired with a connection buffer large enough to hold it, set once on the
+# Gateway in platform/gateway/traffic.yaml.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: docs-api
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: docs-api}
+  requestBuffer:
+    limit: 100Mi
+  timeout:
+    http:
+      requestTimeout: 300s
+---
+# Source: platform-app/templates/traffic.yaml
+# Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
+# request before forwarding and reject anything larger — nginx's client_max_body_size — and
+# it is only safe paired with a connection buffer large enough to hold it, set once on the
+# Gateway in platform/gateway/traffic.yaml.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: docs-media
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: docs-media}
+  timeout:
+    http:
+      requestTimeout: 300s
+---
+# Source: platform-app/templates/traffic.yaml
+# Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
+# request before forwarding and reject anything larger — nginx's client_max_body_size — and
+# it is only safe paired with a connection buffer large enough to hold it, set once on the
+# Gateway in platform/gateway/traffic.yaml.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: docs-collaboration
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: docs-collaboration}
+  timeout:
+    http:
+      requestTimeout: 0s
+      connectionIdleTimeout: 24h
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["docs.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /}}
+      backendRefs:
+        - {name: docs-frontend, port: 80}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs-api
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["docs.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /api}}
+        - {path: {type: PathPrefix, value: /admin}}
+        - {path: {type: PathPrefix, value: /static}}
+      backendRefs:
+        - {name: docs-backend, port: 80}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs-media
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["docs.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /media}}
+      backendRefs:
+        - {name: docs-media-proxy, port: 8080}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: docs-collaboration
+  namespace: office-docs
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: docs-platform
+    app.kubernetes.io/instance: docs-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["docs.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /collaboration/ws}}
+        - {path: {type: PathPrefix, value: /collaboration/api}}
+      backendRefs:
+        - {name: docs-y-provider, port: 443}

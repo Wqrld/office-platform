@@ -1,0 +1,139 @@
+---
+# Source: platform-app/templates/pdb.yaml
+# Always maxUnavailable, never minAvailable. A `minAvailable: 1` PDB on a single-replica
+# workload blocks every node drain forever — the live bug this rule exists to prevent.
+#
+# The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
+# the size profile alongside replicas, not inferred here (05-app-contract.md).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: multi-backend
+  namespace: office-multi
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: multi-platform
+    app.kubernetes.io/instance: multi-platform
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+---
+# Source: platform-app/templates/pdb.yaml
+# Always maxUnavailable, never minAvailable. A `minAvailable: 1` PDB on a single-replica
+# workload blocks every node drain forever — the live bug this rule exists to prevent.
+#
+# The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
+# the size profile alongside replicas, not inferred here (05-app-contract.md).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: multi-celery
+  namespace: office-multi
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: multi-platform
+    app.kubernetes.io/instance: multi-platform
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: celery
+---
+# Source: platform-app/templates/pdb.yaml
+# Always maxUnavailable, never minAvailable. A `minAvailable: 1` PDB on a single-replica
+# workload blocks every node drain forever — the live bug this rule exists to prevent.
+#
+# The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
+# the size profile alongside replicas, not inferred here (05-app-contract.md).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: multi-docspec
+  namespace: office-multi
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: multi-platform
+    app.kubernetes.io/instance: multi-platform
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: docspec
+---
+# Source: platform-app/templates/pdb.yaml
+# Always maxUnavailable, never minAvailable. A `minAvailable: 1` PDB on a single-replica
+# workload blocks every node drain forever — the live bug this rule exists to prevent.
+#
+# The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
+# the size profile alongside replicas, not inferred here (05-app-contract.md).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: multi-frontend
+  namespace: office-multi
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: multi-platform
+    app.kubernetes.io/instance: multi-platform
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+---
+# Source: platform-app/templates/pdb.yaml
+# Always maxUnavailable, never minAvailable. A `minAvailable: 1` PDB on a single-replica
+# workload blocks every node drain forever — the live bug this rule exists to prevent.
+#
+# The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
+# the size profile alongside replicas, not inferred here (05-app-contract.md).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: multi-yprovider
+  namespace: office-multi
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: multi-platform
+    app.kubernetes.io/instance: multi-platform
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: y-provider
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: multi
+  namespace: office-multi
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: multi-platform
+    app.kubernetes.io/instance: multi-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["multi.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /}}
+      backendRefs:
+        - {name: multi-frontend, port: 80}

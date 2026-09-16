@@ -1,0 +1,24 @@
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: single
+  namespace: office-single
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: single-platform
+    app.kubernetes.io/instance: single-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["single.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /}}
+      backendRefs:
+        - {name: single-frontend, port: 80}

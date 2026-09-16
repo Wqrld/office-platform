@@ -1,5 +1,6 @@
-# Kept out of the Flux OCI artifact: these run in CI, never in the cluster. Everything the
-# cluster reads lives in infra/, platform/, apps/, environments/ and clusters/.
+# Kept out of the Flux OCI artifact: these run in CI or are published separately, never
+# read from inside the cluster. Everything the cluster reads lives in infra/, platform/ and
+# apps/.
 /.github/
 /updatecli/
 # The checks themselves, and the rules they run. Rendering, diffing, the binding check and
@@ -7,8 +8,13 @@
 # reads them back.
 /tests/
 /policy/
-# The size-profile measuring tool and its pinned chart cache. `measure.py` renders and adds
-# up what a profile asks the scheduler for; it belongs in CI, and `.charts/` is hundreds of
-# megabytes of upstream Helm charts that must never travel in the config artifact.
+/docs/
+/examples/
+# The charts are published by release.sh as artifacts of their own.
+/charts/
+# The size-profile measuring tool, the DNS check, and the pinned chart cache. `.charts/`
+# is hundreds of megabytes of upstream Helm charts that must never travel in the artifact.
 /measure.py
+/dns.py
 /.charts/
+/built/

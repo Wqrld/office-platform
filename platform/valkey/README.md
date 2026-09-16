@@ -71,7 +71,7 @@ ERROR: No password found for user drive
 ```
 
 The Deployment sits in `Init:CrashLoopBackOff` with the previous pod still serving, the
-HelmRelease times out, and `30-platform` goes unhealthy. Loud and non-destructive — the
+HelmRelease times out, and the `platform` layer goes unhealthy. Loud and non-destructive — the
 running cache is never interrupted.
 
 ## One user needs more than the shared shape

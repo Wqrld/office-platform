@@ -1,0 +1,9 @@
+# expect: additional properties 'indexPrefx' not allowed
+# `opensearch.indexPrefx` falls back to the app name, so the app writes to and searches a
+# DIFFERENT index than the one its OpenSearch role grants. That presents as a 403 on the
+# first index call, long after the release reports Ready — and on the search path Docs
+# swallows it into a silent title-search fallback.
+app: typo
+opensearch:
+  enabled: true
+  indexPrefx: find

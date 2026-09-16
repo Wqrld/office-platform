@@ -1,0 +1,6 @@
+{{- /* Escape hatch. Used once it is an escape hatch; used three times it should have
+       become a feature (P5). Every use is logged in known-limitations.md. */}}
+{{- range $o := .Values.extraObjects }}
+---
+{{ tpl (toYaml $o) $ }}
+{{- end }}

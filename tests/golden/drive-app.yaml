@@ -1,0 +1,515 @@
+---
+# Source: platform-app/templates/networkpolicy.yaml
+# NOT ENFORCED HERE. Flannel has no policy controller, so this object is decorative on this
+# cluster and has been verified to have no effect (adr/0103). It is emitted anyway because
+# the egress graph below is hard-won knowledge that is worth stating declaratively — and
+# because the day a policy-capable CNI arrives, it starts working without an app change.
+#
+# Do not cite this object as network segmentation in a security review.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: drive
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # The shared Gateway is the only way in.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-system
+    # Pods of this app talk to each other.
+    - from:
+        - podSelector: {}
+  egress:
+    # DNS, or nothing else resolves. The single most common omission.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - podSelector: {}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-data
+      ports: [{protocol: TCP, port: 5432}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-data
+      ports: [{protocol: TCP, port: 6379}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-data
+      ports: [{protocol: TCP, port: 3900}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-identity
+      ports: [{protocol: TCP, port: 8080}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-collabora
+      ports: [{protocol: TCP, port: 9980}]
+    # Off-cluster. Cannot be narrowed to a namespace, so it is narrowed to a port and the
+    # cluster's own ranges are excluded to stop it becoming an ambient allow-all.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16]
+      ports: [{protocol: TCP, port: 443}]
+---
+# Source: platform-app/templates/mediaproxy.yaml
+# The `/media` route's backend — adr/0109 for why a running pod lives in the surround.
+#
+# La Suite authorises an attachment by SUBREQUEST: ask the backend "may this session read
+# this key?", then replay the S3 authorization headers it answers with onto the bucket.
+# Envoy Gateway's extAuth cannot express it — `extAuth.http.path` is a prefix and Envoy
+# appends the original path, so the check 404s and denies everything.
+#
+# WHAT WOULD REMOVE THIS: media served through the application's own backend, or a fixed
+# (non-prefixed) ext-auth path in Envoy Gateway.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: drive-media-proxy
+  namespace: office-drive
+  labels:
+    app.kubernetes.io/instance: drive-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: drive-media-proxy
+    app.kubernetes.io/part-of: office
+    helm.sh/chart: platform-app-<version>
+  annotations:
+    # nginx configuration is full of $variables and Flux's postBuild substitution would
+    # expand every one of them to the empty string — $host, $request_uri and the
+    # auth_request_set values all vanish, and the proxy silently serves 403s.
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+data:
+  default.conf: |
+    
+    server {
+      listen 8080;
+      charset utf-8;
+      server_tokens off;
+    
+      location = /healthz { access_log off; return 200 "ok\n"; }
+    
+      client_max_body_size 10m;
+    
+      location /media/preview/ {
+        auth_request /media-auth;
+        auth_request_set $authHeader        $upstream_http_authorization;
+        auth_request_set $authDate          $upstream_http_x_amz_date;
+        auth_request_set $authContentSha256 $upstream_http_x_amz_content_sha256;
+    
+        proxy_set_header Authorization        $authHeader;
+        proxy_set_header X-Amz-Date           $authDate;
+        proxy_set_header X-Amz-Content-SHA256 $authContentSha256;
+    
+        # Path-style, so the bucket name is part of the path.
+        proxy_pass       http://office-s3.office-data.svc.cluster.local:3900/drive/;
+        proxy_set_header Host office-s3.office-data.svc.cluster.local:3900;
+    
+        # Not optional: these are user uploads on the application's own origin, so
+        # without it a stored .html or .svg is a stored-XSS primitive.
+        add_header Content-Security-Policy "default-src 'none'" always;
+      }
+    
+      location /media/ {
+        auth_request /media-auth;
+        auth_request_set $authHeader        $upstream_http_authorization;
+        auth_request_set $authDate          $upstream_http_x_amz_date;
+        auth_request_set $authContentSha256 $upstream_http_x_amz_content_sha256;
+    
+        proxy_set_header Authorization        $authHeader;
+        proxy_set_header X-Amz-Date           $authDate;
+        proxy_set_header X-Amz-Content-SHA256 $authContentSha256;
+    
+        # Path-style, so the bucket name is part of the path.
+        proxy_pass       http://office-s3.office-data.svc.cluster.local:3900/drive/;
+        proxy_set_header Host office-s3.office-data.svc.cluster.local:3900;
+    
+        # Not optional: these are user uploads on the application's own origin, so
+        # without it a stored .html or .svg is a stored-XSS primitive.
+        add_header Content-Security-Policy "default-src 'none'" always;
+        proxy_hide_header Content-Disposition;
+        add_header Content-Disposition "attachment" always;
+      }
+    
+      location /media-auth {
+        internal;
+        # The session cookie rides along, which is how the backend knows who is asking;
+        # X-Original-URL is how it learns which attachment.
+        proxy_pass              http://drive-backend.office-drive.svc.cluster.local:80/api/v1.0/items/media-auth/;
+        proxy_set_header        X-Forwarded-Proto https;
+        proxy_set_header        Host              $host;
+        proxy_set_header        X-Real-IP         $remote_addr;
+        proxy_set_header        X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Original-URL    $request_uri;
+        proxy_set_header        X-Original-Method $request_method;
+        proxy_pass_request_body off;
+        proxy_set_header        Content-Length "";
+      }
+    }
+---
+# Source: platform-app/templates/static.yaml
+# A few files served from the application's own origin.
+#
+# It exists because some upstream frontends take a URL rather than content: Drive's
+# `FRONTEND_JS_URL` injects a <script> tag, and there is no other way to reach that page.
+# Serving it from our own host keeps the application free of a third-party CDN.
+#
+# The files come from a ConfigMap someone else made — `filesConfigMap` — rather than from
+# values, so they can stay real files in the config repo instead of block scalars inside a
+# HelmRelease. nginx reads from disk per request and a mounted ConfigMap updates in place,
+# so editing them does not need a restart.
+#
+# Not a general web server: everything here is public, cached and read-only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: drive-static-conf
+  namespace: office-drive
+  labels:
+    app.kubernetes.io/instance: drive-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: drive-static
+    app.kubernetes.io/part-of: office
+    helm.sh/chart: platform-app-<version>
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      charset utf-8;
+      server_tokens off;
+      location = /healthz { access_log off; return 200 "ok\n"; }
+      location /custom/ {
+        alias /srv/;
+        # Everything here is ours and public, but it is still served from the application's
+        # origin, so it gets the same treatment as any other asset.
+        add_header Cache-Control "public, max-age=300" always;
+        add_header X-Content-Type-Options nosniff always;
+        types { application/javascript js; text/css css; image/svg+xml svg; }
+      }
+    }
+---
+# Source: platform-app/templates/mediaproxy.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: drive-media-proxy
+  namespace: office-drive
+  labels:
+    app.kubernetes.io/instance: drive-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: drive-media-proxy
+    app.kubernetes.io/part-of: office
+    helm.sh/chart: platform-app-<version>
+spec:
+  selector:
+    app.kubernetes.io/name: drive-media-proxy
+  ports:
+    - {name: http, port: 8080, targetPort: 8080}
+---
+# Source: platform-app/templates/static.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: drive-static
+  namespace: office-drive
+  labels:
+    app.kubernetes.io/instance: drive-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: drive-static
+    app.kubernetes.io/part-of: office
+    helm.sh/chart: platform-app-<version>
+spec:
+  selector:
+    app.kubernetes.io/name: drive-static
+  ports:
+    - {name: http, port: 8080, targetPort: 8080}
+---
+# Source: platform-app/templates/mediaproxy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drive-media-proxy
+  namespace: office-drive
+  labels:
+    app.kubernetes.io/instance: drive-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: drive-media-proxy
+    app.kubernetes.io/part-of: office
+    helm.sh/chart: platform-app-<version>
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: drive-media-proxy
+  template:
+    metadata:
+      annotations:
+        # nginx reads its config once at startup, so a ConfigMap change needs a restart.
+        checksum/config: 8ab3b7e613e61afb71df6108f7dcf59e9ecfaf4e39e9c90bfb5e55ddad68509f
+      labels:
+        app.kubernetes.io/name: drive-media-proxy
+    spec:
+      priorityClassName: office-app
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: nginx
+          # Fully qualified: this cluster's CRI-O resolves a bare name against quay.io.
+          # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
+          image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
+          ports:
+            - {name: http, containerPort: 8080}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            limits:
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 3
+          volumeMounts:
+            - {name: conf, mountPath: /etc/nginx/conf.d}
+            - {name: cache, mountPath: /var/cache/nginx}
+            - {name: run, mountPath: /var/run}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: conf
+          configMap: {name: drive-media-proxy}
+        - {name: cache, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+# Source: platform-app/templates/static.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: drive-static
+  namespace: office-drive
+  labels:
+    app.kubernetes.io/instance: drive-platform
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: drive-static
+    app.kubernetes.io/part-of: office
+    helm.sh/chart: platform-app-<version>
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: drive-static
+  template:
+    metadata:
+      annotations:
+        checksum/config: 3f44cac2d984fbfc09c2960eada6727cfc3a70f586bce443f5a68607494274f8
+      labels:
+        app.kubernetes.io/name: drive-static
+    spec:
+      priorityClassName: office-app
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: nginx
+          image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
+          ports:
+            - {name: http, containerPort: 8080}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            limits:
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 16Mi
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 3
+          volumeMounts:
+            - {name: conf, mountPath: /etc/nginx/conf.d}
+            - {name: files, mountPath: /srv}
+            - {name: cache, mountPath: /var/cache/nginx}
+            - {name: run, mountPath: /var/run}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: conf
+          configMap: {name: drive-static-conf}
+        - name: files
+          configMap: {name: drive-switcher}
+        - {name: cache, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+# Source: platform-app/templates/traffic.yaml
+# Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
+# request before forwarding and reject anything larger — nginx's client_max_body_size — and
+# it is only safe paired with a connection buffer large enough to hold it, set once on the
+# Gateway in platform/gateway/traffic.yaml.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: drive-api
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: drive-api}
+  requestBuffer:
+    limit: 25Mi
+  timeout:
+    http:
+      requestTimeout: 300s
+---
+# Source: platform-app/templates/traffic.yaml
+# Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
+# request before forwarding and reject anything larger — nginx's client_max_body_size — and
+# it is only safe paired with a connection buffer large enough to hold it, set once on the
+# Gateway in platform/gateway/traffic.yaml.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: drive-media
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: drive-media}
+  timeout:
+    http:
+      requestTimeout: 300s
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: drive
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["drive.${BASE_DOMAIN}"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /}}
+      backendRefs:
+        - {name: drive-frontend, port: 80}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: drive-api
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["drive.${BASE_DOMAIN}"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /api}}
+        - {path: {type: PathPrefix, value: /admin}}
+        - {path: {type: PathPrefix, value: /static}}
+      backendRefs:
+        - {name: drive-backend, port: 80}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: drive-static
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["drive.${BASE_DOMAIN}"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /custom}}
+      backendRefs:
+        - {name: drive-static, port: 8080}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: drive-media
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["drive.${BASE_DOMAIN}"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /media}}
+      backendRefs:
+        - {name: drive-media-proxy, port: 8080}

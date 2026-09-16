@@ -1,18 +1,12 @@
 # Everything that can be checked without a cluster, on every PR.
 #
-# Shape from 10-verification.md:
-#   config/ pr.yaml: flux build -> render-diff (all apps) -> binding check -> static rules
-#                    -> size-profile render -> policy -> kubeconform -> gitleaks
+# Shape from 10-verification.md, both halves in one repo now:
+#   charts:  lint -> schema -> golden -> equivalence
+#   config:  flux build -> kubeconform -> render-diff -> binding -> profiles -> policy
 #
 # Every job runs a script from tests/ or policy/ rather than inlining commands here, so the
 # same check runs identically on a laptop and in CI. A workflow that is the only place a
 # command exists is a workflow nobody can reproduce when it goes red.
-#
-# Two jobs need the charts repo beside this one — the surround is rendered from
-# ../helm-charts/charts, not pulled from Harbor, because CI has no registry credentials and
-# because the question worth asking is whether the CURRENT charts still bind. Both
-# checkouts therefore live under the workspace as siblings, and every step that needs them
-# runs with `working-directory: config`.
 #
 # Tools are installed by pinned version with curl rather than through marketplace actions:
 # this repo already pins its actions to commit SHAs, and a version-pinned binary is the
@@ -33,25 +27,67 @@ env:
   HELM_VERSION: "3.19.2"
   CONFTEST_VERSION: "0.61.2"
   KUBECONFORM_VERSION: "0.7.0"
-  KUBECTL_VERSION: "1.34.2"
   DYFF_VERSION: "1.12.0"
   GITLEAKS_VERSION: "8.28.0"
   GITLINT_VERSION: "0.19.1"
-  CHARTS_REPO: helm-charts
 
 jobs:
+  charts:
+    name: charts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+      - name: Install helm
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar xz -C /tmp linux-amd64/helm
+          sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
+      - name: Install python deps
+        run: pip install --quiet pyyaml
+
+      # --strict turns the INFO about a missing icon into nothing, but turns a genuinely
+      # malformed Chart.yaml into a failure. Values files are linted through the real cases
+      # rather than the chart defaults, because the defaults exercise none of the templates
+      # (and the control plane's refuse to render at all — an empty domain is an error).
+      - name: helm lint
+        run: |
+          for c in platform-lib platform-deps platform-app; do helm lint "charts/$c" --strict; done
+          helm lint charts/control-plane --strict --values tests/cases/cluster-prod.yaml
+          for case in $(./tests/render.sh --list); do
+            echo "== lint $case"
+            ./tests/render.sh "$case" >/dev/null
+          done
+
+      # Both directions, like the policy tests: the cases above prove valid values render,
+      # this proves the schemas — and the control plane's template-time refusals — still
+      # REJECT what they exist to reject. A schema that has only ever seen valid input is
+      # indistinguishable from an absent one.
+      - name: values schema
+        run: ./tests/schema.sh
+
+      - name: golden files
+        run: ./tests/golden.py
+
+      - name: equivalence with the pre-port manifests
+        run: ./tests/equivalence.sh
+
   build:
     name: flux build + kubeconform
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-
       - name: Install flux
         run: |
           curl -fsSL "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz" \
             | tar xz -C /tmp flux
           sudo install -m755 /tmp/flux /usr/local/bin/flux
-
+      - name: Install helm
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar xz -C /tmp linux-amd64/helm
+          sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
+      - name: Install python deps
+        run: pip install --quiet pyyaml
       - name: Install kubeconform
         run: |
           curl -fsSL -o /tmp/kubeconform.tar.gz \
@@ -59,17 +95,16 @@ jobs:
           tar xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
           sudo install -m755 /tmp/kubeconform /usr/local/bin/kubeconform
 
-      - name: Install python deps
-        run: pip install --quiet pyyaml
-
-      # Builds every cluster the way Flux does and fails on any ${VAR} that survives. An
-      # unknown variable is an error nowhere else: Flux leaves it alone, kustomize is happy,
-      # the API server accepts it, and the app serves a hostname that resolves for nobody.
+      # Renders the control plane for every cluster case, builds each Kustomization it emits
+      # the way Flux does, and fails on any ${VAR} that survives. An unknown variable is an
+      # error nowhere else: Flux leaves it alone, kustomize is happy, the API server accepts
+      # it, and the app serves a hostname that resolves for nobody.
       - name: flux build every layer
-        run: ./tests/build.sh built
+        run: ./tests/build.py built
 
+      # The chart goldens and the built clusters, CRDs included.
       - name: kubeconform
-        run: ./tests/kubeconform.sh built
+        run: ./tests/kubeconform.sh tests/golden built
 
   render-diff:
     name: render-diff
@@ -78,22 +113,24 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
           fetch-depth: 0    # both sides of the diff have to exist locally
-
       - name: Install flux
         run: |
           curl -fsSL "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz" \
             | tar xz -C /tmp flux
           sudo install -m755 /tmp/flux /usr/local/bin/flux
-
+      - name: Install helm
+        run: |
+          curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+            | tar xz -C /tmp linux-amd64/helm
+          sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
+      - name: Install python deps
+        run: pip install --quiet pyyaml
       - name: Install dyff
         run: |
           curl -fsSL -o /tmp/dyff.tar.gz \
             "https://github.com/homeport/dyff/releases/download/v${DYFF_VERSION}/dyff_${DYFF_VERSION}_linux_amd64.tar.gz"
           tar xzf /tmp/dyff.tar.gz -C /tmp dyff
           sudo install -m755 /tmp/dyff /usr/local/bin/dyff
-
-      - name: Install python deps
-        run: pip install --quiet pyyaml
 
       # Never fails the build: a render-diff has no opinion about whether a change is right,
       # it makes the change visible. It goes in the job summary because a diff nobody reads
@@ -113,23 +150,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-        with:
-          path: config
-
-      # The surround charts, rendered from source. Deliberately the charts repo's default
-      # branch rather than the version this repo pins: the question is whether what we are
-      # about to release still attaches to the upstream releases we already run.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-        with:
-          repository: ${{ github.repository_owner }}/${{ env.CHARTS_REPO }}
-          path: helm-charts
-
       - name: Install helm
         run: |
           curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
             | tar xz -C /tmp linux-amd64/helm
           sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
-
       - name: Install python deps
         run: pip install --quiet pyyaml
 
@@ -140,7 +165,6 @@ jobs:
       # change at all, so goldens, render-diff and kubeconform are all green while the
       # routes point at nothing. It fetches the pinned charts, so it needs network.
       - name: binding
-        working-directory: config
         run: ./tests/binding.py
 
   profiles:
@@ -148,39 +172,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-        with:
-          path: config
-
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-        with:
-          repository: ${{ github.repository_owner }}/${{ env.CHARTS_REPO }}
-          path: helm-charts
-
+      - name: Install flux
+        run: |
+          curl -fsSL "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_amd64.tar.gz" \
+            | tar xz -C /tmp flux
+          sudo install -m755 /tmp/flux /usr/local/bin/flux
       - name: Install helm
         run: |
           curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
             | tar xz -C /tmp linux-amd64/helm
           sudo install -m755 /tmp/linux-amd64/helm /usr/local/bin/helm
-
-      # `kubectl kustomize` is the kustomize build, components included. Pinned, because the
-      # profiles ARE kustomize components and a kustomize behaviour change would move every
-      # number this job checks.
-      - name: Install kubectl
-        run: |
-          curl -fsSL -o /tmp/kubectl \
-            "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-          sudo install -m755 /tmp/kubectl /usr/local/bin/kubectl
-
       - name: Install python deps
         run: pip install --quiet pyyaml
 
-      # Renders all three profiles and asserts the invariants they claim: replicas > 1 comes
-      # with a PDB that really selects those pods, replicas == 1 comes with none, every PDB
-      # matches a live pod template, and the datastores are HA only where the profile says
-      # so. This does not prove the platform serves 5,000 people; it proves the profiles
-      # still say what they claim, which is the part that rots.
+      # Renders all three profiles — Flux applies them as components on top of each app, so
+      # Flux's own build renders them — and asserts the invariants they claim: replicas > 1
+      # comes with a PDB that really selects those pods, replicas == 1 comes with none,
+      # every profile target matches something, and the datastores are HA only where the
+      # profile says so. This does not prove the platform serves 5,000 people; it proves
+      # the profiles still say what they claim, which is the part that rots.
       - name: profiles
-        working-directory: config
         run: ./tests/profiles.py
 
   policy:
@@ -188,7 +199,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-
       - name: Install conftest
         run: |
           curl -fsSL -o /tmp/conftest.tar.gz \
@@ -200,13 +210,17 @@ jobs:
       # to anything: a policy suite that has only ever seen compliant input is
       # indistinguishable from an empty one.
       - name: policy unit tests
-        run: conftest verify --policy policy
+        run: conftest verify --policy policy/charts && conftest verify --policy policy/config
 
-      # Over the SOURCE files, not the built output — a pin lives in the source. These are
-      # decisions already made (adr/0003, adr/0012, the migration-retry rule from 04),
-      # encoded so they survive the person who made them.
+      # policy/charts judges what the charts render — labels propagate, a PDB never uses
+      # minAvailable — so it runs over the goldens. policy/config judges decisions already
+      # made in the source files (adr/0003, adr/0012, the migration-retry rule from 04),
+      # encoded so they survive the person who made them; the chart sources are Go
+      # templates, so their pins are read from the committed goldens too.
+      - name: rendered output
+        run: conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/
       - name: pins and remediation
-        run: conftest test --policy policy --parser yaml --all-namespaces apps/ platform/ clusters/ infra/
+        run: conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ tests/golden/
 
   secrets:
     name: gitleaks
@@ -215,17 +229,14 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
           fetch-depth: 0     # history too: adr/0005 is about what ever reached git
-
       - name: Install gitleaks
         run: |
           curl -fsSL -o /tmp/gitleaks.tar.gz \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           tar xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           sudo install -m755 /tmp/gitleaks /usr/local/bin/gitleaks
-
       - name: Working tree
         run: gitleaks dir . --no-banner --redact
-
       - name: History
         run: gitleaks git . --no-banner --redact
 
@@ -238,13 +249,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
           fetch-depth: 0
-
       - name: Install gitlint
         run: pip install --quiet "gitlint==${GITLINT_VERSION}"
-
-      # The gitmoji convention, enforced by .gitlint. `create-pull-request` in
-      # upstream-updates.yaml writes its commit in the same shape, so the bump PR passes
-      # this job like any other.
+      # The gitmoji convention, enforced by .gitlint. The range is the PR's own commits: a
+      # rebase-less merge means main's history is not ours to relitigate.
       - name: gitlint
         run: |
           gitlint --commits "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"

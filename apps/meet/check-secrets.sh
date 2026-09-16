@@ -8,7 +8,7 @@
 #
 #   ./check-secrets.sh [path-to-meet-checkout]
 #
-# With no argument it clones the tag that `clusters/prod/sources.yaml` pins.
+# With no argument it clones the tag that `charts/control-plane/templates/sources.yaml` pins.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,7 +18,7 @@ SRC="${1:-}"
 if [[ -z "$SRC" ]]; then
   TAG="$(python3 -c "
 import re
-s=open('$HERE/../../clusters/prod/sources.yaml').read()
+s=open('$HERE/../../charts/control-plane/templates/sources.yaml').read()
 i=s.index('suitenumerique-meet')
 print(re.search(r'ref: \{tag: (\S+)\}', s[i:]).group(1))")"
   echo "cloning meet at $TAG"

@@ -1,0 +1,3 @@
+# expect: apps.meet is on, so livekit.ip is required
+domain: example.org
+gateway: {ip: 10.0.0.5}

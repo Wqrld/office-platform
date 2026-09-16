@@ -1,8 +1,9 @@
-*.tgz
-charts/*/charts/
-.DS_Store
 # measure.py's pinned chart cache — rebuilt by `./measure.py fetch`.
 .charts/
 __pycache__/
-# Local build output — `./tests/build.sh built`, also what the CI job writes.
+# Local build output — `./tests/build.py built`, also what the CI job writes.
 built/
+# Vendored platform-lib and packaged charts: produced by `helm dependency build` / release.sh.
+*.tgz
+charts/*/charts/
+.DS_Store

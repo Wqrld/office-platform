@@ -1,0 +1,22 @@
+# Drive's dependencies with the object store EXTERNAL: the same file as drive-deps in
+# config/, plus `mode: external`. Asserts the Garage bucket and key are gone and one
+# ExternalSecret carries the identical key set, publicEndpoint included, read from the
+# hand-applied `object-store` Secret rather than from a GarageKey.
+app: drive
+baseDomain: haaijer.dev
+
+postgres:
+  enabled: true
+  env: django
+
+cache:
+  enabled: true
+  env: django
+  uses: [cache, broker]
+
+objectstore:
+  enabled: true
+  env: django-s3
+  mode: external
+  # A flag in external mode: the endpoint is already the browser's, so the text is unused.
+  publicEndpoint: presigned

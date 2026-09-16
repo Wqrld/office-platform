@@ -1,0 +1,8 @@
+# expect: value must be one of
+# `objectstore.mode` has two values and `s3` is neither. Left to the template it would fall
+# through to the Garage branch and provision a bucket on a store the organisation meant to
+# replace — a working app writing to the wrong place, which nothing reports.
+app: typo
+objectstore:
+  enabled: true
+  mode: s3

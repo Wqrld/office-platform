@@ -17,17 +17,17 @@ Run both from the repository root — target paths are relative to the working d
 | external-secrets chart | `infra/external-secrets.yaml` | chart repo index |
 | garage-operator chart | `infra/garage-operator.yaml` | OCI registry tags |
 | valkey chart ×2 | `platform/valkey/{cache,broker}.yaml` | chart repo index |
-| Docs chart tag | `clusters/prod/sources.yaml` | `suitenumerique/docs` git tags |
+| Docs chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/docs` git tags |
 | Docs image tags ×3 | `apps/docs/release.yaml` | the same git tag |
-| Drive chart tag | `clusters/prod/sources.yaml` | `suitenumerique/drive` git tags |
+| Drive chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/drive` git tags |
 | Drive image tags ×2 | `apps/drive/release.yaml` | the same git tag |
 | collabora-online chart | `apps/collabora/release.yaml` | chart repo index |
-| Meet chart tag | `clusters/prod/sources.yaml` | `suitenumerique/meet` git tags |
+| Meet chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/meet` git tags |
 | Meet image tags ×7 | `apps/meet/release.yaml` | the same git tag |
 | LiveKit image tags ×2 | `apps/livekit/release.yaml` | Docker Hub tags; the chart commit is moved by hand |
 | whisperx image tag | `apps/meet/whisperx.yaml` | `suitenumerique/meet-whisperx` git tags |
 
-Two git-tag pins now live in `clusters/prod/sources.yaml`, so both patterns are **anchored
+Two git-tag pins now live in `charts/control-plane/templates/sources.yaml`, so both patterns are **anchored
 to the repository URL**. An unanchored `ref: {tag: vX.Y.Z}` matches both and rewrites
 Drive's tag to a Docs version — that is a real bug that was caught, not a hypothetical.
 
@@ -69,7 +69,7 @@ lines of unrelated churn per file, enough to bury the one line that actually cha
 replacement anchored on `chart: <name>` is byte-exact. Verified: a full behind-version
 simulation restores every pin and leaves the tree byte-identical to where it started.
 
-The anchor is also a safety property. `clusters/prod/sources.yaml` holds seven documents,
+The anchor is also a safety property. `charts/control-plane/templates/sources.yaml` holds seven documents,
 and updatecli's yamlpath engine writes to *every* document whose path matches — which
 there would rewrite `platform-deps` and `platform-app`, our own charts, to a Docs version.
 There is no document selector. A pattern that cannot match them is the fix.
@@ -94,7 +94,7 @@ comment in the same commit — atomically, so the two can never disagree. The
 same weekly PR; it is also safe to run by hand.
 
 **Our own artifacts.** `platform-deps`, `platform-app` and `office-config` are released by
-`helm-charts/scripts/publish.sh` and `release.sh`. They are pins, but they are ours.
+`release.sh` and `release.sh`. They are pins, but they are ours.
 
 ## A bump is not live when it merges
 

@@ -1,0 +1,38 @@
+{{- range $name, $vars := .Values.generated }}
+# Generated once, in the cluster, never derived at render time (adr/0005). Each variable
+# gets its OWN generator draw — reusing one draw would make two variables equal, which is
+# the bug `derivePassword` shipped.
+#
+# `dataFrom` is an ORDERED list and its order is part of the spec. Changing the spec of a
+# generated secret makes ESO draw again, so this is a list rather than a map: Helm sorts
+# map keys, and a re-sort here silently rotates every secret in the object.
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list $) | nindent 4 }}
+spec:
+  # Zero: a generated secret must never be re-drawn on refresh, or every pod holding it
+  # is suddenly wrong.
+  refreshInterval: "0"
+  target:
+    name: {{ $name }}
+    creationPolicy: Owner
+    template:
+      data:
+        {{- range $v := $vars }}
+        {{ $v.env }}: "{{ printf "{{ .%s }}" $v.draw }}"
+        {{- end }}
+  dataFrom:
+    {{- range $v := $vars }}
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: {{ $v.generator | default $.Values.platform.passwordGenerator }}
+      rewrite: [{regexp: {source: "password", target: {{ $v.draw | quote }}}}]
+    {{- end }}
+{{- end }}

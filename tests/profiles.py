@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Do the size profiles still say what they claim to say?
 
-    ./tests/profiles.py [size ...]      default: every environment under environments/
+    ./tests/profiles.py [size ...]      default: small, medium and large
 
 The 5-to-5,000 claim rests on three overlays that nothing else checks, and an overlay is the
 easiest thing in this repo to get silently wrong: a patch whose target path a chart does not
 have is a no-op, not an error, and a PDB selector that matches nothing is an object that
 protects zero pods while looking exactly like protection.
 
-So this renders each profile the way the cluster would — kustomize the environment, then
-`helm template` every HelmRelease in it against its pinned chart — and asserts the four
-invariants from 10-verification.md:
+So this renders each profile the way the cluster would — Flux builds each app and the
+platform layer with the profile as a component, then `helm template` every HelmRelease
+against its pinned chart — and asserts the four invariants from 10-verification.md:
 
   * `replicas > 1` implies a PodDisruptionBudget that actually selects those pods;
   * `replicas == 1` implies NO PodDisruptionBudget selects them (the small profile is the
@@ -23,12 +23,14 @@ is HA at `large` and single elsewhere, and Garage's `replication.factor` is IDEN
 all three — it cannot be changed in place, so a profile that appears to raise it is a promise
 of redundancy nothing delivers.
 
-And one set difference that needs no rendering at all: every HelmRelease that sizes itself
-must appear in the `small` profile. A missing stanza is not an error anywhere — the app just
-runs at production size in a demo.
+And two set differences. Every HelmRelease that sizes itself must appear in the `small`
+profile: a missing stanza is not an error anywhere — the app just runs at production size
+in a demo. And every patch target in every profile must match an object that exists: since
+the profile is applied per app, a typo'd target is a silent no-op in every one of them,
+and nothing but this notices.
 
-Chart resolution is imported from binding.py rather than copied: the pins live in
-clusters/prod/sources.yaml and one reader of them is enough. Needs network, like the binding
+Chart resolution is imported from binding.py rather than copied: the pins are read from the
+rendered control plane and one reader of them is enough. Needs network, like the binding
 check, for the same reason.
 """
 from __future__ import annotations
@@ -44,9 +46,9 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import binding  # noqa: E402  — the chart-resolution half of this check already exists there
+import render  # noqa: E402
 
-HERE = pathlib.Path(__file__).resolve().parent.parent
-ENVIRONMENTS = HERE / "environments"
+HERE = render.ROOT
 WORKLOAD_KINDS = {"Deployment", "StatefulSet"}
 # Operator-owned CRs whose `instances` is the replica count. Their controllers make the pods
 # and their own PDBs, so they are read from the spec rather than rendered.
@@ -54,26 +56,16 @@ INSTANCE_KINDS = {"Cluster", "Keycloak"}
 HA_SIZE = "large"
 
 
-def kustomize(path: pathlib.Path, base_domain: str) -> list[dict]:
-    out = subprocess.run(["kubectl", "kustomize", str(path)],
-                         capture_output=True, text=True)
-    if out.returncode != 0:
-        raise RuntimeError(f"kubectl kustomize {path} failed:\n{out.stderr}")
-    text = out.stdout.replace("${BASE_DOMAIN}", base_domain)
-    return [d for d in yaml.safe_load_all(text) if d]
-
-
-def render_releases(docs: list[dict], srcs: dict, work: pathlib.Path, base_domain: str,
+def render_releases(docs: list[dict], srcs: dict, work: pathlib.Path, variables: dict,
                     problems: list[str]) -> list[dict]:
     """Every HelmRelease in `docs`, rendered. Non-release objects are passed through."""
     rendered = [d for d in docs if d.get("kind") != "HelmRelease"]
     for rel in [d for d in docs if d.get("kind") == "HelmRelease"]:
         name, ns = rel["metadata"]["name"], rel["metadata"]["namespace"]
-        values = binding.substitute(rel["spec"].get("values") or {}, base_domain)
+        values = render.substitute(rel["spec"].get("values") or {}, variables)
         chart = binding.local_chart(rel)
         if chart is None and rel["spec"].get("chartRef"):
-            problems.append(f"{ns}/{name}: chartRef did not resolve under ../helm-charts/charts — "
-                            f"this check needs the helm-charts repo checked out beside this one")
+            problems.append(f"{ns}/{name}: chartRef did not resolve under charts/")
             continue
         if chart is None:
             try:
@@ -144,12 +136,32 @@ def small_profile_covers_every_app() -> list[str]:
     return problems
 
 
-def check(size: str, srcs: dict, work: pathlib.Path, base_domain: str) -> tuple[list[str], dict]:
-    problems: list[str] = []
-    env = ENVIRONMENTS / size
+def every_target_matches(size: str, objects: list[dict]) -> list[str]:
+    """Every patch in a profile must target something in the whole-set render.
 
-    apps = render_releases(kustomize(env / "apps", base_domain), srcs, work, base_domain, problems)
-    platform = render_releases(kustomize(env / "platform", base_domain), srcs, work, base_domain, problems)
+    Kustomize no-ops a patch whose target matches nothing, and the profile is applied to one
+    app at a time — so a typo'd name is not "invisible in the whole-set build", it is a
+    no-op in every per-app build too, with no output anywhere that says so.
+    """
+    present = {(d["kind"], d["metadata"]["name"], d["metadata"].get("namespace")) for d in objects}
+    problems = []
+    for layer in ("apps", "platform"):
+        profile = yaml.safe_load((HERE / layer / "overlays" / f"size-{size}" / "kustomization.yaml").read_text())
+        for t in ((p or {}).get("target") or {} for p in profile.get("patches") or []):
+            key = (t.get("kind"), t.get("name"), t.get("namespace"))
+            if key not in present:
+                problems.append(f"{size}: {layer}/overlays targets {key[0]} {key[2]}/{key[1]}, which nothing "
+                                f"renders — the patch is a silent no-op")
+    return problems
+
+
+def check(size: str, srcs: dict, work: pathlib.Path, variables: dict) -> tuple[list[str], dict]:
+    problems: list[str] = []
+
+    raw_apps, raw_platform = render.apps(size), render.platform(size)
+    problems += every_target_matches(size, raw_apps + raw_platform)
+    apps = render_releases(render.substitute(raw_apps, variables), srcs, work, variables, problems)
+    platform = render_releases(render.substitute(raw_platform, variables), srcs, work, variables, problems)
 
     workloads = [d for d in apps if d.get("kind") in WORKLOAD_KINDS]
     pdbs = [d for d in apps if d.get("kind") == "PodDisruptionBudget"]
@@ -224,9 +236,9 @@ def main() -> int:
     ap.add_argument("sizes", nargs="*")
     args = ap.parse_args()
 
-    sizes = args.sizes or sorted(p.name for p in ENVIRONMENTS.iterdir() if p.is_dir())
+    sizes = args.sizes or list(render.SIZES)
     srcs = binding.sources()
-    base_domain = binding.base_domain()
+    variables = binding.variables()
     work = pathlib.Path(tempfile.mkdtemp(prefix="profiles-"))
     problems: list[str] = []
     garages: dict[str, dict] = {}
@@ -234,7 +246,7 @@ def main() -> int:
     try:
         print("== rendering each profile")
         for size in sizes:
-            found, garage = check(size, srcs, work, base_domain)
+            found, garage = check(size, srcs, work, variables)
             problems += found
             garages[size] = garage
         problems += small_profile_covers_every_app()

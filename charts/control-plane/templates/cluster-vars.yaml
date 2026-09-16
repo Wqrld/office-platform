@@ -1,0 +1,16 @@
+# The scalars the layers substitute (`postBuild.substituteFrom`), derived from the typed
+# values above rather than written by hand: one input, one artifact, nothing twice.
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: cluster-vars, namespace: flux-system}
+data:
+  BASE_DOMAIN: {{ .Values.domain | quote }}
+  STORAGE_CLASS: {{ .Values.storageClass | quote }}
+  GATEWAY_IP: {{ .Values.gateway.ip | quote }}
+  TLS_ISSUER: {{ .Values.gateway.tlsIssuer | quote }}
+  S3_MODE: {{ .Values.objectStore.mode | quote }}
+  TLS_HOSTS: {{ include "platform.tlsHosts" . | quote }}
+  {{- if .Values.apps.meet }}
+  {{- if not .Values.livekit.ip }}{{ fail "apps.meet is on, so livekit.ip is required — the media address that is not the Gateway" }}{{ end }}
+  LIVEKIT_IP: {{ .Values.livekit.ip | quote }}
+  {{- end }}

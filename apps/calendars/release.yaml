@@ -1,7 +1,7 @@
 # Release 2 of 3: Calendars, from the chart written in the application's own repo
 # (`src/helm/calendars`) — the shape adr/0104 expects. It is not in an upstream tag yet, so
 # it is served from our own Helm repository until the upstreaming PR lands; see
-# clusters/prod/sources.yaml and README.md.
+# charts/control-plane/templates/sources.yaml and README.md.
 #
 # Four workloads on one hostname: backend (Django/gunicorn), frontend (Caddy + a Vite SPA),
 # caldav (SabreDAV under Apache/PHP) and worker (Dramatiq, NOT Celery). Plus three Jobs.

@@ -1,0 +1,7 @@
+# expect: does not match pattern
+# ESO takes a Go duration. "1 hour" is not one; the ExternalSecret is rejected at apply
+# time, long after the render that should have caught it.
+app: duration
+postgres:
+  enabled: true
+  refreshInterval: 1 hour

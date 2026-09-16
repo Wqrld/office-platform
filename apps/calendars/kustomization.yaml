@@ -1,0 +1,21 @@
+# Explicit resource list: dropping a file into this directory must not silently deploy it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deps.yaml
+  - release.yaml
+  - surround.yaml
+
+# Calendars' switcher is a REPLACEMENT for the widget script and the service list the
+# gaufre would otherwise load from static.suite.anct.gouv.fr and lasuite.numerique.gouv.fr;
+# both URLs are runtime settings (release.yaml), so nothing has to be hidden the way it is
+# for Drive. No `substitute: disabled` here, deliberately: services.json needs
+# ${BASE_DOMAIN} resolved, and gaufre.js is written with no dollar sign in it so that
+# substituting over the same ConfigMap cannot touch it.
+configMapGenerator:
+  - name: calendars-gaufre
+    namespace: office-calendars
+    files: [gaufre.js, services.json]
+    options:
+      disableNameSuffixHash: true

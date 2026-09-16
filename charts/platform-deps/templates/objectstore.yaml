@@ -1,0 +1,114 @@
+{{- if .Values.objectstore.enabled }}
+{{- $app := include "platform.deps.app" . }}
+{{- $o := .Values.objectstore }}
+{{- $keys := include "platform.profile" (list "objectstore" $o.env) | fromYaml }}
+{{- $bucket := $o.bucket | default $app }}
+{{- if and $o.publicEndpoint (not (hasKey $keys "publicEndpoint")) }}{{ fail (printf "objectstore.publicEndpoint is set but profile %q has no env name for it" $o.env) }}{{ end }}
+{{- if eq $o.mode "external" }}
+{{- $cred := $o.credentialSecret }}
+# External mode: any S3-compatible store the organisation already runs. Like the SMTP relay,
+# the endpoint and the credential are applied by hand into office-data once (docs/bootstrap.md)
+# and read back from here, so nothing about the provider is in git. The bucket is still the
+# platform's name for it — the organisation creates `{{ $bucket }}` there, and owns its CORS rule
+# for a browser upload, which adr/0110 puts at the edge only when Garage is behind it.
+#
+# The Secret this produces has the same keys as the Garage path's, so the app cannot tell
+# which mode it is in. A real `refreshInterval`, as for smtp: rotation is a re-read.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $app }}-s3
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list .) | nindent 4 }}
+spec:
+  refreshInterval: {{ $o.refreshInterval | quote }}
+  secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}
+  target:
+    name: {{ $app }}-s3
+    creationPolicy: Owner
+    template:
+      data:
+        {{ index $keys "endpoint" }}: "{{ `{{ .endpoint }}` }}"
+        {{ index $keys "region" }}: "{{ `{{ .region }}` }}"
+        {{ index $keys "bucket" }}: {{ $bucket | quote }}
+        {{ index $keys "accessKeyId" }}: "{{ `{{ .accessKeyId }}` }}"
+        {{ index $keys "secretAccessKey" }}: "{{ `{{ .secretAccessKey }}` }}"
+        {{- if $o.awsChecksumWorkaround }}
+        AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+        AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+        {{- end }}
+        {{- if $o.publicEndpoint }}
+        # An external endpoint is already the browser-reachable one, so a presigned URL is
+        # signed against the same host the app itself uses. The value of `publicEndpoint`
+        # is only a flag here; its text is Garage-mode's public address.
+        {{ index $keys "publicEndpoint" }}: "{{ `{{ .endpoint }}` }}"
+        {{- end }}
+  data:
+    - {secretKey: endpoint, remoteRef: {key: {{ $cred }}, property: endpoint}}
+    - {secretKey: region, remoteRef: {key: {{ $cred }}, property: region}}
+    - {secretKey: accessKeyId, remoteRef: {key: {{ $cred }}, property: accessKeyId}}
+    - {secretKey: secretAccessKey, remoteRef: {key: {{ $cred }}, property: secretAccessKey}}
+{{- else }}
+# The only datastore this chart provisions rather than merely reshapes: GarageBucket and
+# GarageKey are app-namespaced, so they belong to the app's release (adr/0107).
+#
+# `secretTemplate` emits the Secret directly with the key names the profile chose, so there
+# is no ESO hop at all — the credential never exists in a second place to drift from.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: {{ $bucket }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list .) | nindent 4 }}
+spec:
+  clusterRef: {name: {{ $o.cluster.name }}, namespace: {{ $o.cluster.namespace }}}
+  globalAlias: {{ $o.globalAlias | default $bucket }}
+  deletionPolicy: {{ $o.deletionPolicy }}
+  {{- if $o.quota.maxSize }}
+  quotas:
+    maxSize: {{ $o.quota.maxSize }}
+  {{- end }}
+---
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: {{ $app }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list .) | nindent 4 }}
+spec:
+  clusterRef: {name: {{ $o.cluster.name }}, namespace: {{ $o.cluster.namespace }}}
+  name: {{ $app }}
+  neverExpires: true
+  bucketPermissions:
+    - bucketRef: {name: {{ $bucket }}, namespace: {{ .Release.Namespace }}}
+      read: true
+      write: true
+      owner: true
+  secretTemplate:
+    name: {{ $app }}-s3
+    accessKeyIdKey: {{ index $keys "accessKeyId" }}
+    secretAccessKeyKey: {{ index $keys "secretAccessKey" }}
+    includeEndpoint: true
+    endpointKey: {{ index $keys "endpoint" }}
+    includeRegion: true
+    regionKey: {{ index $keys "region" }}
+    includeBucketName: true
+    bucketNameKey: {{ index $keys "bucket" }}
+    {{- if or $o.awsChecksumWorkaround $o.publicEndpoint }}
+    additionalData:
+      {{- if $o.awsChecksumWorkaround }}
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+      {{- end }}
+      {{- if $o.publicEndpoint }}
+      # The browser cannot reach a cluster Service, so an app that presigns an upload URL
+      # has to sign it against the public address — the signature covers the host. Setting
+      # this means the bucket IS reachable from the internet; see adr/0110.
+      {{ index $keys "publicEndpoint" }}: {{ tpl $o.publicEndpoint $ | quote }}
+      {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

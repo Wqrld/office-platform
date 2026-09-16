@@ -1,0 +1,64 @@
+# Everything platform-deps can emit, at once. Nothing deploys this shape; it exists so a
+# template touching a branch no live app uses still has a golden to break.
+#
+# Deliberately exercises the awkward corners:
+#   * both cache instances, so the two-instance loop is covered
+#   * publicEndpoint, which only Drive sets and which renders through `tpl`
+#   * a non-default database/bucket name, so a helper that quietly ignores the override
+#     and falls back to `app` shows up as a diff
+#   * two `generated` Secrets with two draws each — the ordered-list shape from adr/0106
+app: full
+tenant: office
+baseDomain: haaijer.dev
+
+postgres:
+  enabled: true
+  env: django
+  database: full_app_db          # NOT the default (`app`) — proves the override is read
+  refreshInterval: 30m
+
+cache:
+  enabled: true
+  env: django
+  uses: [cache, broker]
+
+opensearch:
+  enabled: true
+  env: find
+  username: full-search-user     # NOT the default (`app`)
+  indexPrefix: full-search       # NOT the default either — the two default separately
+  useSSL: false                  # the opposite of the default, so the quoting is covered
+  port: 9201
+
+objectstore:
+  enabled: true
+  env: django-s3
+  bucket: full-bucket            # NOT the default
+  globalAlias: full-legacy-alias # the restore case: alias differs from the bucket name
+  quota: {maxSize: 50Gi}
+  publicEndpoint: "s3.{{ .Values.baseDomain }}"
+  awsChecksumWorkaround: true
+
+smtp:
+  enabled: true
+  env: django
+  backend: django.core.mail.backends.locmem.EmailBackend  # NOT the default
+  credentialSecret: full-relay-account                    # NOT the default either
+  refreshInterval: 30m
+
+oidc:
+  enabled: true
+  createUser: true               # the opposite of both live apps
+  storeRefreshToken: true
+  scopes: [openid, email, profile, offline_access]
+  extraEnv:
+    OIDC_EXTRA_FLAG: "1"
+
+generated:
+  full-django:
+    # `generator` names another ClusterGenerator for one draw (the 50-character one).
+    - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
+    - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
+  full-collaboration:
+    - {env: Y_PROVIDER_API_KEY, draw: apikey}
+    - {env: COLLABORATION_SERVER_SECRET, draw: serversecret}

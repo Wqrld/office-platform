@@ -17,8 +17,9 @@ spec:
       allowedRoutes:
         namespaces: {from: Same}            # only the redirect below
     # One listener, no hostname: Envoy selects the certificate by SNI. Adding an
-    # application therefore never edits this file — it adds one dnsName to
-    # certificate.yaml and ships its own HTTPRoute.
+    # application therefore never edits this file — its host goes in the control plane's
+    # app table, which is where certificate.yaml's SAN list comes from, and it ships its
+    # own HTTPRoute.
     - name: https
       protocol: HTTPS
       port: 443

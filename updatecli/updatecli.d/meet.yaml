@@ -19,7 +19,7 @@ targets:
     kind: file
     sourceid: meet
     spec:
-      file: "clusters/prod/sources.yaml"
+      file: "charts/control-plane/templates/sources.yaml"
       matchpattern: 'url: https://github\.com/suitenumerique/meet\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
       replacepattern: 'url: https://github.com/suitenumerique/meet\n  ref: {tag: {{ source "meet" }}}'
 

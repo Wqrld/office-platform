@@ -1,0 +1,48 @@
+# Calendars' dependencies. The only consumer of the `dramatiq` cache profile, and the only
+# case with THREE cache uses over TWO instances: `cache` and `results` both point at
+# valkey-cache (same ACL user, different db) while `broker` points at valkey-broker.
+#
+# That split is the point of the case. Dramatiq holds results for 30 days; on the
+# noeviction broker a filled result set stops the queue, on the allkeys-lru cache a lost
+# result is only a poll that returns nothing.
+#
+# Two generated Secrets: the Django one carries SALT_KEY (rotating it makes every stored
+# channel token undecryptable), and the CalDAV one carries three keys read by two different
+# pods.
+app: calendars
+baseDomain: haaijer.dev
+
+postgres:
+  enabled: true
+  env: django
+
+cache:
+  enabled: true
+  env: dramatiq
+  uses: [cache, broker, results]
+  instances:
+    results:
+      host: valkey-cache.office-data.svc.cluster.local
+      port: 6379
+      db: 2
+      credentialSecret: valkey-cache-acl
+
+# The bare EMAIL_* spelling, against Docs' DJANGO_-prefixed one. The pair is the whole
+# reason `smtp` has two application profiles rather than a prefix.
+smtp:
+  enabled: true
+  env: django
+
+oidc:
+  enabled: true
+  createUser: true
+
+generated:
+  calendars-django:
+    - {env: DJANGO_SECRET_KEY, draw: secretkey}
+    - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
+    - {env: SALT_KEY, draw: salt}
+  calendars-caldav:
+    - {env: CALDAV_INBOUND_API_KEY,  draw: inbound}
+    - {env: CALDAV_OUTBOUND_API_KEY, draw: outbound}
+    - {env: CALDAV_INTERNAL_API_KEY, draw: internal}

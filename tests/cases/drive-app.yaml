@@ -1,0 +1,55 @@
+# Drive's surround, mirroring config/apps/drive/surround.yaml. This is the case that covers
+# the media proxy and the static-file server — the two things platform-app runs itself, and
+# so the only rendered Deployments either chart produces.
+#
+# ${BASE_DOMAIN} is left as the literal Flux substitutes at apply time, exactly as the
+# HelmRelease has it: the goldens then show whether a template started resolving it early.
+app: drive
+baseDomain: ${BASE_DOMAIN}
+
+routes:
+  - host: drive
+    backend: {name: drive-frontend, port: 80}
+    paths: [/]
+
+  - name: api
+    host: drive
+    backend: {name: drive-backend, port: 80}
+    paths: [/api, /admin, /static]
+    requestBuffer: 25Mi
+    timeout: 300s
+
+  - name: static
+    host: drive
+    backend: {name: drive-static, port: 8080}
+    paths: [/custom]
+
+  - name: media
+    host: drive
+    backend: {name: drive-media-proxy, port: 8080}
+    paths: [/media]
+    timeout: 300s
+
+mediaProxy:
+  enabled: true
+  auth: {service: drive-backend, port: 80, path: /api/v1.0/items/media-auth/}
+  objectstore: {bucket: drive}
+  locations:
+    - {path: "/media/preview/"}
+    - {path: "/media/", headers: {Content-Disposition: attachment}}
+
+staticFiles:
+  enabled: true
+  filesConfigMap: drive-switcher
+
+networkPolicy:
+  enabled: true
+  egress:
+    - {datastore: postgres}
+    - {datastore: cache}
+    - {datastore: objectstore}
+    - {identity: true}
+    - {app: collabora, port: 9980}
+    - {external: true, port: 443}
+
+pdb: {enabled: false}

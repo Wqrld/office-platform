@@ -1,0 +1,36 @@
+{{- $app := include "platform.app.name" . }}
+{{- range $route := .Values.routes }}
+{{- $name := include "platform.app.routeName" (list $app $route) }}
+{{- if or $route.requestBuffer $route.timeout $route.websocket }}
+{{- if and $route.websocket $route.requestBuffer }}
+{{- fail (printf "route %q sets both websocket and requestBuffer. Buffering a request that never ends is how you break a websocket — an editing session is one request that legitimately lasts all day." $name) }}
+{{- end }}
+---
+# Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
+# request before forwarding and reject anything larger — nginx's client_max_body_size — and
+# it is only safe paired with a connection buffer large enough to hold it, set once on the
+# Gateway in platform/gateway/traffic.yaml.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list $) | nindent 4 }}
+spec:
+  targetRefs:
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: {{ $name }}}
+  {{- if $route.requestBuffer }}
+  requestBuffer:
+    limit: {{ $route.requestBuffer }}
+  {{- end }}
+  timeout:
+    http:
+      {{- if $route.websocket }}
+      requestTimeout: 0s
+      connectionIdleTimeout: {{ $.Values.websocketIdleTimeout }}
+      {{- else }}
+      requestTimeout: {{ $route.timeout }}
+      {{- end }}
+{{- end }}
+{{- end }}

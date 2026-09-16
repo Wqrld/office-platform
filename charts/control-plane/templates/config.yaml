@@ -1,0 +1,13 @@
+# The config artifact: infra/, platform/ and apps/, read by every Kustomization this chart
+# emits — at this chart's version, like the charts above. release.sh publishes both under
+# one number, so the organisation's chart pin IS the platform version: there is no second
+# pointer to keep in step and no moving tag anywhere (the old `:latest` / `:X.Y.Z` split
+# existed only because the pointer used to live inside the tree it pointed at).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata: {name: office-config, namespace: flux-system}
+spec:
+  interval: 5m
+  url: {{ .Values.registry.url }}/config
+  ref: {tag: {{ .Chart.Version | quote }}}
+  {{- include "platform.pullSecret" . | nindent 2 }}

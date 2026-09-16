@@ -1,0 +1,9 @@
+# The floor. One route to one backend and nothing else — no PDB, no netpol, no proxy.
+# This case is what catches a helper that starts requiring a value it used to default.
+app: minimal
+baseDomain: haaijer.dev
+
+routes:
+  - host: minimal
+    backend: {name: minimal-frontend, port: 80}
+    paths: [/]

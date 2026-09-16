@@ -1,8 +1,8 @@
 # One SAN certificate for every platform hostname; the Gateway's single HTTPS listener
-# selects from it by SNI. Adding an application is one dnsName here — the Gateway is
-# never edited. See platform/docs/adr/0105.
+# selects from it by SNI. Neither this file nor the Gateway is edited to add an
+# application. See platform/docs/adr/0105.
 #
-# RULE: a hostname may be listed here only once its DNS resolves to the Gateway.
+# RULE: a hostname may be served only once its DNS resolves to the Gateway.
 # Let's Encrypt fails the whole certificate if any single SAN fails validation, so one
 # mispointed record takes down TLS for every application. This is why Harbor and the
 # Longhorn UI are absent — they still resolve to ingress-nginx (see deferred/).
@@ -16,25 +16,9 @@ spec:
   issuerRef:
     name: ${TLS_ISSUER}
     kind: ClusterIssuer
-  dnsNames:
-    - id.${BASE_DOMAIN}      # Keycloak
-    - docs.${BASE_DOMAIN}    # Docs
-    - drive.${BASE_DOMAIN}   # Drive
-    - collabora.${BASE_DOMAIN}  # Collabora Online, the WOPI editor Drive embeds
-    # The Garage S3 API, published for ONE bucket so Drive's browser uploads can be
-    # presigned against a host the browser can reach — platform/docs/adr/0110.
-    - s3.${BASE_DOMAIN}
-    # Find. No browser reaches it, but Docs does — over the public URL, because a
-    # pod-to-pod call carries no X-Forwarded-Proto and Find 301s it (apps/find/README.md).
-    # Without this SAN the handshake fails and search silently falls back to title-only.
-    - find.${BASE_DOMAIN}
-    # Calendars. A browser reaches this one directly, and it is also the host CalDAV
-    # clients (Thunderbird, iOS) connect to — so an unlisted SAN is not a quiet
-    # degradation here, it is every client failing the handshake at once.
-    - calendars.${BASE_DOMAIN}
-    # Meet, and LiveKit's SIGNALING host. The browser opens a WebSocket to livekit.* through
-    # the Gateway; media goes to ${LIVEKIT_IP} directly and needs no certificate. `turn.*`
-    # is deliberately absent: it points at ${LIVEKIT_IP}, where no HTTP-01 solver can
-    # answer, and a SAN that cannot be validated fails the WHOLE order (adr/0105).
-    - meet.${BASE_DOMAIN}
-    - livekit.${BASE_DOMAIN}
+  # Every hostname this cluster serves, derived by the control plane from the enabled apps
+  # and substituted whole as a JSON list (charts/control-plane/templates/_helpers.tpl, `hosts`).
+  # An application that is off has no SAN here and needs no DNS record; `s3.*` is present
+  # only while the platform runs the object store itself. Adding an application is one
+  # `hosts` entry in the app table, never an edit here.
+  dnsNames: ${TLS_HOSTS}

@@ -31,7 +31,7 @@ kubectl patch envoyproxy -n office-system office-gateway --type=merge \
 curl -sS -o /dev/null -w '%{http_code}\n' https://harbor.mijnbureau.haaijer.dev/
 
 # 4. renewals now solve through the Gateway, not through nginx
-#    config/clusters/prod/vars.yaml: TLS_ISSUER -> letsencrypt-gateway
+#    clusters/prod/cluster.yaml: gateway.tlsIssuer -> letsencrypt-gateway
 ```
 
 ## Rollback

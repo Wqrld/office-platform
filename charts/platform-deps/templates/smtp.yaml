@@ -1,0 +1,46 @@
+{{- if .Values.smtp.enabled }}
+{{- $app := include "platform.deps.app" . }}
+{{- $s := .Values.smtp }}
+{{- $keys := include "platform.profile" (list "smtp" $s.env) | fromYaml }}
+{{- $cred := $s.credentialSecret }}
+# The one credential on this platform that is neither generated in-cluster nor minted by an
+# operator: an SMTP relay account is issued by somebody else, so it is applied by hand into
+# office-data once (docs/bootstrap.md) and read back from here. Nothing about the relay is in
+# git — not even the host — and this reshapes the whole of it into the key names {{ $s.env }}
+# applications expect, so the app consumes it with one `envFrom`.
+#
+# `refreshInterval` is a real interval, not the `"0"` the generated Secrets use: this reads a
+# Secret rather than drawing from a generator, so re-reading it is how rotation works. The
+# consuming pods still need a restart afterwards — `envFrom` is read once, at pod start.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $app }}-smtp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list .) | nindent 4 }}
+spec:
+  refreshInterval: {{ $s.refreshInterval | quote }}
+  secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}
+  target:
+    name: {{ $app }}-smtp
+    creationPolicy: Owner
+    template:
+      data:
+        {{ index $keys "backend" }}: {{ $s.backend | quote }}
+        {{ index $keys "host" }}: "{{ `{{ .host }}` }}"
+        {{ index $keys "port" }}: "{{ `{{ .port }}` }}"
+        {{ index $keys "username" }}: "{{ `{{ .username }}` }}"
+        {{ index $keys "password" }}: "{{ `{{ .password }}` }}"
+        {{ index $keys "useTLS" }}: "{{ `{{ .useTLS }}` }}"
+        {{ index $keys "useSSL" }}: "{{ `{{ .useSSL }}` }}"
+        {{ index $keys "from" }}: "{{ `{{ .from }}` }}"
+  data:
+    - {secretKey: host, remoteRef: {key: {{ $cred }}, property: host}}
+    - {secretKey: port, remoteRef: {key: {{ $cred }}, property: port}}
+    - {secretKey: username, remoteRef: {key: {{ $cred }}, property: username}}
+    - {secretKey: password, remoteRef: {key: {{ $cred }}, property: password}}
+    - {secretKey: useTLS, remoteRef: {key: {{ $cred }}, property: useTLS}}
+    - {secretKey: useSSL, remoteRef: {key: {{ $cred }}, property: useSSL}}
+    - {secretKey: from, remoteRef: {key: {{ $cred }}, property: from}}
+{{- end }}

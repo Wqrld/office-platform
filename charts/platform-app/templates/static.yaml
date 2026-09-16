@@ -1,0 +1,110 @@
+{{- if .Values.staticFiles.enabled }}
+{{- $app := include "platform.app.name" . }}
+{{- $f := .Values.staticFiles }}
+{{- $name := printf "%s-static" $app }}
+{{- $files := required "staticFiles.filesConfigMap names the ConfigMap holding the files" $f.filesConfigMap }}
+{{- $selector := dict "app.kubernetes.io/name" $name }}
+{{- $labels := mustMerge (deepCopy $selector) (include "platform.labels" (list .) | fromYaml) }}
+# A few files served from the application's own origin.
+#
+# It exists because some upstream frontends take a URL rather than content: Drive's
+# `FRONTEND_JS_URL` injects a <script> tag, and there is no other way to reach that page.
+# Serving it from our own host keeps the application free of a third-party CDN.
+#
+# The files come from a ConfigMap someone else made — `filesConfigMap` — rather than from
+# values, so they can stay real files in the config repo instead of block scalars inside a
+# HelmRelease. nginx reads from disk per request and a mounted ConfigMap updates in place,
+# so editing them does not need a restart.
+#
+# Not a general web server: everything here is public, cached and read-only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-conf
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      charset utf-8;
+      server_tokens off;
+      location = /healthz { access_log off; return 200 "ok\n"; }
+      location {{ $f.path }} {
+        alias /srv/;
+        # Everything here is ours and public, but it is still served from the application's
+        # origin, so it gets the same treatment as any other asset.
+        add_header Cache-Control "public, max-age={{ $f.maxAge }}" always;
+        add_header X-Content-Type-Options nosniff always;
+        types { application/javascript js; text/css css; image/svg+xml svg; }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+spec:
+  replicas: {{ $f.replicas }}
+  selector:
+    matchLabels:
+      {{- toYaml $selector | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ toYaml $f | sha256sum }}
+      labels:
+        {{- toYaml $selector | nindent 8 }}
+    spec:
+      priorityClassName: {{ $f.priorityClassName }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: nginx
+          image: {{ $f.image }}
+          ports:
+            - {name: http, containerPort: 8080}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            {{- toYaml $f.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8080}
+            initialDelaySeconds: 3
+          volumeMounts:
+            - {name: conf, mountPath: /etc/nginx/conf.d}
+            - {name: files, mountPath: /srv}
+            - {name: cache, mountPath: /var/cache/nginx}
+            - {name: run, mountPath: /var/run}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: conf
+          configMap: {name: {{ $name }}-conf}
+        - name: files
+          configMap: {name: {{ $files }}}
+        - {name: cache, emptyDir: {}}
+        - {name: run, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- toYaml $labels | nindent 4 }}
+spec:
+  selector:
+    {{- toYaml $selector | nindent 4 }}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080}
+{{- end }}

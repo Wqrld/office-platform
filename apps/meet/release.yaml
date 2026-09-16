@@ -216,7 +216,7 @@ spec:
       # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
       # to add one <script> tag to every HTML response (`sub_filter`, in default.conf)
       # and to serve the script itself from /custom/. Both files come from the
-      # `meet-frontend` ConfigMap (apps/kustomization.yaml) and are mounted over the
+      # `meet-frontend` ConfigMap (kustomization.yaml) and are mounted over the
       # image's own default.conf and beside it. No fork, no init container, and a chart
       # bump that changes default.conf shows up as a diff against ours in git.
       extraVolumes:

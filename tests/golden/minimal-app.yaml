@@ -1,0 +1,24 @@
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: minimal
+  namespace: office-minimal
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: minimal-platform
+    app.kubernetes.io/instance: minimal-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["minimal.haaijer.dev"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /}}
+      backendRefs:
+        - {name: minimal-frontend, port: 80}

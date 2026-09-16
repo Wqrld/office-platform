@@ -1,0 +1,35 @@
+{{- if .Values.cache.enabled }}
+{{- $app := include "platform.deps.app" . }}
+{{- $c := .Values.cache }}
+{{- $keys := include "platform.profile" (list "cache" $c.env) | fromYaml }}
+# One Secret, one URL per use. The instances are separate on purpose: eviction policy and
+# persistence are per-instance, and an evicting broker silently drops queued tasks
+# (06-datastores.md). The ACL user is created by the 30-platform layer — adr/0107.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $app }}-cache
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list .) | nindent 4 }}
+spec:
+  refreshInterval: {{ $c.refreshInterval | quote }}
+  secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}
+  target:
+    name: {{ $app }}-cache
+    creationPolicy: Owner
+    template:
+      data:
+        {{- range $use := $c.uses }}
+        {{- $inst := index $c.instances $use }}
+        {{- if not $inst }}{{ fail (printf "cache.uses names %q, which is not in cache.instances (have: %s)" $use (keys $c.instances | sortAlpha | join ", ")) }}{{ end }}
+        {{- $envName := index $keys $use }}
+        {{- if not $envName }}{{ fail (printf "cache profile %q has no env name for use %q" $c.env $use) }}{{ end }}
+        {{ $envName }}: "redis://{{ $app }}:{{ printf "{{ .%s }}" $use }}@{{ $inst.host }}:{{ $inst.port }}/{{ $inst.db }}"
+        {{- end }}
+  data:
+    {{- range $use := $c.uses }}
+    {{- $inst := index $c.instances $use }}
+    - {secretKey: {{ $use }}, remoteRef: {key: {{ $inst.credentialSecret }}, property: {{ $app }}}}
+    {{- end }}
+{{- end }}

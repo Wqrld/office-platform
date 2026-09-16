@@ -1,0 +1,22 @@
+# Five components with PDBs enabled — Docs' workload shape.
+#
+# Asserts one PDB per component and that every one of them sets maxUnavailable. A PDB with
+# minAvailable on a single replica blocks every drain, so `maxUnavailable, always` is a
+# platform invariant rather than a preference (charts/platform-app/values.yaml).
+app: multi
+baseDomain: haaijer.dev
+
+routes:
+  - host: multi
+    backend: {name: multi-frontend, port: 80}
+    paths: [/]
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:   {app.kubernetes.io/component: backend}
+    frontend:  {app.kubernetes.io/component: frontend}
+    celery:    {app.kubernetes.io/component: celery}
+    yprovider: {app.kubernetes.io/component: y-provider}
+    docspec:   {app.kubernetes.io/component: docspec}

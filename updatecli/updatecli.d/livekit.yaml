@@ -1,5 +1,5 @@
 # LiveKit: the two IMAGE tags only. The charts come from a commit pin on livekit-helm
-# (clusters/prod/sources.yaml) which, like Find's, is moved by hand — a chart bump there
+# (charts/control-plane/templates/sources.yaml) which, like Find's, is moved by hand — a chart bump there
 # has to be read against release.yaml's postRenderers (port list, env index), and a bot
 # cannot do that reading. The images move independently of the charts upstream.
 name: "LiveKit images"

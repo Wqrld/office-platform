@@ -8,10 +8,10 @@
 # The substitution is not optional: Flux would have done it, and a bare `kubectl apply`
 # leaves a literal ${BASE_DOMAIN} in INDEXING_URL, which fails DNS at run time.
 #
-# APPLIED BY HAND — not in apps/kustomization.yaml. It depends on Find being up, and Flux
-# health-checks every object it applies, so a failed backfill would stall the whole apps
-# layer. Verified the hard way: on the first M6 deploy it ran before Find existed, failed,
-# and took 40-apps down with it.
+# APPLIED BY HAND — not in kustomization.yaml. It depends on Find being up, and Flux
+# health-checks every object it applies, so a failed backfill would stall Docs' whole
+# Kustomization. Verified the hard way: on the first M6 deploy it ran before Find existed,
+# failed, and took the apps layer down with it.
 #
 # TO RE-RUN: bump the `-r1` suffix. A Job's spec is immutable, so re-applying this one does
 # nothing; a new name is what makes it run again.

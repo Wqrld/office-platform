@@ -1,5 +1,5 @@
 # Release 2 of 3 for LiveKit, in two halves: the SFU and its egress worker. Both charts
-# come from livekit/livekit-helm at a pinned commit (clusters/prod/sources.yaml explains
+# come from livekit/livekit-helm at a pinned commit (charts/control-plane/templates/sources.yaml explains
 # why a commit). Neither has a `deps` release: LiveKit reads no Postgres, no bucket and no
 # OIDC, and its two inputs — a Valkey user and the API secret — are platform-generated and
 # assembled into secrets.yaml.

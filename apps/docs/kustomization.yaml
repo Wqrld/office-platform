@@ -1,0 +1,13 @@
+# Explicit resource list: dropping a file into this directory must not silently deploy it.
+# reindex.yaml is applied by hand, not here — see its header.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deps.yaml
+  - search-token.yaml
+  - meet-token.yaml
+  - oidc-refresh-key.yaml
+  - release.yaml
+  - media-proxy.yaml
+  - surround.yaml

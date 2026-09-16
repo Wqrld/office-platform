@@ -3,8 +3,8 @@
 # This lives in the platform layer rather than beside the application on purpose: the
 # operator's admission webhook rejects a cross-namespace reference at dry-run time, so a
 # grant shipped in the same Kustomization as the bucket it authorises is evaluated too
-# late and the whole apply fails. 30-platform reconciles before 40-apps, which is the
-# ordering this needs.
+# late and the whole apply fails. The `objectstore` layer reconciles before every app,
+# which is the ordering this needs.
 apiVersion: garage.rajsingh.info/v1beta1
 kind: GarageReferenceGrant
 metadata: {name: office-docs, namespace: office-data}

@@ -16,14 +16,14 @@ sources:
         pattern: ">=0.21.0"
 
 targets:
-  # Anchored to the repository URL: `clusters/prod/sources.yaml` pins Docs the same way in
+  # Anchored to the repository URL: `charts/control-plane/templates/sources.yaml` pins Docs the same way in
   # the same file, and an unanchored `ref: {tag: vX.Y.Z}` rewrites both.
   chart:
     name: "GitRepository tag"
     kind: file
     sourceid: drive
     spec:
-      file: "clusters/prod/sources.yaml"
+      file: "charts/control-plane/templates/sources.yaml"
       matchpattern: 'url: https://github\.com/suitenumerique/drive\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
       replacepattern: 'url: https://github.com/suitenumerique/drive\n  ref: {tag: {{ source "drive" }}}'
 

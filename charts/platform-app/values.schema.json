@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "platform-app",
+  "description": "The surround. `additionalProperties: false` everywhere it is modelled: a typo'd values key that silently does nothing is the most common Helm failure mode, and this file is the only thing that catches it (10-verification.md, \"Schema validation\"). Profile names and datastore names are deliberately left as plain strings — the templates already fail loudly and name the alternatives, so restating the list here would only be a second copy to drift.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "description": "Helm's own passthrough to subcharts. Modelled only so declaring it is not an error.",
+      "type": "object"
+    },
+    "platform-lib": {
+      "description": "Helm coalesces a key per dependency into the parent's values, so this one is present on every render whether or not anyone writes it. Without it `additionalProperties: false` rejects the chart's own defaults.",
+      "type": "object"
+    },
+    "nameOverride": {"type": "string"},
+    "app": {"type": "string"},
+    "tenant": {"type": "string"},
+    "baseDomain": {
+      "description": "Public DNS suffix, supplied as ${BASE_DOMAIN} by the app file. Required by any route using the short `host` form.",
+      "type": "string"
+    },
+
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "namespace", "sectionName"],
+      "properties": {
+        "name": {"type": "string"},
+        "namespace": {"type": "string"},
+        "sectionName": {"type": "string"}
+      }
+    },
+
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["backend", "paths"],
+        "properties": {
+          "name": {
+            "description": "Suffix for the HTTPRoute name. Omit for the bare <app> route.",
+            "type": "string"
+          },
+          "host": {
+            "description": "Short form: <host>.<baseDomain>. Mutually exclusive with `hostname`, which wins.",
+            "type": "string"
+          },
+          "hostname": {"type": "string"},
+          "backend": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "port"],
+            "properties": {
+              "name": {"type": "string"},
+              "port": {"type": "integer", "minimum": 1, "maximum": 65535}
+            }
+          },
+          "paths": {"type": "array", "items": {"type": "string", "pattern": "^/"}},
+          "deny": {
+            "description": "Prefixes answered 403 at the edge, ahead of `paths` and with no backendRef.",
+            "type": "array",
+            "items": {"type": "string", "pattern": "^/"}
+          },
+          "requestBuffer": {
+            "description": "Envoy holds the whole request and rejects anything larger — nginx's client_max_body_size.",
+            "type": "string"
+          },
+          "timeout": {"type": "string"},
+          "websocket": {"type": "boolean"}
+        },
+        "anyOf": [
+          {"required": ["host"]},
+          {"required": ["hostname"]}
+        ],
+        "allOf": [
+          {
+            "if": {"properties": {"websocket": {"const": true}}, "required": ["websocket"]},
+            "then": {
+              "not": {"required": ["requestBuffer"]},
+              "$comment": "Buffering a request that never ends is how you break a websocket. The template fails on this too; the schema fails on it before anything renders."
+            }
+          }
+        ]
+      }
+    },
+
+    "websocketIdleTimeout": {"type": "string"},
+
+    "pdb": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "maxUnavailable": {
+          "description": "Always maxUnavailable, never minAvailable: a minAvailable PDB on a single replica blocks every drain.",
+          "type": ["integer", "string"]
+        },
+        "components": {
+          "description": "PDB name suffix -> pod selector labels.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {"type": "string"}
+          }
+        }
+      }
+    },
+
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "datastore": {"type": "string"},
+              "identity": {"type": "boolean"},
+              "app": {"type": "string"},
+              "external": {"type": "boolean"},
+              "port": {"type": "integer", "minimum": 1, "maximum": 65535}
+            },
+            "allOf": [
+              {
+                "if": {"required": ["app"]},
+                "then": {"required": ["port"]}
+              },
+              {
+                "if": {"properties": {"external": {"const": true}}, "required": ["external"]},
+                "then": {"required": ["port"]}
+              }
+            ]
+          }
+        },
+        "datastores": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["namespace", "port"],
+            "properties": {
+              "namespace": {"type": "string"},
+              "port": {"type": "integer"}
+            }
+          }
+        },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["namespace", "port"],
+          "properties": {
+            "namespace": {"type": "string"},
+            "port": {"type": "integer"}
+          }
+        },
+        "namespaceLabel": {"type": "string"}
+      }
+    },
+
+    "mediaProxy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "replicas": {"type": "integer", "minimum": 1},
+        "auth": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "service": {"type": "string"},
+            "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+            "path": {
+              "description": "Must end in `/`: nginx joins it with nothing, and the view reads the real URL from X-Original-URL.",
+              "type": "string",
+              "pattern": "(^$|/$)"
+            }
+          }
+        },
+        "objectstore": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host": {"type": "string"},
+            "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+            "bucket": {"type": "string"}
+          }
+        },
+        "maxBodySize": {"type": "string"},
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": {"type": "string", "pattern": "^/"},
+              "headers": {"type": "object", "additionalProperties": {"type": "string"}}
+            }
+          }
+        },
+        "image": {"type": "string"},
+        "priorityClassName": {"type": "string"},
+        "resources": {"$ref": "#/$defs/resources"}
+      }
+    },
+
+    "staticFiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "replicas": {"type": "integer", "minimum": 1},
+        "path": {"type": "string", "pattern": "^/"},
+        "filesConfigMap": {"type": "string"},
+        "maxAge": {"type": "integer", "minimum": 0},
+        "image": {"type": "string"},
+        "priorityClassName": {"type": "string"},
+        "resources": {"$ref": "#/$defs/resources"}
+      }
+    },
+
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "path": {"type": "string", "pattern": "^/"},
+        "components": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          }
+        }
+      }
+    },
+
+    "extraObjects": {
+      "description": "Rendered verbatim. Not modelled further on purpose — this is the escape hatch, and a schema over it would be a second API.",
+      "type": "array",
+      "items": {"type": "object"}
+    }
+  },
+
+  "$defs": {
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {"type": "object", "additionalProperties": {"type": ["string", "integer"]}},
+        "limits": {"type": "object", "additionalProperties": {"type": ["string", "integer"]}}
+      }
+    }
+  }
+}

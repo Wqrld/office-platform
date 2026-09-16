@@ -17,6 +17,7 @@ spec:
     objectstore:
       enabled: true
       env: django-s3
+      mode: ${S3_MODE}     # the organisation's — see apps/docs/deps.yaml
       quota: {maxSize: 50Gi}
       # Makes this bucket internet-reachable — adr/0110. The browser PUTs to a presigned
       # URL, and a SigV4 signature covers the host, so it must be signed against the host

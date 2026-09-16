@@ -1,0 +1,23 @@
+{{- if .Values.pdb.enabled }}
+{{- $app := include "platform.app.name" . }}
+{{- range $component, $selector := .Values.pdb.components }}
+---
+# Always maxUnavailable, never minAvailable. A `minAvailable: 1` PDB on a single-replica
+# workload blocks every node drain forever — the live bug this rule exists to prevent.
+#
+# The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
+# the size profile alongside replicas, not inferred here (05-app-contract.md).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ printf "%s-%s" $app $component }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list $) | nindent 4 }}
+spec:
+  maxUnavailable: {{ $.Values.pdb.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- toYaml $selector | nindent 6 }}
+{{- end }}
+{{- end }}

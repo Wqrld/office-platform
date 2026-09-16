@@ -4,7 +4,7 @@
  * the French government's service list, both compiled into the bundle with no runtime
  * override; FRONTEND_JS_URL is the only hook its page offers. Meet has no switcher at all
  * and no hook, so its nginx injects a <script> tag (apps/meet/default.conf). One file
- * serves both: `apps/kustomization.yaml` puts it in a ConfigMap per app, and the only
+ * serves both: each app's `kustomization.yaml` puts it in a ConfigMap, and the only
  * per-app part is where in the page it mounts (MOUNTS, keyed by hostname).
  *
  * Keep the service list here in step with the other two: Docs' `waffle.data.services` and

@@ -4,7 +4,7 @@
 #
 #   ./check-secrets.sh [path-to-drive-checkout]
 #
-# With no argument it clones the tag that `clusters/prod/sources.yaml` pins. It reads the
+# With no argument it clones the tag that `charts/control-plane/templates/sources.yaml` pins. It reads the
 # patches out of release.yaml rather than restating them, so this cannot drift from what is
 # actually deployed.
 #
@@ -20,7 +20,7 @@ SRC="${1:-}"
 if [[ -z "$SRC" ]]; then
   TAG="$(python3 -c "
 import re,sys
-s=open('$HERE/../../clusters/prod/sources.yaml').read()
+s=open('$HERE/../../charts/control-plane/templates/sources.yaml').read()
 i=s.index('suitenumerique-drive')
 print(re.search(r'ref: \{tag: (\S+)\}', s[i:]).group(1))")"
   echo "cloning drive at $TAG"

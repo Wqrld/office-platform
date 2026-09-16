@@ -1,0 +1,16 @@
+{{- $table := include "platform.apps" . | fromYaml }}
+{{- $profile := printf "../overlays/size-%s" .Values.size }}
+{{- $base := ternary "objectstore" "platform" (eq .Values.objectStore.mode "garage") }}
+{{- /*
+One Kustomization per enabled application, each its own directory under apps/ with the
+size profile applied as a component: kustomize no-ops a patch whose target is not in the
+render, so one profile file serves every app. An app that is off is simply not emitted;
+the parent prunes its Kustomization, and that Kustomization prunes its namespace.
+*/}}
+{{- range $name := include "platform.enabledApps" . | fromYamlArray }}
+{{- $deps := list $base }}
+{{- range (index $table $name).requires }}{{ $deps = append $deps (printf "app-%s" .) }}{{ end }}
+---
+{{ include "platform.kustomization" (dict "root" $ "name" (printf "app-%s" $name)
+     "path" (printf "./apps/%s" $name) "components" (list $profile) "dependsOn" $deps) }}
+{{- end }}

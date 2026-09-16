@@ -1,0 +1,12 @@
+# Production's choices, as control-plane values. The file production actually syncs is the
+# organisation's own (../clusters/prod/cluster.yaml) and carries the same block.
+domain: haaijer.dev
+storageClass: longhorn
+gateway:
+  # A spare MetalLB address while the legacy ingress-nginx still holds .136; becomes
+  # .136 at cutover (docs/gateway-cutover.md).
+  ip: 45.136.141.168
+  tlsIssuer: letsencrypt-gateway
+livekit:
+  ip: 45.136.141.154
+size: medium

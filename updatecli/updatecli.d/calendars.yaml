@@ -1,7 +1,7 @@
 # Calendars has TWO independent pins, and they are shaped differently on purpose.
 #
 #   * the CHART comes from our own Helm repository, because the chart lives in the
-#     application's repo but is not in any upstream tag yet (clusters/prod/sources.yaml);
+#     application's repo but is not in any upstream tag yet (charts/control-plane/templates/sources.yaml);
 #   * the IMAGES come from THE SAME FORK's git tags, with the leading `v` STRIPPED —
 #     `docker-publish.yml` uses `type=semver,pattern={{version}}`, so `v0.1.1` publishes
 #     `…-backend:0.1.1`. Docs and Drive publish and are pinned as `v5.5.0`, so the shared

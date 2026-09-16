@@ -38,7 +38,7 @@ All three are `postRenderers` in release.yaml and are the whole reason that file
 3. **No chart LoadBalancer.** Its modes are cloud-specific; `type: disable` leaves the
    ClusterIP the signaling route needs, and surround.yaml adds the media Service.
 
-Chart bump checklist (the commit in `clusters/prod/sources.yaml` is moved by hand):
+Chart bump checklist (the commit in `charts/control-plane/templates/sources.yaml` is moved by hand):
 render with `tests/binding.py`, then check the livekit Deployment still has `LIVEKIT_CONFIG`
 as `env[0]` and the same port names; check egress's `EGRESS_CONFIG_BODY` likewise.
 

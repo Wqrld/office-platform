@@ -2,10 +2,11 @@
 """
 Print every DNS record a cluster needs, read out of the config that will use them.
 
-    ./dns.py                    every cluster
-    ./dns.py prod               one cluster
-    ./dns.py prod --check       and resolve each name, to see what is already true
-    ./dns.py prod --zone        BIND-format records, nothing else
+    ./dns.py                              every cluster case in tests/cases/
+    ./dns.py prod                         one of them
+    ./dns.py ../cluster-prod/cluster.yaml an organisation's own file — values or HelmRelease
+    ./dns.py prod --check                 and resolve each name, to see what is already true
+    ./dns.py prod --zone                  BIND-format records, nothing else
 
 What comes out is every hostname this Gateway serves: the SAN list on the Certificate the
 Gateway actually references, plus every HTTPRoute hostname — including the ones
@@ -23,83 +24,35 @@ It also cross-checks the two sources against each other. A route hostname with n
 terminates TLS with no certificate for that SNI, which is a handshake failure and not a
 404 — the kind of thing that looks like a routing bug for an hour.
 
-Rendered through `tests/build.sh` when `flux` is on PATH, so size-profile overlays and the
-explicit resource lists are respected. Without it, the source tree is scanned instead and
-the difference is stated in the output — that fallback can name a hostname whose file is
-not in any kustomization.
+Rendered through `tests/render.py`, the way the cluster does it: the control plane from
+the cluster's values, then every layer it emits with its size profile and substitutions.
+A hostname in a file no kustomization lists does not appear, because it would not be
+served either.
 """
 import argparse
 import pathlib
 import re
-import shutil
 import socket
-import subprocess
 import sys
 import tempfile
 
 import yaml
 
-ROOT = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests"))
+import render  # noqa: E402
 
-# Scanned only in the fallback: vendored upstream (no hostnames of ours) and the routes
-# for services that still live behind the legacy ingress — deferred/ is deliberately in
-# no kustomization, and a rendered build would not show it either.
-SKIP = {"vendor", "deferred", "__pycache__"}
+ROOT = render.ROOT
 
 
-def cluster_vars(cluster_dir):
-    """The ConfigMap Flux substitutes from, read from where it is defined."""
-    for path in sorted(cluster_dir.glob("*.yaml")):
-        for doc in load(path.read_text()):
-            if doc.get("kind") == "ConfigMap" and doc.get("metadata", {}).get("name") == "cluster-vars":
-                return doc.get("data") or {}
-    return {}
-
-
-def load(text):
-    """Parse a multi-doc YAML string, skipping documents that are not objects."""
-    try:
-        docs = yaml.safe_load_all(text)
-        return [d for d in docs if isinstance(d, dict)]
-    except yaml.YAMLError:
-        return []
-
-
-def substitute(text, variables):
-    """What postBuild does. Keycloak's own $${NAME} placeholders survive, as they must."""
-    for key, value in variables.items():
-        text = text.replace("${%s}" % key, str(value))
-    return text
-
-
-def rendered(cluster_dir, variables):
-    """The layers as Flux would apply them. Returns None if `flux` cannot render them."""
-    if not shutil.which("flux"):
-        return None
-    with tempfile.TemporaryDirectory() as tmp:
-        proc = subprocess.run(
-            [str(ROOT / "tests" / "build.sh"), tmp],
-            capture_output=True, text=True,
-        )
-        out = pathlib.Path(tmp) / cluster_dir.name
-        if not out.is_dir():
-            sys.stderr.write(proc.stdout + proc.stderr)
-            return None
-        docs = []
-        for path in sorted(out.glob("*.yaml")):
-            docs += load(path.read_text())
-        return docs
-
-
-def scanned(variables):
-    """Fallback: the source tree, substituted by hand."""
-    docs = []
-    for base in ("platform", "apps"):
-        for path in sorted((ROOT / base).rglob("*.yaml")):
-            if SKIP & set(path.relative_to(ROOT).parts):
-                continue
-            docs += load(substitute(path.read_text(), variables))
-    return docs
+def values_file(path):
+    """A values file as it is; an organisation's cluster.yaml by its HelmRelease's values."""
+    docs = [d for d in yaml.safe_load_all(path.read_text()) if isinstance(d, dict)]
+    release = next((d for d in docs if d.get("kind") == "HelmRelease"), None)
+    if release is None:
+        return path
+    f = tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False)
+    yaml.safe_dump(release["spec"].get("values") or {}, f)
+    return pathlib.Path(f.name)
 
 
 def gateway_sans(docs):
@@ -177,15 +130,12 @@ def resolve(hostname):
     return sorted({info[4][0] for info in infos}), None
 
 
-def report(cluster_dir, args):
-    variables = cluster_vars(cluster_dir)
+def report(path, args):
+    layers = render.cluster(values_file(path))
+    variables = next(d["data"] for d in layers["control-plane"] if d["kind"] == "ConfigMap")
     base_domain = variables.get("BASE_DOMAIN", "")
     gateway_ip = variables.get("GATEWAY_IP", "")
-
-    docs = rendered(cluster_dir, variables)
-    fallback = docs is None
-    if fallback:
-        docs = scanned(variables)
+    docs = [d for name, ds in layers.items() if name != "control-plane" for d in ds]
 
     sans = gateway_sans(docs)
     hosts = served(docs, base_domain)
@@ -202,11 +152,7 @@ def report(cluster_dir, args):
             print(f"{name}.\t300\tIN\tA\t{ip}")
         return 0
 
-    print(f"== clusters/{cluster_dir.name} — base domain {base_domain or '(unset)'}, "
-          f"Gateway {gateway_ip or '(unset)'}")
-    if fallback:
-        print("   (read from the source tree, not a rendered build — install `flux` for the")
-        print("    exact set: a file that is in no kustomization can still be listed here)")
+    print(f"== {path.stem.removeprefix('cluster-')} — base domain {base_domain or '(unset)'}, Gateway {gateway_ip or '(unset)'}")
     print()
     print(f"   {len(records)} A records, all to {gateway_ip}:")
     print()
@@ -228,8 +174,8 @@ def report(cluster_dir, args):
     print("     HTTP-01 through this Gateway, so :80 and :443 must reach it from the")
     print("     internet, and Let's Encrypt fails the WHOLE certificate if one SAN fails")
     print("     validation — one bad record is an outage for every application, not one.")
-    print("   - Adding an application later is one dnsName in")
-    print("     platform/gateway/certificate.yaml, added only once its record resolves.")
+    print("   - The certificate's SAN list is derived from the apps this cluster enables, so")
+    print("     turning one on adds its record here; create it BEFORE enabling the app.")
 
     problems = []
     for name in sorted(set(hosts) - set(sans)):
@@ -237,11 +183,11 @@ def report(cluster_dir, args):
                         f"fails for it, which does not look like a routing bug")
     for name in sorted(set(sans) - set(hosts)):
         problems.append(f"{name} is on the certificate but nothing routes it — the record "
-                        f"is still required, or drop the SAN")
+                        f"is still required, or drop the host from the app table")
 
     if args.check:
         if not gateway_ip:
-            problems.append("no GATEWAY_IP in vars.yaml — nothing to check against")
+            problems.append("no gateway.ip in the values — nothing to check against")
         for name in records:
             addresses, error = resolve(name)
             if error:
@@ -269,20 +215,23 @@ def report(cluster_dir, args):
 def main():
     parser = argparse.ArgumentParser(
         description="Print the DNS records a cluster needs, read out of its own config.")
-    parser.add_argument("cluster", nargs="?", help="one cluster; default every cluster")
+    parser.add_argument("cluster", nargs="?",
+                        help="a cluster case name (prod, demo, …) or a path to a values / cluster.yaml "
+                             "file; default every cluster case")
     parser.add_argument("--check", action="store_true",
                         help="resolve each name and report what disagrees")
     parser.add_argument("--zone", action="store_true",
                         help="BIND-format records only, for pasting into a zone file")
     args = parser.parse_args()
 
-    dirs = sorted(d for d in (ROOT / "clusters").iterdir() if (d / "vars.yaml").is_file())
+    files = render.clusters()
     if args.cluster:
-        dirs = [d for d in dirs if d.name == args.cluster]
-        if not dirs:
-            parser.error(f"no cluster {args.cluster!r} under clusters/")
+        given = pathlib.Path(args.cluster)
+        files = [given] if given.is_file() else [f for f in files if f.stem == f"cluster-{args.cluster}"]
+        if not files:
+            parser.error(f"no cluster case {args.cluster!r} in tests/cases/index.yaml and no such file")
 
-    return max(report(d, args) for d in dirs)
+    return max(report(f, args) for f in files)
 
 
 if __name__ == "__main__":

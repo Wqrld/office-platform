@@ -1,0 +1,259 @@
+---
+# Source: platform-deps/templates/generated.yaml
+# Generated once, in the cluster, never derived at render time (adr/0005). Each variable
+# gets its OWN generator draw — reusing one draw would make two variables equal, which is
+# the bug `derivePassword` shipped.
+#
+# `dataFrom` is an ORDERED list and its order is part of the spec. Changing the spec of a
+# generated secret makes ESO draw again, so this is a list rather than a map: Helm sorts
+# map keys, and a re-sort here silently rotates every secret in the object.
+---
+# Source: platform-deps/templates/cache.yaml
+# One Secret, one URL per use. The instances are separate on purpose: eviction policy and
+# persistence are per-instance, and an evicting broker silently drops queued tasks
+# (06-datastores.md). The ACL user is created by the 30-platform layer — adr/0107.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-cache
+  namespace: office-calendars
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: calendars-deps
+    app.kubernetes.io/instance: calendars-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: calendars-cache
+    creationPolicy: Owner
+    template:
+      data:
+        REDIS_URL: "redis://calendars:{{ .cache }}@valkey-cache.office-data.svc.cluster.local:6379/1"
+        DRAMATIQ_BROKER_URL: "redis://calendars:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+        DRAMATIQ_RESULT_BACKEND_URL: "redis://calendars:{{ .results }}@valkey-cache.office-data.svc.cluster.local:6379/2"
+  data:
+    - {secretKey: cache, remoteRef: {key: valkey-cache-acl, property: calendars}}
+    - {secretKey: broker, remoteRef: {key: valkey-broker-acl, property: calendars}}
+    - {secretKey: results, remoteRef: {key: valkey-cache-acl, property: calendars}}
+---
+# Source: platform-deps/templates/generated.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-caldav
+  namespace: office-calendars
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: calendars-deps
+    app.kubernetes.io/instance: calendars-deps
+spec:
+  # Zero: a generated secret must never be re-drawn on refresh, or every pod holding it
+  # is suddenly wrong.
+  refreshInterval: "0"
+  target:
+    name: calendars-caldav
+    creationPolicy: Owner
+    template:
+      data:
+        CALDAV_INBOUND_API_KEY: "{{ .inbound }}"
+        CALDAV_OUTBOUND_API_KEY: "{{ .outbound }}"
+        CALDAV_INTERNAL_API_KEY: "{{ .internal }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "inbound"}}]
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "outbound"}}]
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "internal"}}]
+# Generated once, in the cluster, never derived at render time (adr/0005). Each variable
+# gets its OWN generator draw — reusing one draw would make two variables equal, which is
+# the bug `derivePassword` shipped.
+#
+# `dataFrom` is an ORDERED list and its order is part of the spec. Changing the spec of a
+# generated secret makes ESO draw again, so this is a list rather than a map: Helm sorts
+# map keys, and a re-sort here silently rotates every secret in the object.
+---
+# Source: platform-deps/templates/generated.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-django
+  namespace: office-calendars
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: calendars-deps
+    app.kubernetes.io/instance: calendars-deps
+spec:
+  # Zero: a generated secret must never be re-drawn on refresh, or every pod holding it
+  # is suddenly wrong.
+  refreshInterval: "0"
+  target:
+    name: calendars-django
+    creationPolicy: Owner
+    template:
+      data:
+        DJANGO_SECRET_KEY: "{{ .secretkey }}"
+        DJANGO_SUPERUSER_PASSWORD: "{{ .superuser }}"
+        SALT_KEY: "{{ .salt }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "secretkey"}}]
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "superuser"}}]
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "salt"}}]
+---
+# Source: platform-deps/templates/oidc.yaml
+# The client secret is generated in-cluster and read by BOTH Keycloak and the app from this
+# one Secret — it is never in git and never passes through Helm values (adr/0005).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-oidc
+  namespace: office-calendars
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: calendars-deps
+    app.kubernetes.io/instance: calendars-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-identity}
+  target:
+    name: calendars-oidc
+    creationPolicy: Owner
+    template:
+      data:
+        OIDC_RP_CLIENT_ID: "calendars"
+        OIDC_RP_CLIENT_SECRET: "{{ .secret }}"
+        OIDC_RP_SIGN_ALGO: "RS256"
+        OIDC_RP_SCOPES: "openid email profile"
+        OIDC_OP_AUTHORIZATION_ENDPOINT: "https://id.haaijer.dev/realms/office/protocol/openid-connect/auth"
+        OIDC_OP_LOGOUT_ENDPOINT: "https://id.haaijer.dev/realms/office/protocol/openid-connect/logout"
+        OIDC_OP_TOKEN_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token"
+        OIDC_OP_USER_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/userinfo"
+        OIDC_OP_JWKS_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/certs"
+        OIDC_REDIRECT_ALLOWED_HOSTS: "https://calendars.haaijer.dev"
+        OIDC_REDIRECT_REQUIRE_HTTPS: "true"
+        OIDC_USE_NONCE: "true"
+        OIDC_CREATE_USER: "true"
+        OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION: "true"
+        OIDC_ALLOW_DUPLICATE_EMAILS: "false"
+        OIDC_STORE_ACCESS_TOKEN: "true"
+        OIDC_STORE_ID_TOKEN: "true"
+        OIDC_STORE_REFRESH_TOKEN: "false"
+        OIDC_USERINFO_FULLNAME_FIELDS: "given_name,family_name"
+        OIDC_USERINFO_SHORTNAME_FIELD: "name"
+  data:
+    - {secretKey: secret, remoteRef: {key: oidc-client-calendars, property: secret}}
+---
+# Source: platform-deps/templates/postgres.yaml
+# The role's password is generated by the 30-platform layer (adr/0107); this reshapes it
+# into the key names django applications expect, so the app consumes the whole Secret
+# with one `envFrom` and no credential passes through Helm values.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-postgres
+  namespace: office-calendars
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: calendars-deps
+    app.kubernetes.io/instance: calendars-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: calendars-postgres
+    creationPolicy: Owner
+    template:
+      data:
+        DB_ENGINE: "django.db.backends.postgresql_psycopg2"
+        DB_HOST: "office-pg-rw.office-data.svc.cluster.local"
+        DB_PORT: "5432"
+        DB_NAME: "calendars"
+        DB_USER: "{{ .username }}"
+        DB_PASSWORD: "{{ .password }}"
+  data:
+    - {secretKey: username, remoteRef: {key: calendars-db, property: username}}
+    - {secretKey: password, remoteRef: {key: calendars-db, property: password}}
+---
+# Source: platform-deps/templates/smtp.yaml
+# The one credential on this platform that is neither generated in-cluster nor minted by an
+# operator: an SMTP relay account is issued by somebody else, so it is applied by hand into
+# office-data once (docs/bootstrap.md) and read back from here. Nothing about the relay is in
+# git — not even the host — and this reshapes the whole of it into the key names django
+# applications expect, so the app consumes it with one `envFrom`.
+#
+# `refreshInterval` is a real interval, not the `"0"` the generated Secrets use: this reads a
+# Secret rather than drawing from a generator, so re-reading it is how rotation works. The
+# consuming pods still need a restart afterwards — `envFrom` is read once, at pod start.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-smtp
+  namespace: office-calendars
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: calendars-deps
+    app.kubernetes.io/instance: calendars-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: calendars-smtp
+    creationPolicy: Owner
+    template:
+      data:
+        EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
+        EMAIL_HOST: "{{ .host }}"
+        EMAIL_PORT: "{{ .port }}"
+        EMAIL_HOST_USER: "{{ .username }}"
+        EMAIL_HOST_PASSWORD: "{{ .password }}"
+        EMAIL_USE_TLS: "{{ .useTLS }}"
+        EMAIL_USE_SSL: "{{ .useSSL }}"
+        DEFAULT_FROM_EMAIL: "{{ .from }}"
+  data:
+    - {secretKey: host, remoteRef: {key: smtp-credentials, property: host}}
+    - {secretKey: port, remoteRef: {key: smtp-credentials, property: port}}
+    - {secretKey: username, remoteRef: {key: smtp-credentials, property: username}}
+    - {secretKey: password, remoteRef: {key: smtp-credentials, property: password}}
+    - {secretKey: useTLS, remoteRef: {key: smtp-credentials, property: useTLS}}
+    - {secretKey: useSSL, remoteRef: {key: smtp-credentials, property: useSSL}}
+    - {secretKey: from, remoteRef: {key: smtp-credentials, property: from}}

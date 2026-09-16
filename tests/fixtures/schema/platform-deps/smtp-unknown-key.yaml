@@ -1,0 +1,9 @@
+# expect: additional properties 'crendentialSecret' not allowed
+# `smtp.crendentialSecret` leaves `credentialSecret` at its default, so the ExternalSecret
+# reads a Secret nobody meant it to — and the failure is not the missing name. ESO reports
+# the source as absent, the app's `*-smtp` Secret is never created, and every backend pod
+# sits in CreateContainerConfigError with nothing in it about mail.
+app: typo
+smtp:
+  enabled: true
+  crendentialSecret: relay-account

@@ -1,0 +1,4 @@
+# The floor. Nothing enabled: platform-deps must render an empty release rather than fail,
+# because `app` alone is what a new application starts from.
+app: minimal
+baseDomain: haaijer.dev

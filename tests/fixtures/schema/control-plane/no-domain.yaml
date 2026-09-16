@@ -1,0 +1,3 @@
+# expect: '' is not valid hostname
+gateway: {ip: 10.0.0.5}
+livekit: {ip: 10.0.0.6}

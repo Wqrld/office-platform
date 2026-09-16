@@ -1,0 +1,9 @@
+# expect: additional properties 'routs' not allowed
+# The whole reason this schema exists: `routes` misspelt is a surround that renders happily
+# and routes nothing.
+app: typo
+baseDomain: example.test
+routs:
+  - host: typo
+    backend: {name: typo, port: 80}
+    paths: [/]

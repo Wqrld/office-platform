@@ -1,0 +1,339 @@
+---
+# Source: platform-deps/templates/generated.yaml
+# Generated once, in the cluster, never derived at render time (adr/0005). Each variable
+# gets its OWN generator draw — reusing one draw would make two variables equal, which is
+# the bug `derivePassword` shipped.
+#
+# `dataFrom` is an ORDERED list and its order is part of the spec. Changing the spec of a
+# generated secret makes ESO draw again, so this is a list rather than a map: Helm sorts
+# map keys, and a re-sort here silently rotates every secret in the object.
+---
+# Source: platform-deps/templates/cache.yaml
+# One Secret, one URL per use. The instances are separate on purpose: eviction policy and
+# persistence are per-instance, and an evicting broker silently drops queued tasks
+# (06-datastores.md). The ACL user is created by the 30-platform layer — adr/0107.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-cache
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: full-cache
+    creationPolicy: Owner
+    template:
+      data:
+        REDIS_URL: "redis://full:{{ .cache }}@valkey-cache.office-data.svc.cluster.local:6379/1"
+        DJANGO_CELERY_BROKER_URL: "redis://full:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+  data:
+    - {secretKey: cache, remoteRef: {key: valkey-cache-acl, property: full}}
+    - {secretKey: broker, remoteRef: {key: valkey-broker-acl, property: full}}
+---
+# Source: platform-deps/templates/generated.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-collaboration
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  # Zero: a generated secret must never be re-drawn on refresh, or every pod holding it
+  # is suddenly wrong.
+  refreshInterval: "0"
+  target:
+    name: full-collaboration
+    creationPolicy: Owner
+    template:
+      data:
+        Y_PROVIDER_API_KEY: "{{ .apikey }}"
+        COLLABORATION_SERVER_SECRET: "{{ .serversecret }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "apikey"}}]
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "serversecret"}}]
+# Generated once, in the cluster, never derived at render time (adr/0005). Each variable
+# gets its OWN generator draw — reusing one draw would make two variables equal, which is
+# the bug `derivePassword` shipped.
+#
+# `dataFrom` is an ORDERED list and its order is part of the spec. Changing the spec of a
+# generated secret makes ESO draw again, so this is a list rather than a map: Helm sorts
+# map keys, and a re-sort here silently rotates every secret in the object.
+---
+# Source: platform-deps/templates/generated.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-django
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  # Zero: a generated secret must never be re-drawn on refresh, or every pod holding it
+  # is suddenly wrong.
+  refreshInterval: "0"
+  target:
+    name: full-django
+    creationPolicy: Owner
+    template:
+      data:
+        DJANGO_SECRET_KEY: "{{ .secretkey }}"
+        DJANGO_SUPERUSER_PASSWORD: "{{ .superuser }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-token-50
+      rewrite: [{regexp: {source: "password", target: "secretkey"}}]
+    - sourceRef:
+        generatorRef:
+          apiVersion: generators.external-secrets.io/v1alpha1
+          kind: ClusterGenerator
+          name: office-password
+      rewrite: [{regexp: {source: "password", target: "superuser"}}]
+---
+# Source: platform-deps/templates/oidc.yaml
+# The client secret is generated in-cluster and read by BOTH Keycloak and the app from this
+# one Secret — it is never in git and never passes through Helm values (adr/0005).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-oidc
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-identity}
+  target:
+    name: full-oidc
+    creationPolicy: Owner
+    template:
+      data:
+        OIDC_RP_CLIENT_ID: "full"
+        OIDC_RP_CLIENT_SECRET: "{{ .secret }}"
+        OIDC_RP_SIGN_ALGO: "RS256"
+        OIDC_RP_SCOPES: "openid email profile offline_access"
+        OIDC_OP_AUTHORIZATION_ENDPOINT: "https://id.haaijer.dev/realms/office/protocol/openid-connect/auth"
+        OIDC_OP_LOGOUT_ENDPOINT: "https://id.haaijer.dev/realms/office/protocol/openid-connect/logout"
+        OIDC_OP_TOKEN_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token"
+        OIDC_OP_USER_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/userinfo"
+        OIDC_OP_JWKS_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/certs"
+        OIDC_REDIRECT_ALLOWED_HOSTS: "https://full.haaijer.dev"
+        OIDC_REDIRECT_REQUIRE_HTTPS: "true"
+        OIDC_USE_NONCE: "true"
+        OIDC_CREATE_USER: "true"
+        OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION: "true"
+        OIDC_ALLOW_DUPLICATE_EMAILS: "false"
+        OIDC_STORE_ACCESS_TOKEN: "true"
+        OIDC_STORE_ID_TOKEN: "true"
+        OIDC_STORE_REFRESH_TOKEN: "true"
+        OIDC_USERINFO_FULLNAME_FIELDS: "given_name,family_name"
+        OIDC_USERINFO_SHORTNAME_FIELD: "name"
+        OIDC_EXTRA_FLAG: "1"
+  data:
+    - {secretKey: secret, remoteRef: {key: oidc-client-full, property: secret}}
+---
+# Source: platform-deps/templates/opensearch.yaml
+# One shared instance; the index prefix is the tenant boundary, and the app's OpenSearch
+# role grants `<prefix>-*` and nothing else (adr/0111). The server, user and role belong to
+# the 30-platform layer (adr/0107) — this only reshapes the password it generated.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-opensearch
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  refreshInterval: "1h"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: full-opensearch
+    creationPolicy: Owner
+    template:
+      data:
+        OPENSEARCH_HOST: "opensearch-cluster-master.office-data.svc.cluster.local"
+        OPENSEARCH_PORT: "9201"
+        OPENSEARCH_USER: "full-search-user"
+        OPENSEARCH_PASSWORD: "{{ .password }}"
+        OPENSEARCH_USE_SSL: "false"
+        OPENSEARCH_INDEX_PREFIX: "full-search"
+  data:
+    - {secretKey: password, remoteRef: {key: opensearch-user-full, property: password}}
+---
+# Source: platform-deps/templates/postgres.yaml
+# The role's password is generated by the 30-platform layer (adr/0107); this reshapes it
+# into the key names django applications expect, so the app consumes the whole Secret
+# with one `envFrom` and no credential passes through Helm values.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-postgres
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  refreshInterval: "30m"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: full-postgres
+    creationPolicy: Owner
+    template:
+      data:
+        DB_ENGINE: "django.db.backends.postgresql_psycopg2"
+        DB_HOST: "office-pg-rw.office-data.svc.cluster.local"
+        DB_PORT: "5432"
+        DB_NAME: "full_app_db"
+        DB_USER: "{{ .username }}"
+        DB_PASSWORD: "{{ .password }}"
+  data:
+    - {secretKey: username, remoteRef: {key: full-db, property: username}}
+    - {secretKey: password, remoteRef: {key: full-db, property: password}}
+---
+# Source: platform-deps/templates/smtp.yaml
+# The one credential on this platform that is neither generated in-cluster nor minted by an
+# operator: an SMTP relay account is issued by somebody else, so it is applied by hand into
+# office-data once (docs/bootstrap.md) and read back from here. Nothing about the relay is in
+# git — not even the host — and this reshapes the whole of it into the key names django
+# applications expect, so the app consumes it with one `envFrom`.
+#
+# `refreshInterval` is a real interval, not the `"0"` the generated Secrets use: this reads a
+# Secret rather than drawing from a generator, so re-reading it is how rotation works. The
+# consuming pods still need a restart afterwards — `envFrom` is read once, at pod start.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: full-smtp
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  refreshInterval: "30m"
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: full-smtp
+    creationPolicy: Owner
+    template:
+      data:
+        EMAIL_BACKEND: "django.core.mail.backends.locmem.EmailBackend"
+        EMAIL_HOST: "{{ .host }}"
+        EMAIL_PORT: "{{ .port }}"
+        EMAIL_HOST_USER: "{{ .username }}"
+        EMAIL_HOST_PASSWORD: "{{ .password }}"
+        EMAIL_USE_TLS: "{{ .useTLS }}"
+        EMAIL_USE_SSL: "{{ .useSSL }}"
+        DEFAULT_FROM_EMAIL: "{{ .from }}"
+  data:
+    - {secretKey: host, remoteRef: {key: full-relay-account, property: host}}
+    - {secretKey: port, remoteRef: {key: full-relay-account, property: port}}
+    - {secretKey: username, remoteRef: {key: full-relay-account, property: username}}
+    - {secretKey: password, remoteRef: {key: full-relay-account, property: password}}
+    - {secretKey: useTLS, remoteRef: {key: full-relay-account, property: useTLS}}
+    - {secretKey: useSSL, remoteRef: {key: full-relay-account, property: useSSL}}
+    - {secretKey: from, remoteRef: {key: full-relay-account, property: from}}
+---
+# Source: platform-deps/templates/objectstore.yaml
+# The only datastore this chart provisions rather than merely reshapes: GarageBucket and
+# GarageKey are app-namespaced, so they belong to the app's release (adr/0107).
+#
+# `secretTemplate` emits the Secret directly with the key names the profile chose, so there
+# is no ESO hop at all — the credential never exists in a second place to drift from.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageBucket
+metadata:
+  name: full-bucket
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  clusterRef: {name: office-s3, namespace: office-data}
+  globalAlias: full-legacy-alias
+  deletionPolicy: Retain
+  quotas:
+    maxSize: 50Gi
+---
+# Source: platform-deps/templates/objectstore.yaml
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageKey
+metadata:
+  name: full
+  namespace: office-full
+  labels:
+    helm.sh/chart: platform-deps-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: full-deps
+    app.kubernetes.io/instance: full-deps
+spec:
+  clusterRef: {name: office-s3, namespace: office-data}
+  name: full
+  neverExpires: true
+  bucketPermissions:
+    - bucketRef: {name: full-bucket, namespace: office-full}
+      read: true
+      write: true
+      owner: true
+  secretTemplate:
+    name: full-s3
+    accessKeyIdKey: AWS_S3_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_S3_SECRET_ACCESS_KEY
+    includeEndpoint: true
+    endpointKey: AWS_S3_ENDPOINT_URL
+    includeRegion: true
+    regionKey: AWS_S3_REGION_NAME
+    includeBucketName: true
+    bucketNameKey: AWS_STORAGE_BUCKET_NAME
+    additionalData:
+      AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+      AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+      # The browser cannot reach a cluster Service, so an app that presigns an upload URL
+      # has to sign it against the public address — the signature covers the host. Setting
+      # this means the bucket IS reachable from the internet; see adr/0110.
+      AWS_S3_DOMAIN_REPLACE: "s3.haaijer.dev"

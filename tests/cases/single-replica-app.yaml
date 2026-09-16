@@ -1,0 +1,20 @@
+# The invariant most likely to regress silently: `pdb.enabled: false` with components still
+# declared must emit NO PolicyDisruptionBudget at all.
+#
+# Both live apps are in exactly this state — single replica, components listed so the size
+# profile can turn PDBs on without restating them. If a template change starts emitting a
+# PDB from the components map alone, every drain on this cluster hangs and nothing else in
+# CI notices. `tests/policy` asserts the absence; this case is what it reads.
+app: single
+baseDomain: haaijer.dev
+
+routes:
+  - host: single
+    backend: {name: single-frontend, port: 80}
+    paths: [/]
+
+pdb:
+  enabled: false
+  components:
+    backend:  {app.kubernetes.io/component: backend}
+    frontend: {app.kubernetes.io/component: frontend}

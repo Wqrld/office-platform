@@ -31,7 +31,7 @@ targets:
     kind: file
     sourceid: commit
     spec:
-      file: "clusters/prod/sources.yaml"
+      file: "charts/control-plane/templates/sources.yaml"
       matchpattern: 'url: https://github\.com/suitenumerique/find\n  ref: \{branch: main, commit: [0-9a-f]{40}\}'
       replacepattern: 'url: https://github.com/suitenumerique/find\n  ref: {branch: main, commit: {{ source "commit" }}}'
 

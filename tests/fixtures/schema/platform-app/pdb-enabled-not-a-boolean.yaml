@@ -1,0 +1,11 @@
+# expect: got string, want boolean
+# YAML's `yes` is a string, not a boolean, and Helm's `if` treats a non-empty string as
+# true — so this would quietly ENABLE a PDB that the author was trying to describe.
+app: types
+baseDomain: example.test
+routes:
+  - host: types
+    backend: {name: types, port: 80}
+    paths: [/]
+pdb:
+  enabled: "yes"

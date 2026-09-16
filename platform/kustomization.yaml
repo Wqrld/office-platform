@@ -22,10 +22,7 @@ resources:
   - valkey/broker.yaml
   - opensearch/certificate.yaml
   - opensearch/cluster.yaml
-  - objectstore/admin-token.yaml
-  - objectstore/cluster.yaml
-  - objectstore/reference-grants.yaml
-  - objectstore/public-route.yaml
+  # objectstore/ is its own layer — see objectstore/kustomization.yaml
   - identity/namespace.yaml
   - identity/vendor/keycloak-operator   # vendored upstream, pinned 26.7.3 — see its kustomization
   - identity/keycloak.yaml

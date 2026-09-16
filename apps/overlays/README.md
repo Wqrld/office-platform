@@ -1,23 +1,31 @@
 # Size profiles
 
-Three profiles — `small`, `medium`, `large` — selected per environment by one `path:` in
-that cluster's Flux Kustomization. `05-app-contract.md` designed this; this file is what was
-actually built, including the two places it differs from the design.
+Three profiles — `small`, `medium`, `large` — selected per cluster by one value, `size`, in
+its `cluster.yaml`. `05-app-contract.md` designed this; this file is what was actually
+built, including the places it differs from the design.
 
 ## How it fits together
 
 ```
-apps/                              the applications, defined once
+apps/<name>/                       one application, defined once
 apps/overlays/size-<size>/         the profile: a Kustomize COMPONENT of patches
-environments/<size>/apps/          the selector: base + one component
-clusters/<env>/40-apps.yaml        path: ./environments/<size>/apps
+charts/control-plane/templates/apps.yaml
+                                   one Flux Kustomization per enabled app:
+                                   path: ./apps/<name>, components: [../overlays/size-<size>]
 ```
 
-Same shape for `platform/`. `medium` is the identity profile: it patches nothing, because
-`apps/*/release.yaml` already carries the measured production numbers, and restating them in
-an overlay would put every figure in two places. `./measure.py compare environments/medium/apps apps`
-asserts the two render byte-for-byte identically, which is what made switching prod onto the
-mechanism a no-op rather than a migration.
+Same shape for `platform/`. The profile is applied to one app at a time, and that works
+because kustomize no-ops a patch whose target is not in the render: one file per profile,
+every number in exactly one place, and no selector directory per size and per app. The
+cost is that a typo'd target is a silent no-op in *every* build rather than merely
+invisible in the whole-set one — `tests/profiles.py` asserts every target matches an
+object that renders.
+
+`medium` is the identity profile: it patches nothing, because `apps/*/release.yaml` already
+carries the measured production numbers, and restating them in an overlay would put every
+figure in two places. `./measure.py compare` asserts that medium renders byte-for-byte what
+no profile renders, which is what made switching prod onto the mechanism a no-op rather
+than a migration.
 
 ## Two differences from the design
 
@@ -73,7 +81,7 @@ line in the surround it already renders, instead of the copy now sitting in each
 
 ## Measured totals
 
-`./measure.py render environments/<size>/platform environments/<size>/apps`, 2026-09-05.
+`./measure.py render --size <size>`, 2026-09-05 (before Calendars, Meet and LiveKit).
 Requests only — what the scheduler admits on.
 
 | Profile | Platform | Apps (install peak) | Total peak | Total steady |

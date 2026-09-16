@@ -22,7 +22,9 @@ spec:
 
     # The legacy bucket was called `docs` and the restored database refers to its objects
     # by exactly that name, so the alias is not free to change.
-    objectstore: {enabled: true, env: django-s3, quota: {maxSize: 20Gi}}
+    # `mode` is the organisation's (control-plane `objectStore.mode`): garage provisions a
+    # bucket and a key here; external reshapes their S3 credential instead.
+    objectstore: {enabled: true, env: django-s3, mode: "${S3_MODE}", quota: {maxSize: 20Gi}}
 
     # The restored database already holds every user; login matches by sub, then email.
     # storeRefreshToken: search forwards the user's access token to Find, and `search` is

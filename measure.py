@@ -5,13 +5,13 @@ Render a size profile and add up what it asks the scheduler for.
 The 5-to-5,000 claim, and the narrower "a demo fits on a spare node" claim, both rest on
 numbers nobody has ever added up. This adds them up.
 
-    ./measure.py fetch                        # populate the chart cache from sources.yaml
-    ./measure.py render environments/small    # per-namespace request totals
-    ./measure.py compare environments/medium apps
-                                              # assert two paths render identically
+    ./measure.py fetch                        # populate the chart cache from the pins
+    ./measure.py render --size small          # per-namespace request totals, apps + platform
+    ./measure.py compare                      # assert medium renders what no profile renders
 
-What it does, in order: `kubectl kustomize` the path, substitute the cluster vars the way
-Flux's postBuild would, `helm template` every HelmRelease against its pinned chart, and sum
+What it does, in order: build every app and the platform layer the way Flux does with the
+size profile as a component (tests/render.py), substitute the cluster vars the control
+plane renders for prod, `helm template` every HelmRelease against its pinned chart, and sum
 `resources.requests` over every container of every pod-bearing object, multiplied by its
 replica count.
 
@@ -31,8 +31,12 @@ import tempfile
 
 import yaml
 
-ROOT = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests"))
+import render as flux  # noqa: E402
+
+ROOT = flux.ROOT
 CACHE = ROOT / ".charts"
+LAYERS = {"apps": flux.apps, "platform": flux.platform}
 
 POD_KINDS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
 # Operator-owned CRs: their pods come from a controller, so they are modelled from the
@@ -62,12 +66,14 @@ def quantity(v):
     return n * mult.get(unit, 1)
 
 
+def control_plane(cluster):
+    return flux.control_plane(flux.CASES / f"cluster-{cluster}.yaml")
+
+
 def load_vars(cluster):
-    """The postBuild substitution map, read from the cluster's vars.yaml."""
-    path = ROOT / "clusters" / cluster / "vars.yaml"
-    if not path.exists():
-        return {}
-    return yaml.safe_load(path.read_text()).get("data", {})
+    """The postBuild substitution map, as the control plane renders it for the cluster."""
+    return next(d["data"] for d in control_plane(cluster)
+                if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
 
 
 def substitute(text, variables):
@@ -86,14 +92,10 @@ def substitute(text, variables):
 # ---------------------------------------------------------------- chart resolution
 
 def sources(cluster):
-    """(kind, name) -> source spec, read from the cluster's sources.yaml. The pins live
-    there and nowhere else; this tool must not carry a second copy of them."""
-    path = ROOT / "clusters" / cluster / "sources.yaml"
-    out = {}
-    for doc in yaml.safe_load_all(path.read_text()):
-        if doc:
-            out[(doc["kind"], doc["metadata"]["name"])] = doc["spec"]
-    return out
+    """(kind, name) -> source spec, as the control plane renders them. The pins live in
+    its sources.yaml and nowhere else; this tool must not carry a second copy of them."""
+    return {(d["kind"], d["metadata"]["name"]): d["spec"] for d in control_plane(cluster)
+            if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
 
 
 def fetch(cluster):
@@ -204,10 +206,10 @@ def limitranges(docs):
     return out
 
 
-def render(path, cluster, fallback):
+def render(layer, size, cluster):
     variables = load_vars(cluster)
     srcs = sources(cluster)
-    raw = sh(["kubectl", "kustomize", str(ROOT / path)])
+    raw = yaml.safe_dump_all(LAYERS[layer](size))
     docs = [d for d in yaml.safe_load_all(substitute(raw, variables)) if d]
     lrs = limitranges(docs)
 
@@ -297,11 +299,12 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     f = sub.add_parser("fetch");   f.add_argument("--cluster", default="prod")
     r = sub.add_parser("render")
-    r.add_argument("paths", nargs="+")
+    r.add_argument("layers", nargs="*", choices=list(LAYERS))
+    r.add_argument("--size", default="medium", choices=flux.SIZES)
     r.add_argument("--cluster", default="prod")
 
-    c = sub.add_parser("compare")
-    c.add_argument("a"); c.add_argument("b"); c.add_argument("--cluster", default="prod")
+    c = sub.add_parser("compare", help="medium is the identity profile: it must render what no profile renders")
+    c.add_argument("layers", nargs="*", choices=list(LAYERS))
     args = ap.parse_args()
 
     if args.cmd == "fetch":
@@ -309,21 +312,28 @@ def main():
         return 0
 
     if args.cmd == "compare":
-        va = sh(["kubectl", "kustomize", str(ROOT / args.a)])
-        vb = sh(["kubectl", "kustomize", str(ROOT / args.b)])
-        if va == vb:
-            print(f"IDENTICAL  {args.a} == {args.b}")
-            return 0
-        print(f"DIFFERS    {args.a} != {args.b}")
-        return 1
+        rc = 0
+        for layer in args.layers or list(LAYERS):
+            # A profile is a component; rendering with `size-medium` must equal rendering
+            # with none. Names differ per app, so compare with the profile's name removed.
+            with_profile = yaml.safe_dump_all(LAYERS[layer]("medium"))
+            without = (yaml.safe_dump_all(flux.flux_build("platform", [], "platform")
+                                          + flux.flux_build("platform/objectstore", [], "objectstore"))
+                       if layer == "platform" else
+                       yaml.safe_dump_all([d for a in flux.APPS for d in flux.flux_build(f"apps/{a}", [], f"app-{a}")]))
+            same = with_profile == without
+            print(f"{'IDENTICAL' if same else 'DIFFERS  '}  {layer} at medium {'==' if same else '!='} {layer} with no profile")
+            rc |= not same
+        return rc
 
     totals = {}
-    for path in args.paths:
-        totals[path] = report(render(path, args.cluster, None), path)
+    for layer in args.layers or list(LAYERS):
+        label = f"{layer} @ {args.size}"
+        totals[label] = report(render(layer, args.size, args.cluster), label)
     if len(totals) > 1:
         print("\n=== profiles ===")
-        for path, (cpu, mem) in totals.items():
-            print(f"  {path:<34} {cpu * 1000:>6.0f}m  {mem / 2**20:>7.0f}Mi")
+        for label, (cpu, mem) in totals.items():
+            print(f"  {label:<34} {cpu * 1000:>6.0f}m  {mem / 2**20:>7.0f}Mi")
     return 0
 
 

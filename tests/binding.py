@@ -21,9 +21,9 @@ So this one renders the upstream release and the surround release TOGETHER and a
   * the upstream release emits no Ingress, because we route with Gateway API and an Ingress
     left enabled is a second, unauthenticated way in.
 
-Upstream charts come from the pins in clusters/prod/sources.yaml — a git tag for La Suite
-(adr/0104) or a chart repository for Collabora — so this checks the version that is
-actually deployed, not whatever is current.
+Upstream charts come from the pins the control plane renders (charts/control-plane/templates/
+sources.yaml) — a git tag for La Suite (adr/0104) or a chart repository for Collabora — so
+this checks the version that is actually deployed, not whatever is current.
 
 Needs network: it fetches the pinned upstream charts. That makes it a PR check, not a
 pre-commit hook.
@@ -39,8 +39,11 @@ import tempfile
 
 import yaml
 
-HERE = pathlib.Path(__file__).resolve().parent.parent
-CLUSTER = HERE / "clusters" / "prod"
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import render  # noqa: E402
+
+HERE = render.ROOT
+PROD = render.CASES / "cluster-prod.yaml"
 
 # Kinds the surround owns. Two objects of these selecting the same pods is the failure.
 SURROUND_OWNED = {"PodDisruptionBudget", "ServiceMonitor", "HorizontalPodAutoscaler", "NetworkPolicy"}
@@ -56,23 +59,18 @@ def docs_in(text: str) -> list[dict]:
 
 
 def sources() -> dict[str, dict]:
-    """name -> source object, from clusters/prod/sources.yaml."""
-    return {d["metadata"]["name"]: d for d in load_all(CLUSTER / "sources.yaml")}
+    """name -> source object, as the control plane renders them for prod."""
+    return {d["metadata"]["name"]: d for d in render.control_plane(PROD)
+            if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
 
 
-def substitute(node, base_domain: str):
-    if isinstance(node, dict):
-        return {k: substitute(v, base_domain) for k, v in node.items()}
-    if isinstance(node, list):
-        return [substitute(v, base_domain) for v in node]
-    if isinstance(node, str):
-        return node.replace("${BASE_DOMAIN}", base_domain)
-    return node
+def variables() -> dict[str, str]:
+    """prod's cluster-vars, as the control plane renders them."""
+    return next(d["data"] for d in render.control_plane(PROD)
+                if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
 
 
-def base_domain() -> str:
-    v = yaml.safe_load((CLUSTER / "vars.yaml").read_text())
-    return v["data"]["BASE_DOMAIN"]
+substitute = render.substitute
 
 
 def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[str] | None = None) -> list[dict]:
@@ -147,15 +145,15 @@ def fetch_upstream(rel: dict, srcs: dict, work: pathlib.Path) -> str | None:
 
 
 def local_chart(rel: dict) -> str | None:
-    """Our own charts, rendered from ../helm-charts rather than pulled from Harbor."""
+    """Our own charts, rendered from charts/ rather than pulled from the registry."""
     ref = rel["spec"].get("chartRef")
     if not ref:
         return None
-    p = HERE.parent / "helm-charts" / "charts" / ref["name"]
+    p = HERE / "charts" / ref["name"]
     return str(p) if p.is_dir() else None
 
 
-def check_app(app_dir: pathlib.Path, srcs: dict, work: pathlib.Path, bd: str) -> list[str]:
+def check_app(app_dir: pathlib.Path, srcs: dict, work: pathlib.Path, variables: dict) -> list[str]:
     problems: list[str] = []
     app = app_dir.name
 
@@ -178,7 +176,7 @@ def check_app(app_dir: pathlib.Path, srcs: dict, work: pathlib.Path, bd: str) ->
     for rel in releases:
         name = rel["metadata"]["name"]
         ns = rel["metadata"]["namespace"]
-        values = substitute(rel["spec"].get("values") or {}, bd)
+        values = substitute(rel["spec"].get("values") or {}, variables)
 
         chart = local_chart(rel)
         if chart:
@@ -193,8 +191,7 @@ def check_app(app_dir: pathlib.Path, srcs: dict, work: pathlib.Path, bd: str) ->
             # lie that sends the reader looking in the wrong repo.
             problems.append(
                 f"{app}/{name}: chartRef {rel['spec']['chartRef']['name']!r} did not resolve to a "
-                f"chart under ../helm-charts/charts — the binding check needs the helm-charts repo "
-                f"checked out beside this one"
+                f"chart under charts/"
             )
             continue
 
@@ -256,7 +253,7 @@ def main() -> int:
     args = ap.parse_args()
 
     srcs = sources()
-    bd = base_domain()
+    vars_ = variables()
     work = pathlib.Path(tempfile.mkdtemp(prefix="binding-"))
     problems: list[str] = []
 
@@ -265,7 +262,7 @@ def main() -> int:
                sorted(p for p in (HERE / "apps").iterdir() if p.is_dir() and (p / "release.yaml").exists())
         print("== rendering upstream releases at their pinned versions")
         for d in dirs:
-            problems += check_app(d, srcs, work, bd)
+            problems += check_app(d, srcs, work, vars_)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 

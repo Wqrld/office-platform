@@ -1,0 +1,36 @@
+# Find's dependencies. First consumer of the `opensearch` kind, and the only OIDC block
+# that is a resource server rather than a login client.
+#
+# OIDC_OP_URL is the EXTERNAL issuer on purpose: Find compares it for exact equality with
+# the `iss` Keycloak returns, which is external even on internal calls. So the URL and the
+# introspection endpoint deliberately disagree.
+app: find
+baseDomain: haaijer.dev
+
+postgres:
+  enabled: true
+  env: django
+
+cache:
+  enabled: true
+  env: django
+  uses: [cache]                  # no broker: Find has no Celery tasks
+
+opensearch:
+  enabled: true
+  env: find
+  indexPrefix: find
+
+oidc:
+  enabled: true
+  createUser: false
+  extraEnv:
+    OIDC_OP_URL: https://id.haaijer.dev/realms/office
+    OIDC_OP_INTROSPECTION_ENDPOINT: http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token/introspect
+    OIDC_RS_CLIENT_ID: find
+    OIDC_RS_CLIENT_SECRET: "{{ .secret }}"
+    OIDC_RS_SCOPES: openid
+
+generated:
+  find-django:
+    - {env: DJANGO_SECRET_KEY, draw: secretkey}

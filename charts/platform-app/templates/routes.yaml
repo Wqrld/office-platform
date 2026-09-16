@@ -1,0 +1,67 @@
+{{- $app := include "platform.app.name" . }}
+{{- $base := .Values.baseDomain }}
+{{- range $route := .Values.routes }}
+{{- $name := include "platform.app.routeName" (list $app $route) }}
+{{/*
+`hostname` wins over `host`; `host` is the short form joined to baseDomain. Written as an
+if/else rather than `$route.hostname | default (...)` because Go templates evaluate a
+function's arguments eagerly: inside `default`, the `required` fired even when `hostname`
+was set, which made the documented full-hostname form unusable.
+*/}}
+{{- $hostname := "" }}
+{{- if $route.hostname }}
+{{- $hostname = $route.hostname }}
+{{- else }}
+{{- $hostname = printf "%s.%s" (required (printf "route %q needs host or hostname" $name) $route.host) (required "baseDomain is required when a route uses `host`" $base) }}
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list $) | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $.Values.gateway.name }}
+      namespace: {{ $.Values.gateway.namespace }}
+      sectionName: {{ $.Values.gateway.sectionName }}
+  hostnames: [{{ $hostname | quote }}]
+  rules:
+    {{- if $route.deny }}
+    # Gateway API resolves overlapping matches by specificity, so the longest prefix wins
+    # regardless of order here. No backendRef on purpose: if the filter fails to resolve,
+    # the request 500s rather than reaching the backend it was meant to be kept from.
+    - matches:
+        {{- range $p := $route.deny }}
+        - {path: {type: PathPrefix, value: {{ $p }}}}
+        {{- end }}
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: gateway.envoyproxy.io
+            kind: HTTPRouteFilter
+            name: {{ $name }}-deny
+    {{- end }}
+    - matches:
+        {{- range $p := $route.paths }}
+        - {path: {type: PathPrefix, value: {{ $p }}}}
+        {{- end }}
+      backendRefs:
+        - {name: {{ $route.backend.name }}, port: {{ $route.backend.port }}}
+{{- if $route.deny }}
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: HTTPRouteFilter
+metadata:
+  name: {{ $name }}-deny
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "platform.labels" (list $) | nindent 4 }}
+spec:
+  directResponse:
+    statusCode: 403
+    body: {type: Inline, inline: "forbidden\n"}
+{{- end }}
+{{- end }}

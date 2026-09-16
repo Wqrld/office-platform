@@ -1,0 +1,11 @@
+# Explicit resource list: dropping a file into this directory must not silently deploy it.
+# Three releases, in this order: prerequisites, the upstream chart, the surround. Secrets
+# must exist before the workload that reads them, so they cannot come from the surround;
+# the surround attaches to workloads, so it cannot come first.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deps.yaml
+  - release.yaml
+  - surround.yaml

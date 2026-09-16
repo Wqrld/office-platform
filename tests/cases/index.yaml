@@ -1,0 +1,128 @@
+# Every rendered case in one list. `tests/render.sh <case>` renders one; the golden,
+# policy and kubeconform checks all iterate this file, so a case added here is picked up
+# by all of them without touching a workflow.
+#
+#   name       the case id; `<name>.yaml` beside this file holds the values
+#   chart      which chart under charts/ to render
+#   release    Helm release name — it lands in `app.kubernetes.io/instance` and in
+#              `platform.name`, so it is part of the output and must be pinned per case,
+#              not defaulted from the filename
+#   namespace  release namespace; several templates emit it
+#
+# `release` and `namespace` mirror what config/apps/<app>/*.yaml actually installs. A case
+# whose release name drifts from the HelmRelease is testing a shape nothing deploys.
+
+cases:
+  # ---- the control plane: one case per cluster ----------------------------------------
+  # These double as the clusters the build, kubeconform and dns checks run against: the
+  # values ARE the cluster (docs/bootstrap.md), so a case here is a cluster CI builds end
+  # to end, not just a render.
+  - name: cluster-prod
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: Production's choices — every app, Garage, the medium profile.
+
+  - name: cluster-demo
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: The rehearsal cluster — prod on another domain, small profile.
+
+  - name: cluster-minimal
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: >-
+      The smallest selection the platform accepts on an organisation's own S3: Docs and
+      Find, nothing that needs Garage, LiveKit or Collabora. Both acceptance criteria of
+      platform-design/12, asserted on every build.
+
+  # ---- the two shapes that are live today -------------------------------------------
+  - name: docs-deps
+    chart: platform-deps
+    release: docs-deps
+    namespace: office-docs
+    description: Docs' datastores — the five-ExternalSecret, Garage-bucket shape.
+
+  - name: docs-app
+    chart: platform-app
+    release: docs-platform
+    namespace: office-docs
+    description: Docs' surround — four routes on one host, one of them a websocket.
+
+  - name: drive-app
+    chart: platform-app
+    release: drive-platform
+    namespace: office-drive
+    description: Drive's surround — adds the media proxy and the static-file server.
+
+  - name: find-deps
+    chart: platform-deps
+    release: find-deps
+    namespace: office-find
+    description: >-
+      Find's datastores — the only consumer of the `opensearch` kind, and the only OIDC
+      block that is a resource server rather than a login client.
+
+  - name: calendars-deps
+    chart: platform-deps
+    release: calendars-deps
+    namespace: office-calendars
+    description: >-
+      Calendars' datastores — the only consumer of the `dramatiq` cache profile, and the
+      only case where one app draws three URLs across two Valkey instances.
+
+  - name: external-deps
+    chart: platform-deps
+    release: drive-deps
+    namespace: office-drive
+    description: >-
+      Drive's datastores with the object store external — no GarageBucket or GarageKey,
+      one ExternalSecret with the same key set read from the hand-applied Secret.
+
+  # ---- the minimal and maximal ends of each chart --------------------------------------
+  # 10-verification.md asks for a minimal and a full golden per chart. The minimal case is
+  # the one that catches a helper starting to require a value it used to default.
+  - name: minimal-deps
+    chart: platform-deps
+    release: minimal-deps
+    namespace: office-minimal
+    description: Nothing enabled. Asserts the chart renders an empty release, not an error.
+
+  - name: minimal-app
+    chart: platform-app
+    release: minimal-platform
+    namespace: office-minimal
+    description: One route, nothing else. The floor of the surround.
+
+  - name: full-deps
+    chart: platform-deps
+    release: full-deps
+    namespace: office-full
+    description: Every datastore, both cache instances, two generated Secrets.
+
+  - name: full-app
+    chart: platform-app
+    release: full-platform
+    namespace: office-full
+    description: Every feature at once — deny rules, media proxy, static files, metrics.
+
+  # ---- invariants that regress silently ------------------------------------------------
+  - name: multi-component-app
+    chart: platform-app
+    release: multi-platform
+    namespace: office-multi
+    description: >-
+      Five components with PDBs enabled. Docs' shape. Asserts one PDB per component and
+      that every one of them uses maxUnavailable.
+
+  - name: single-replica-app
+    chart: platform-app
+    release: single-platform
+    namespace: office-single
+    description: >-
+      pdb.enabled false with components still declared. Asserts NO PDB is emitted — the
+      invariant 10-verification.md calls the one most likely to regress silently, because
+      a minAvailable PDB on a single replica blocks every drain and nothing fails until
+      someone drains a node.

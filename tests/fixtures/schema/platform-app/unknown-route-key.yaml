@@ -1,0 +1,10 @@
+# expect: additional properties 'wesbocket' not allowed
+# Nested keys are modelled too. `wesbocket: true` would buffer the editing session and
+# time it out at the default request timeout — a bug that only appears under real use.
+app: typo
+baseDomain: example.test
+routes:
+  - host: typo
+    backend: {name: typo, port: 80}
+    paths: [/collaboration/ws]
+    wesbocket: true

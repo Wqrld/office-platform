@@ -52,8 +52,8 @@ unconditionally, so the `services` M2M stays empty.
 
 ## Bringing it up
 
-Find must exist before Docs' flag Job and reindex run — `config/apps/kustomization.yaml`
-orders it first. The realm import is import-once, so after the first release create the
+Find must exist before Docs' flag Job and reindex run — `docs: {requires: [find]}` in the
+control plane's app table makes `app-docs` wait for `app-find`. The realm import is import-once, so after the first release create the
 client against the live realm:
 
 ```sh

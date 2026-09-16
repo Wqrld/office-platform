@@ -1,0 +1,4 @@
+# expect: additional properties 'baseDomain' not allowed
+# The whole point of the schema: a misspelt key is refused, not silently ignored.
+baseDomain: example.org
+gateway: {ip: 10.0.0.5}

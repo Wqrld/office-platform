@@ -1,0 +1,7 @@
+# expect: missing property 'backend'
+# A route with no backendRef renders an HTTPRoute that resolves to nothing and 500s.
+app: nobackend
+baseDomain: example.test
+routes:
+  - host: nobackend
+    paths: [/]

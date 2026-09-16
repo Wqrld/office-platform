@@ -1,0 +1,31 @@
+# Explicit resource list: dropping a file into this directory must not silently deploy it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - deps.yaml
+  - tokens.yaml
+  - whisperx.yaml
+  - release.yaml
+  - surround.yaml
+
+configMapGenerator:
+  # The shared switcher.js (one level up — Drive's too), plus the nginx config that injects
+  # it, mounted over the frontend image's own default.conf (release.yaml). `substitute:
+  # disabled` because switcher.js is full of $variables and default.conf has nginx `$uri`
+  # variables of its own.
+  - name: meet-frontend
+    namespace: office-meet
+    files: [../switcher.js, default.conf]
+    options:
+      disableNameSuffixHash: true
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Two one-file Python patches, each imported at interpreter start by the process it is
+  # mounted into as `sitecustomize.py` (the files say why). Nothing to substitute.
+  - name: meet-patches
+    namespace: office-meet
+    files: [summary-sitecustomize.py, whisperx-sitecustomize.py]
+    options:
+      disableNameSuffixHash: true

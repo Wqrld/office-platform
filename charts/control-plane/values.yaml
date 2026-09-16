@@ -1,0 +1,53 @@
+# The organisation's contract with the platform. examples/cluster.yaml shows the whole
+# file an organisation keeps; values.schema.json rejects anything not listed here, so a
+# typo is a refused HelmRelease with a message rather than a `${BASE_DOMIAN}` serving to
+# nobody.
+
+# ---------------------------------------------------------------- what an organisation chooses
+# Public DNS suffix. Every application is a subdomain of it: docs.<domain>, id.<domain>…
+domain: ""
+storageClass: longhorn
+gateway:
+  ip: ""                          # the shared Gateway's address — a MetalLB pool address
+  tlsIssuer: letsencrypt-gateway  # ClusterIssuer for the one SAN certificate
+# LiveKit's media address: WebRTC is UDP and ICE, which an L7 proxy cannot carry, so it is
+# the one LoadBalancer that is not the Gateway. `turn.<domain>` is a manual A record to it,
+# outside the wildcard on purpose. Required when apps.meet is on; unused otherwise.
+livekit:
+  ip: ""
+# Size profile: small (5-50 people, one node), medium (50-500), large (500-5,000, HA).
+# apps/overlays/README.md is what each one means. medium is the identity profile.
+size: medium
+# Disabling an app removes it from the cluster and keeps its data: its database, role,
+# passwords and bucket contents all live in the platform layer, which provisions for every
+# app whether enabled or not. Re-enabling reconnects to them. Dependencies are enforced —
+# drive needs collabora, docs needs find, meet needs docs — and livekit follows meet.
+apps:
+  docs: true
+  drive: true
+  collabora: true
+  find: true
+  calendars: true
+  meet: true
+objectStore:
+  # garage: the platform runs its own S3 (Garage) and publishes s3.<domain> for Drive's
+  #         browser uploads.
+  # external: an S3 provider of the organisation's. Endpoint, region and credentials come
+  #         from a Secret named `object-store` in office-data, applied by hand once like
+  #         the SMTP relay account — docs/bootstrap.md. Buckets are named after the apps
+  #         (docs, drive, meet) and exist before the first release; Drive's bucket needs
+  #         CORS for https://drive.<domain>, which the platform cannot set on a store it
+  #         does not run.
+  mode: garage
+
+# ---------------------------------------------------------------- platform defaults
+# Where the platform's own artifacts are pulled from: the config artifact, the platform
+# charts and this chart — all at this chart's version. `pullSecret` is a Secret in flux-system, created at
+# bootstrap; empty for a registry that needs none.
+registry:
+  url: oci://harbor.mijnbureau.haaijer.dev/office
+  pullSecret: harbor-auth
+reconcile:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m

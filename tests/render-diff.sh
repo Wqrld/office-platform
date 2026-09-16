@@ -11,7 +11,7 @@
 # So: build every cluster at the base ref and at HEAD, and diff object by object. A chart
 # bump shows exactly which of the apps move and how, before it merges rather than after.
 #
-# Both sides are built with THIS commit's tests/build.sh, copied into the base worktree. A
+# Both sides are built with THIS commit's tests/build.py, copied into the base worktree. A
 # change to the build script itself would otherwise show up as a diff in every object, and
 # the question this answers is what changed in the OUTPUT.
 #
@@ -47,17 +47,17 @@ echo
 git -C "$HERE" worktree add --detach "$WORK/base" "$BASE_SHA" >/dev/null 2>&1 || {
   echo "render-diff: could not check out $BASE_SHA; nothing to compare"; exit 0; }
 mkdir -p "$WORK/base/tests"
-cp "$HERE/tests/build.sh" "$WORK/base/tests/build.sh"
+cp "$HERE/tests/build.py" "$HERE/tests/render.py" "$WORK/base/tests/"
 
 # The base is allowed to fail to build — it might predate a layer this commit adds — and
 # that is reported rather than treated as this change's fault.
-if ! "$WORK/base/tests/build.sh" "$WORK/before" >"$WORK/base.log" 2>&1; then
+if ! "$WORK/base/tests/build.py" "$WORK/before" >"$WORK/base.log" 2>&1; then
   echo "the base commit does not build; diffing what it managed to produce"
   sed 's/^/   /' "$WORK/base.log" | tail -5
   echo
 fi
-"$HERE/tests/build.sh" "$WORK/after" >"$WORK/head.log" 2>&1 || {
-  echo "FAIL — this commit does not build. tests/build.sh has the detail:"; sed 's/^/   /' "$WORK/head.log"; exit 1; }
+"$HERE/tests/build.py" "$WORK/after" >"$WORK/head.log" 2>&1 || {
+  echo "FAIL — this commit does not build. tests/build.py has the detail:"; sed 's/^/   /' "$WORK/head.log"; exit 1; }
 
 # dyff understands multi-document Kubernetes YAML: it pairs objects by name and kind rather
 # than by position, so a reordered kustomize output is not a diff. `diff -u` is the fallback

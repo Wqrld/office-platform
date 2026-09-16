@@ -1,0 +1,13 @@
+# The managed object store, as its own Flux layer rather than part of platform/: it is the
+# one platform component an organisation can opt out of (`objectStore.mode: external` in
+# the control plane), and substitution cannot remove a resource from a kustomization, so
+# the control plane either emits this layer or does not. It reconciles after `platform`
+# (office-data, the Gateway) and before every app, which is the ordering
+# reference-grants.yaml needs.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - admin-token.yaml
+  - cluster.yaml
+  - reference-grants.yaml
+  - public-route.yaml
