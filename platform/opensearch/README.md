@@ -61,4 +61,4 @@ that needs an upstream `OPENSEARCH_CA_CERTS` setting — see `adr/0111`.
 
 Mappings are `dynamic: strict` and `ensure_index_exists` is create-if-404 only: there is no
 alias scheme and no reindex-in-place. A mapping change means deleting the index and re-running
-`config/apps/docs/reindex.yaml`.
+`apps/docs/reindex.yaml`.

@@ -14,7 +14,7 @@ reach `opensearch-cluster-master:9200`. With the plugin off there is no authenti
 all: every document in every index is world-readable and world-writable from anywhere in the
 cluster.
 
-The same argument already settled the Valkey ACLs (`config/platform/valkey/README.md`): where
+The same argument already settled the Valkey ACLs (`platform/valkey/README.md`): where
 the network enforces nothing, the datastore's own auth is not defence in depth, it is the
 only defence.
 
@@ -24,7 +24,7 @@ The security plugin is **on**:
 1. An internal user per consuming app — today only `find` — with a role granting
    `indices_all` on that app's index pattern (`find-*`) and nothing else.
 2. **TLS on the REST layer**, from a self-signed CA private to this cluster
-   (`config/platform/opensearch/certificate.yaml`). The Let's Encrypt ClusterIssuer issues
+   (`platform/opensearch/certificate.yaml`). The Let's Encrypt ClusterIssuer issues
    for public names and cannot sign a `.svc.cluster.local`.
 3. **No `admin` internal user.** Cluster administration is the admin certificate only, so
    there is no all-access password anywhere to leak.
@@ -34,7 +34,7 @@ The security plugin is **on**:
 
 ## Reasoning
 The cost is one CA, one Secret of security config, and the operational wrinkle in
-`config/platform/opensearch/README.md` that changing that config after first boot needs
+`platform/opensearch/README.md` that changing that config after first boot needs
 `securityadmin.sh`. The cost of the alternative is a datastore with no authentication on a
 cluster with no network policy, holding the full text of every document in Docs.
 
@@ -51,12 +51,12 @@ another app's index, not just a compromised request.
 encrypted but the server is **never authenticated** — this stops passive reading of index
 traffic, and does not stop an active attacker who can get in the path. Closing that needs an
 upstream `OPENSEARCH_CA_CERTS` setting; it is worth a PR and is recorded as the follow-up in
-`config/apps/find/README.md`.
+`apps/find/README.md`.
 
 **Rotation is manual.** `allow_default_init_securityindex` seeds `.opendistro_security` from
 the mounted files on first boot only. After that the index is the source of truth, so
 rotating the `find` password means re-rendering the Secret *and* running `securityadmin.sh`
-with the admin certificate. The runbook is in `config/platform/opensearch/README.md`.
+with the admin certificate. The runbook is in `platform/opensearch/README.md`.
 
 **Adding a consumer is three edits**, the same shape as adding a Valkey user: a
 generate-once password, a role and mapping in the security config, and the app's

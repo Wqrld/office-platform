@@ -25,7 +25,7 @@
 # CONSEQUENCE TO EXPECT ON AN EXISTING CLUSTER: a LimitRange applies at pod CREATION, so
 # nothing changes until each pod is next replaced. As they cycle, this cluster's accounted
 # requests rise by roughly 300m/1536Mi in `office-data` — capacity that was always being
-# used and never being counted. See `config/measure.py render --size <size> platform`.
+# used and never being counted. See `measure.py render --size <size> platform`.
 apiVersion: v1
 kind: LimitRange
 metadata:

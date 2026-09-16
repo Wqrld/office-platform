@@ -7,7 +7,7 @@ The design set specifies four charts, one of them `platform-infra` (~150 lines) 
 shared Gateway, PriorityClasses and ClusterIssuer.
 
 ## Decision
-Ship three charts. The singletons live as plain manifests in `config/platform/gateway/`,
+Ship three charts. The singletons live as plain manifests in `platform/gateway/`,
 parameterised by Flux `postBuild.substituteFrom` against `cluster-vars`.
 
 ## Reasoning

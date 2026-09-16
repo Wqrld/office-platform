@@ -3,13 +3,13 @@
 The platform, whole: the Flux-reconciled configuration, the charts that render it, and
 the checks that keep both honest. Published by `release.sh` as one version — a config
 artifact and four charts — and installed by an organisation from one file of its own
-(`examples/cluster.yaml`). Design and decisions: `../platform-design/`, `docs/adr/`.
+(`examples/cluster.yaml`). Design and decisions: `docs/design/`, `docs/adr/`.
 
 ```
 charts/
   control-plane/   the chart an organisation installs: renders the Flux control plane —
                    sources, cluster vars, one Kustomization per layer and per ENABLED app —
-                   from ~10 typed, schema-checked values (platform-design/12)
+                   from ~10 typed, schema-checked values (docs/design/12)
   platform-lib/    library — names, labels, routes, netpol, pdb, oidc helpers
   platform-deps/   everything an app needs BEFORE it starts: datastores + secrets
   platform-app/    the surround: HTTPRoutes, NetworkPolicy, PDB, ServiceMonitor
@@ -31,7 +31,7 @@ PriorityClasses, ClusterIssuers) are plain manifests in `platform/`, not a chart
 `docs/adr/0101`.
 
 Nothing per cluster lives here. A cluster is a `cluster.yaml` in the organisation's own
-source — ours are in `../clusters/` — and the `cluster-*` cases in `tests/cases/` are the
+source — ours are in `../office-clusters/` — and the `cluster-*` cases in `tests/cases/` are the
 values files the checks build: prod's, demo's, and a minimal selection on external S3.
 
 ## Checks

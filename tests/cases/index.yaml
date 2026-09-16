@@ -9,7 +9,7 @@
 #              not defaulted from the filename
 #   namespace  release namespace; several templates emit it
 #
-# `release` and `namespace` mirror what config/apps/<app>/*.yaml actually installs. A case
+# `release` and `namespace` mirror what apps/<app>/*.yaml actually installs. A case
 # whose release name drifts from the HelmRelease is testing a shape nothing deploys.
 
 cases:
@@ -36,7 +36,7 @@ cases:
     description: >-
       The smallest selection the platform accepts on an organisation's own S3: Docs and
       Find, nothing that needs Garage, LiveKit or Collabora. Both acceptance criteria of
-      platform-design/12, asserted on every build.
+      docs/design/12, asserted on every build.
 
   # ---- the two shapes that are live today -------------------------------------------
   - name: docs-deps

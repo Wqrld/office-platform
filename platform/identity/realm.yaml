@@ -252,7 +252,7 @@ spec:
       # flow off.
       #
       # `clientId` is also the audience Find resolves its searchable indices from, so it
-      # must stay `find` and must match config/apps/find/deps.yaml's OIDC_RS_CLIENT_ID.
+      # must stay `find` and must match apps/find/deps.yaml's OIDC_RS_CLIENT_ID.
       - clientId: find
         name: Find
         description: Find — zoeken over alle applicaties

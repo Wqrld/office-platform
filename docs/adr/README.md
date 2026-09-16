@@ -1,6 +1,6 @@
 # ADRs
 
-`0001`–`0013` live in the original design set (`platform-design/adr/`) and are the
+`0001`–`0013` live in the original design set (`docs/design/adr/`) and are the
 architecture this build implements.
 
 `01xx` are decisions taken **during** the build, where the cluster or upstream reality

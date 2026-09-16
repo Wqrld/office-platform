@@ -39,13 +39,13 @@ into our repo, and an upgrade remains a version bump plus a render-diff.
   image pinned by digest through a post-renderer. That is a narrow exception, not a second
   default: every other app pins a tag. It also removes the last version signal, which makes
   the two compensating controls above the only ones Find has. Retire the exception the day
-  upstream tags a release. See `config/apps/find/README.md`.
+  upstream tags a release. See `apps/find/README.md`.
 - **One app has a chart that is not in any tag yet.** `suitenumerique/calendars` ships its
   chart at `src/helm/calendars` exactly as this ADR expects, but it was written after the
   `v0.1.0` tag and the upstreaming PR is still open. Pinning `main` is denied by
-  `config/policy/pins.rego`, correctly, and making a second commit-pin exception of Find's
+  `policy/pins.rego`, correctly, and making a second commit-pin exception of Find's
   would turn an exception into a pattern. So that chart is packaged and served from our own
   Helm repository and consumed as an ordinary versioned chart, which costs nothing
   architecturally: when the PR lands, the source becomes a `GitRepository` at a tag and the
   only other change is `chart.spec` in the release. Unlike Find's, this exception has a
-  known end. See `config/apps/calendars/README.md`.
+  known end. See `apps/calendars/README.md`.

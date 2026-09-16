@@ -1,5 +1,5 @@
 # Production's choices, as control-plane values. The file production actually syncs is the
-# organisation's own (../clusters/prod/cluster.yaml) and carries the same block.
+# organisation's own (../office-clusters/prod/cluster.yaml) and carries the same block.
 domain: haaijer.dev
 storageClass: longhorn
 gateway:

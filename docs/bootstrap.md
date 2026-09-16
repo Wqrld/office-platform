@@ -2,7 +2,7 @@
 
 Empty VM → the suite serving on your own domain.
 
-**This path has never been run end to end.** `platform-design/10-verification.md` reserves a
+**This path has never been run end to end.** `docs/design/10-verification.md` reserves a
 nightly bootstrap-from-scratch job precisely so that this document can be trusted; it is not
 written yet. Every individual piece below is in daily use, but the sequence has never been
 executed as a sequence on an empty cluster — the current one was built incrementally, and
@@ -16,7 +16,7 @@ and serves without it.
 
 ## 0. The cluster underneath — Required, and not in these repos
 
-None of this is installed by `config/`. It is assumed present, and a missing piece fails
+None of this is installed by this repository. It is assumed present, and a missing piece fails
 late and indirectly — usually as a Kustomization that never reports Ready.
 
 | Component | Why it is required | What we run |
@@ -37,8 +37,8 @@ create.
 ## 1. DNS — Required, and first
 
 ```sh
-./dns.py ../clusters/prod/cluster.yaml            # the records
-./dns.py ../clusters/prod/cluster.yaml --check    # what already resolves, and what disagrees
+./dns.py ../office-clusters/prod/cluster.yaml            # the records
+./dns.py ../office-clusters/prod/cluster.yaml --check    # what already resolves, and what disagrees
 ```
 
 Create every record it prints **before** step 3. cert-manager solves HTTP-01 through this
@@ -56,13 +56,13 @@ every value and `charts/control-plane/values.schema.json` rejects anything else.
 
 ```sh
 git clone <office-platform> && cd office-platform
-mkdir -p ../clusters/prod && cp examples/cluster.yaml ../clusters/prod/cluster.yaml
+mkdir -p ../office-clusters/prod && cp examples/cluster.yaml ../office-clusters/prod/cluster.yaml
 ```
 
 | Where | Change |
 |---|---|
 | `cluster.yaml` `spec.values` | `domain`, `gateway.ip`, `livekit.ip`, `storageClass`, `size`, which `apps`, the `objectStore` mode |
-| `cluster.yaml` `FluxInstance.spec.sync` | where this file is read from — your git repository, or an OCI artifact (`../clusters/push.sh`) |
+| `cluster.yaml` `FluxInstance.spec.sync` | where this file is read from — your git repository, or an OCI artifact (`../office-clusters/push.sh`) |
 | `cluster.yaml` `OCIRepository/platform` | the registry the platform is published to, and the version to run |
 | `platform/gateway/clusterissuer.yaml` | the ACME contact address |
 | `release.sh`, `charts/control-plane/values.yaml` `registry:` | your registry, if you publish the platform yourself |
@@ -99,7 +99,7 @@ kubectl create namespace flux-system
 kubectl -n flux-system create secret docker-registry harbor-auth \
   --docker-server=<registry> --docker-username=<robot> --docker-password=<token>
 # flux-operator 0.59.0 — install per its own documentation; it is not vendored here
-kubectl apply -f ../clusters/prod/cluster.yaml
+kubectl apply -f ../office-clusters/prod/cluster.yaml
 ```
 
 `harbor-auth` is referenced by the FluxInstance, the platform chart, the config
@@ -219,7 +219,7 @@ reach the app either way, so nothing in `apps/` knows which mode it is running i
 - **Verify** — the point of a bootstrap you cannot otherwise trust:
 
 ```sh
-./dns.py ../clusters/prod/cluster.yaml --check   # every name on the certificate, resolving to the Gateway
+./dns.py ../office-clusters/prod/cluster.yaml --check   # every name on the certificate, resolving to the Gateway
 kubectl -n office-system get certificate office-tls    # Ready=True; one SAN failure fails all
 apps/drive/check-secrets.sh    # the post-renderer attached all ten workloads
 apps/meet/check-secrets.sh     # same for Meet's thirteen
@@ -241,7 +241,7 @@ client secret (`KC_HOSTNAME_BACKCHANNEL_DYNAMIC`, `07-identity-and-secrets.md`).
 | Restore legacy data | Only if migrating. `backups/<stamp>/MANIFEST.md` — the PG dump **and** the objects; neither is useful alone |
 | `apps/docs/reindex.yaml` | Only after a restore, or after an OpenSearch rebuild. Indexing is driven by `post_save`, so restored documents are invisible to search until this backfills them. Applied by hand on purpose — it depends on Find being up, and a failed Job inside `app-docs` stalls that app |
 | `platform/gateway/deferred/` | Only when retiring an existing ingress controller that still holds the public IP — see `gateway-cutover.md` |
-| A second cluster | Its own `cluster.yaml` on its own domain and addresses — `../clusters/demo/` is ours. Same four commands |
+| A second cluster | Its own `cluster.yaml` on its own domain and addresses — `../office-clusters/demo/` is ours. Same four commands |
 | Prometheus operator | Nothing enables a ServiceMonitor yet |
 
 ## 7. Traps a first install actually hits

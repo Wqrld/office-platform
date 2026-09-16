@@ -119,7 +119,7 @@ spec:
         # Full-text search through Find. PUBLIC urls, not the cluster Service: Find's
         # Production settings 301 a request that arrives without X-Forwarded-Proto, and
         # `requests` downgrades a 301'd POST to a GET — so a pod-to-pod call silently
-        # indexes nothing. See config/apps/find/surround.yaml.
+        # indexes nothing. See apps/find/surround.yaml.
         SEARCH_INDEXER_CLASS: core.services.search_indexers.FindDocumentIndexer
         SEARCH_INDEXER_COUNTDOWN: "10"   # Celery debounce; 0 makes every save synchronous
         INDEXING_URL: https://find.${BASE_DOMAIN}/api/v1.0/documents/index/

@@ -1,7 +1,7 @@
 # platform-app
 
 The surround. It creates everything *around* what an upstream chart's release created
-(`platform-design/04-platform-charts.md`). It creates almost nothing that runs — the one
+(`docs/design/04-platform-charts.md`). It creates almost nothing that runs — the one
 exception is the media proxy, which is a route's backend rather than part of the
 application; `docs/adr/0109` argues that case.
 

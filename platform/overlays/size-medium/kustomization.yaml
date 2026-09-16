@@ -3,7 +3,7 @@
 # Empty, for the same reason as `apps/overlays/size-medium`: the base manifests carry the
 # measured production numbers, and restating them here would put every figure in two places.
 # Selecting medium renders byte-for-byte what `path: ./platform` rendered before profiles
-# existed — `config/measure.py --compare` asserts it.
+# existed — `measure.py --compare` asserts it.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 

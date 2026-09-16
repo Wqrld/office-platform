@@ -6,7 +6,7 @@
 # exists to avoid.
 #
 # So `medium` is the identity profile: selecting it renders byte-for-byte what `path: ./apps`
-# rendered before profiles existed. `config/measure.py --compare` asserts exactly that, and
+# rendered before profiles existed. `measure.py --compare` asserts exactly that, and
 # it is the check that makes switching prod onto the profile mechanism a no-op rather than a
 # migration.
 #

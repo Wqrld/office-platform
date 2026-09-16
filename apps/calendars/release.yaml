@@ -32,7 +32,7 @@ spec:
     disableWaitForJobs: true
     remediation:
       # A rollback reverts the code and leaves the schema migrated. Fail forward, loudly.
-      # Also required by config/policy/pins.rego for any release carrying a migrate job.
+      # Also required by policy/pins.rego for any release carrying a migrate job.
       retries: 0
 
   values:

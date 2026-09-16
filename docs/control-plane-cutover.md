@@ -28,9 +28,9 @@ Check the UIDs before and after; that is the whole verification.
 - **2.0.0** published with `./release.sh 2.0.0` — the config artifact and all four charts,
   the first version cut from this layout (`platform-deps` learned `objectstore.mode` in
   it). Nothing on the cluster moves yet: it still reads config 1.7.x and charts 0.2.10.
-- `../clusters/` pushed (`./push.sh`), so `office/clusters:latest` exists with `prod/` in it.
-- `tests/clusters/prod.yaml` and `../clusters/prod/cluster.yaml` say the same thing.
-  `./dns.py ../clusters/prod/cluster.yaml --check` is clean.
+- `../office-clusters/` pushed (`./push.sh`), so `office/clusters:latest` exists with `prod/` in it.
+- `tests/clusters/prod.yaml` and `../office-clusters/prod/cluster.yaml` say the same thing.
+  `./dns.py ../office-clusters/prod/cluster.yaml --check` is clean.
 
 ## Cutover
 
@@ -59,7 +59,7 @@ kubectl -n flux-system label $kept --overwrite app.kubernetes.io/managed-by=Helm
 # 4. The switch: the FluxInstance now syncs the organisation's file, which carries the
 #    chart pin and the values. flux-operator rewrites the flux-system source and
 #    Kustomization in place; resume in case it kept the suspension.
-kubectl apply -f ../clusters/prod/cluster.yaml
+kubectl apply -f ../office-clusters/prod/cluster.yaml
 flux -n flux-system resume kustomization flux-system
 flux -n flux-system reconcile source oci flux-system
 
@@ -79,7 +79,7 @@ kubectl get hr -A                          # no HelmRelease reinstalled — same
 kubectl -n flux-system get kustomization 20-infra 30-platform 40-apps   # NotFound
 ```
 
-Then `demo`, identically, with `../clusters/demo/cluster.yaml` — it is where the next
+Then `demo`, identically, with `../office-clusters/demo/cluster.yaml` — it is where the next
 version goes first from now on.
 
 ## If it goes wrong

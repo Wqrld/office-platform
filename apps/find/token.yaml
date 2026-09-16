@@ -2,7 +2,7 @@
 #
 # Plain rather than a `platform-deps.generated` entry because the value must be SHARED with
 # Docs, and `generated` draws a fresh one per call. The mirror image of this object is
-# config/apps/docs/search-token.yaml; both read the one value in office-data.
+# apps/docs/search-token.yaml; both read the one value in office-data.
 #
 # Promote this to a chart feature if a second app-to-app token ever appears.
 apiVersion: external-secrets.io/v1

@@ -1,5 +1,5 @@
 # Docs' dependencies, expressed against platform-deps. Replaces the 174 hand-written lines
-# in config/apps/docs/{datastores,secrets}.yaml.
+# in apps/docs/{datastores,secrets}.yaml.
 app: docs
 baseDomain: haaijer.dev
 

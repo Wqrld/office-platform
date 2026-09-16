@@ -1,4 +1,4 @@
-# Drive's surround, mirroring config/apps/drive/surround.yaml. This is the case that covers
+# Drive's surround, mirroring apps/drive/surround.yaml. This is the case that covers
 # the media proxy and the static-file server — the two things platform-app runs itself, and
 # so the only rendered Deployments either chart produces.
 #

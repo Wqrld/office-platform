@@ -91,7 +91,7 @@ def git_checkout(url: str, ref: dict, dest: pathlib.Path) -> None:
 
     `--branch` takes a branch or a tag and rejects a SHA, so a commit pin needs the
     fetch-then-checkout form. Find is pinned that way because upstream has never cut a
-    release — see config/apps/find/README.md.
+    release — see apps/find/README.md.
     """
     if tag := ref.get("tag"):
         subprocess.run(["git", "clone", "--depth", "1", "--branch", tag, "--quiet", url, str(dest)],

@@ -5,7 +5,7 @@
 ## Context
 `platform-app` was defined as the chart that "creates nothing that runs". Docs broke that on
 day one: `/media` cannot be a plain route to either the backend or the object store, so it
-shipped as 131 hand-written lines of nginx in `config/apps/docs/media-proxy.yaml`, logged as
+shipped as 131 hand-written lines of nginx in `apps/docs/media-proxy.yaml`, logged as
 an escape hatch used once.
 
 Drive needs the same thing. Its media-auth endpoint is `/api/v1.0/items/media-auth/` rather

@@ -1,4 +1,4 @@
-# The mirror image of config/apps/find/token.yaml: the same one value in office-data, read
+# The mirror image of apps/find/token.yaml: the same one value in office-data, read
 # into the key name Docs' indexer expects.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret

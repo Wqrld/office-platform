@@ -1,4 +1,4 @@
-# Docs' surround. Compare with the 97 hand-written lines in config/apps/docs/routes.yaml.
+# Docs' surround. Compare with the 97 hand-written lines in apps/docs/routes.yaml.
 app: docs
 baseDomain: haaijer.dev
 

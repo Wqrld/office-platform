@@ -43,7 +43,7 @@ spec:
 # Source: control-plane/templates/sources.yaml
 # Chart lives in-tree at src/helm/find; there is no tag to pin. `suitenumerique/find` has
 # never cut a release — zero git tags — so this is the one source pinned to a COMMIT, the
-# single departure from adr/0104. See config/apps/find/README.md.
+# single departure from adr/0104. See apps/find/README.md.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata: {name: suitenumerique-find, namespace: flux-system}
