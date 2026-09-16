@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-meet
+  labels:
+    # The Gateway's allowedRoutes selector. Without it the HTTPRoutes in surround.yaml are
+    # silently ignored — they report no error, they simply never attach.
+    office.haaijer.dev/gateway-access: "true"
+    # `baseline`, like the others. Meet's own images (backend, frontend, summary) run as
+    # 1001:127 and would pass `restricted`; the whisperx Deployment (whisperx.yaml) sets a
+    # full securityContext and passes too. Baseline is the platform's profile, and the
+    # audit/warn labels are what tell us when something here stops being restricted-clean.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

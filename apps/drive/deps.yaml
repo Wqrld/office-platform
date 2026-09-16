@@ -38,5 +38,5 @@ spec:
     # SERVER_TO_SERVER_API_TOKENS appears nowhere in Drive v0.21.2.
     generated:
       drive-django:
-        - {env: DJANGO_SECRET_KEY, draw: secretkey}
+        - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
         - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}

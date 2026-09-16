@@ -1,0 +1,72 @@
+# Release 3 of 3: the surround. One HTTPRoute for signaling, one LoadBalancer for media.
+#
+# THE ONE LOADBALANCER THAT IS NOT THE GATEWAY. Everything else on this platform enters
+# through Envoy on ${GATEWAY_IP}; WebRTC cannot — media is UDP, ICE needs the address it
+# advertises to be the address packets arrive at, and an L7 proxy has neither. So LiveKit
+# gets its own MetalLB address, ${LIVEKIT_IP}, with exactly three ports on it. The
+# signaling WebSocket still goes through the Gateway like any other route: that is where
+# the certificate is, and `wss://livekit.${BASE_DOMAIN}` is what Meet hands the browser.
+#
+# This Service is written by hand rather than by the chart because the chart's own
+# LoadBalancer modes are cloud-specific (aws/gke/do) and put the http port on it too;
+# `loadBalancer.type: disable` in release.yaml leaves a ClusterIP Service for the route
+# and this file adds the media one. `extraObjects` is the escape hatch (05-app-contract.md
+# tier 3); what would remove it is a `loadBalancer.type: generic` upstream.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: livekit-platform, namespace: office-livekit}
+spec:
+  interval: 30m
+  dependsOn: [{name: livekit}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  values:
+    app: livekit
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      # Signaling. `websocket: true` sets the connection idle timeout to the platform's
+      # 24h rather than Envoy's default — a call is one WebSocket that lasts the meeting.
+      # The chart's Service maps 80 → 7880.
+      - host: livekit
+        backend: {name: livekit, port: 80}
+        paths: [/]
+        websocket: true
+
+    extraObjects:
+      - apiVersion: v1
+        kind: Service
+        metadata:
+          name: livekit-media
+          namespace: office-livekit
+          annotations:
+            metallb.universe.tf/loadBalancerIPs: "${LIVEKIT_IP}"
+        spec:
+          type: LoadBalancer
+          # The pod is on this node, and the client's source address must survive to the
+          # SFU: ICE binds candidates to what it sees. `Local` does that; `Cluster` would
+          # SNAT it away. On one node the two are otherwise equivalent.
+          externalTrafficPolicy: Local
+          # No NodePorts: nothing reaches these ports on the node address, and a NodePort
+          # per port is a second, unrequested way in.
+          allocateLoadBalancerNodePorts: false
+          selector:
+            app.kubernetes.io/name: livekit-server
+            app.kubernetes.io/instance: livekit
+          ports:
+            # Numbers duplicated from secrets.yaml's config on purpose: a Service cannot
+            # read a Secret, and a mismatch here is "media never connects" with no error
+            # anywhere — check both when changing either.
+            - {name: rtc-tcp, port: 7881, targetPort: 7881, protocol: TCP}
+            - {name: rtc-udp, port: 7882, targetPort: 7882, protocol: UDP}
+            - {name: turn-udp, port: 3478, targetPort: 3478, protocol: UDP}
+
+    # Emitted, NOT enforced — Flannel ships no policy controller (adr/0103). `cache` is
+    # the Valkey broker; `external: 443` is the webhook to Meet's backend, which goes out
+    # through the Gateway (secrets.yaml says why).
+    networkPolicy:
+      enabled: true
+      egress:
+        - {datastore: cache}
+        - {external: true, port: 443}
+
+    pdb: {enabled: false}

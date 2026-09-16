@@ -22,6 +22,10 @@ Run both from the repository root — target paths are relative to the working d
 | Drive chart tag | `clusters/prod/sources.yaml` | `suitenumerique/drive` git tags |
 | Drive image tags ×2 | `apps/drive/release.yaml` | the same git tag |
 | collabora-online chart | `apps/collabora/release.yaml` | chart repo index |
+| Meet chart tag | `clusters/prod/sources.yaml` | `suitenumerique/meet` git tags |
+| Meet image tags ×7 | `apps/meet/release.yaml` | the same git tag |
+| LiveKit image tags ×2 | `apps/livekit/release.yaml` | Docker Hub tags; the chart commit is moved by hand |
+| whisperx image tag | `apps/meet/whisperx.yaml` | `suitenumerique/meet-whisperx` git tags |
 
 Two git-tag pins now live in `clusters/prod/sources.yaml`, so both patterns are **anchored
 to the repository URL**. An unanchored `ref: {tag: vX.Y.Z}` matches both and rewrites

@@ -1,0 +1,42 @@
+# LiveKit: the two IMAGE tags only. The charts come from a commit pin on livekit-helm
+# (clusters/prod/sources.yaml) which, like Find's, is moved by hand — a chart bump there
+# has to be read against release.yaml's postRenderers (port list, env index), and a bot
+# cannot do that reading. The images move independently of the charts upstream.
+name: "LiveKit images"
+
+sources:
+  server:
+    name: "latest livekit-server"
+    kind: dockerimage
+    spec:
+      image: "livekit/livekit-server"
+      architecture: amd64
+      tagfilter: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+      versionfilter: {kind: semver, pattern: ">=1.13.7"}
+  egress:
+    name: "latest egress"
+    kind: dockerimage
+    spec:
+      image: "livekit/egress"
+      architecture: amd64
+      tagfilter: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+      versionfilter: {kind: semver, pattern: ">=1.14.1"}
+
+targets:
+  # Anchored on the repository line above each tag: release.yaml holds both.
+  server:
+    name: "livekit-server image tag"
+    kind: file
+    sourceid: server
+    spec:
+      file: "apps/livekit/release.yaml"
+      matchpattern: 'repository: livekit/livekit-server\n      tag: v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: 'repository: livekit/livekit-server\n      tag: {{ source "server" }}'
+  egress:
+    name: "egress image tag"
+    kind: file
+    sourceid: egress
+    spec:
+      file: "apps/livekit/release.yaml"
+      matchpattern: 'repository: livekit/egress\n      tag: v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: 'repository: livekit/egress\n      tag: {{ source "egress" }}'

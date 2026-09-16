@@ -38,3 +38,8 @@ spec:
         # It does make the case for narrowing those patterns sharper, since KEYS turns
         # "can read any key" into "can enumerate every key" — see README.md.
         calendars: {permissions: "~* &* +@all -@dangerous +keys"}
+        # Meet's summary service (Celery) — the transcript queue.
+        meet:      {permissions: "~* &* +@all -@dangerous"}
+        # LiveKit: room state, node registry and the egress request queue. Its Redis client
+        # also SUBSCRIBEs, which `&*` covers.
+        livekit:   {permissions: "~* &* +@all -@dangerous"}

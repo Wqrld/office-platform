@@ -34,3 +34,4 @@ spec:
         drive:     {permissions: "~* &* +@all -@dangerous +flushdb"}
         find:      {permissions: "~* &* +@all -@dangerous +flushdb"}
         calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        meet:      {permissions: "~* &* +@all -@dangerous +flushdb"}

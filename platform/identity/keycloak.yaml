@@ -88,6 +88,23 @@ spec:
     - sourceRef:
         generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
 ---
+# The `meet` client secret. A login client like the three above; same import-once caveat,
+# so `add-client.sh meet` after this Secret exists.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: oidc-client-meet, namespace: office-identity}
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-meet
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef:
+        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
+---
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: keycloak-db, namespace: office-identity}

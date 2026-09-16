@@ -190,10 +190,16 @@ def report(cluster_dir, args):
     sans = gateway_sans(docs)
     hosts = served(docs, base_domain)
     records = sorted(set(sans) | set(hosts))
+    # Records that must NOT point at the Gateway: LiveKit's media address. The TURN
+    # hostname is neither routed nor on the certificate (apps/livekit/README.md), so it is
+    # stated here from the variable rather than found in the render.
+    off_gateway = {f"turn.{base_domain}": variables["LIVEKIT_IP"]} if variables.get("LIVEKIT_IP") else {}
 
     if args.zone:
         for name in records:
             print(f"{name}.\t300\tIN\tA\t{gateway_ip}")
+        for name, ip in off_gateway.items():
+            print(f"{name}.\t300\tIN\tA\t{ip}")
         return 0
 
     print(f"== clusters/{cluster_dir.name} — base domain {base_domain or '(unset)'}, "
@@ -211,6 +217,10 @@ def report(cluster_dir, args):
         print()
         print(f"   Or one wildcard instead of the {len(records)}:  "
               f"*.{base_domain}  A  {gateway_ip}")
+    for name, ip in off_gateway.items():
+        print()
+        print(f"   And NOT to the Gateway — an explicit record that must beat the wildcard:")
+        print(f"   {name:<34} A  {ip:<16} LiveKit TURN/media (apps/livekit)")
 
     print()
     print("   Order and caveats:")
@@ -238,6 +248,12 @@ def report(cluster_dir, args):
                 problems.append(f"{name} does not resolve ({error})")
             elif gateway_ip and gateway_ip not in addresses:
                 problems.append(f"{name} resolves to {', '.join(addresses)}, not {gateway_ip}")
+        for name, ip in off_gateway.items():
+            addresses, error = resolve(name)
+            if error:
+                problems.append(f"{name} does not resolve ({error})")
+            elif ip not in addresses:
+                problems.append(f"{name} resolves to {', '.join(addresses)}, not {ip}")
 
     print()
     if problems:

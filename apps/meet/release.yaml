@@ -1,0 +1,325 @@
+# Meet, from La Suite's in-tree chart at the pinned git tag v1.31.0 (adr/0104). The chart
+# path is `src/helm/meet`. It renders NINE Deployments unconditionally; four of them run at
+# zero replicas here (see `replicas: 0` below for which and why).
+#
+# THE CHART HAS NO `envFrom`. Every variable is `envVars: {NAME: value}` or a
+# `secretKeyRef` per key — forty of them, for a Django app that reads six platform Secrets.
+# Drive's chart has the same gap and the same answer: a Flux `postRenderers` kustomize
+# patch adds `envFrom` to the rendered workloads (apps/drive/release.yaml). THE NAME
+# SELECTOR IS THE SECURITY BOUNDARY: `meet-backend.*` selects the backend, its Jobs and its
+# CronJobs and NOT `meet-frontend`, which renders for the browser and must never hold the
+# database password. The second selector is the transcript pipeline, which needs the
+# bucket and its own tokens and NOT the OIDC secret. `./check-secrets.sh` asserts all
+# of it after a chart bump.
+#
+# A container's `env` beats `envFrom` for the same name. That is relied on ONCE, on
+# purpose, and noted where it happens (AWS_S3_ENDPOINT_URL for the summary service); any
+# other overlap between `envVars` below and a platform Secret is a bug.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: meet
+  namespace: office-meet
+spec:
+  interval: 30m
+  # Every Secret the patches below inject is created by meet-deps or tokens.yaml.
+  dependsOn: [{name: meet-deps}]
+  chart:
+    spec:
+      chart: src/helm/meet
+      sourceRef: {kind: GitRepository, name: suitenumerique-meet, namespace: flux-system}
+      reconcileStrategy: Revision
+  install:
+    # migrate and createsuperuser are plain Jobs with a 30s ttlSecondsAfterFinished, so
+    # waiting on them races garbage collection — same as Docs.
+    disableWaitForJobs: true
+  upgrade:
+    disableWaitForJobs: true
+    remediation:
+      # A Helm rollback reverts the code and leaves the schema migrated. Fail forward,
+      # loudly. Also required by config/policy/pins.rego for any release carrying a
+      # migrate job.
+      retries: 0
+
+  postRenderers:
+    - kustomize:
+        patches:
+          # The backend and everything that runs its code: migrate, createsuperuser, the
+          # two housekeeping CronJobs.
+          - target: {kind: "Deployment|Job", name: "meet-backend.*"}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: meet-postgres}}
+                  - {secretRef: {name: meet-cache}}
+                  - {secretRef: {name: meet-s3}}
+                  - {secretRef: {name: meet-oidc}}
+                  - {secretRef: {name: meet-smtp}}
+                  - {secretRef: {name: meet-django}}
+                  - {secretRef: {name: meet-tokens}}
+          # A CronJob buries the pod spec a level deeper and no target spans both shapes.
+          - target: {kind: CronJob, name: "meet-backend.*"}
+            patch: |
+              - op: add
+                path: /spec/jobTemplate/spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: meet-postgres}}
+                  - {secretRef: {name: meet-cache}}
+                  - {secretRef: {name: meet-s3}}
+                  - {secretRef: {name: meet-oidc}}
+                  - {secretRef: {name: meet-smtp}}
+                  - {secretRef: {name: meet-django}}
+                  - {secretRef: {name: meet-tokens}}
+          # The transcript pipeline: the summary API and its workers. The bucket (it reads
+          # the recording and writes the transcript) and its own tokens; nothing else.
+          # NOT `meet-celery-backend`: that one is the BACKEND's Celery (Django code, the
+          # backend's Secrets) — at zero replicas today, and the day it is enabled it
+          # belongs in the first patch, not this one.
+          - target: {kind: Deployment, name: "meet-summary|meet-celery-(transcribe.*|summarize|summary-backend)"}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: meet-s3}}
+                  - {secretRef: {name: meet-summary}}
+
+  values:
+    # The chart declares every tag as `latest`, which pins nothing. Four images, five
+    # workloads that carry a tag key: the backend takes the top-level `image` (the Celery
+    # backend worker inherits it), everything else overrides. All the same version, always
+    # — updatecli/updatecli.d/meet.yaml rewrites them together.
+    image: {tag: v1.31.0}
+
+    # Routing is ours: HTTPRoutes on the shared Gateway, in surround.yaml. All the chart's
+    # Ingress objects are off. They are already false by default at this tag; stated so a
+    # default flip upstream cannot quietly publish a second, unauthenticated path.
+    ingress: {enabled: false}
+    ingressWebhook: {enabled: false}
+    ingressAdmin: {enabled: false}
+    ingressMedia: {enabled: false}
+    ingressMediaFiles: {enabled: false}
+    posthog:
+      ingress: {enabled: false}
+      ingressAssets: {enabled: false}
+
+    # Unused — nothing here serves media to a browser — but the chart creates these two
+    # ExternalName Services unconditionally, so point them somewhere true.
+    serviceMedia: {host: office-s3.office-data.svc.cluster.local, port: 3900}
+    serviceMediaFiles: {host: office-s3.office-data.svc.cluster.local, port: 3900}
+
+    # ---------------------------------------------------------------- backend
+    backend:
+      replicas: 1                    # the chart defaults to 3
+      pdb: {enabled: false}          # one replica: a PDB here can only block a drain
+      resources:
+        requests: {cpu: 100m, memory: 512Mi}
+        limits: {memory: 1Gi}
+      envVars:
+        DJANGO_SETTINGS_MODULE: meet.settings
+        DJANGO_CONFIGURATION: Production
+        # Only the public name. The two machine callers — LiveKit's webhook and the summary
+        # service's completion hook — also use it: SECURE_SSL_REDIRECT in the Production
+        # settings 301s any plain-http call, so in-cluster Service URLs cannot work.
+        DJANGO_ALLOWED_HOSTS: meet.${BASE_DOMAIN}
+        DJANGO_CSRF_TRUSTED_ORIGINS: https://meet.${BASE_DOMAIN}
+        DJANGO_CORS_ALLOWED_ORIGINS: https://meet.${BASE_DOMAIN}
+        DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
+        DJANGO_LANGUAGE_CODE: nl-nl
+        # Branding only. DJANGO_EMAIL_BACKEND, _HOST, _PORT, _HOST_USER, _HOST_PASSWORD,
+        # _USE_TLS/_SSL and _FROM all arrive in `meet-smtp`. THEY MUST NOT ALSO BE SET
+        # HERE — `env` beats `envFrom`, so a leftover line would silently override the
+        # relay.
+        DJANGO_EMAIL_BRAND_NAME: Office
+        DJANGO_EMAIL_APP_BASE_URL: https://meet.${BASE_DOMAIN}
+        # The backend's own Celery is off: nothing in the transcript path uses it (that
+        # pipeline is the SUMMARY service's Celery), and `meet-cache` carries only
+        # REDIS_URL. See deps.yaml.
+        CELERY_ENABLED: "false"
+        # Rooms are created by signed-in users (the "start a meeting" button); a URL typed
+        # at random must not become a room. Upstream's default is true — that is the
+        # public-service posture, not ours.
+        ALLOW_UNREGISTERED_ROOMS: "false"
+
+        # ---- LiveKit. The PUBLIC signaling URL, because it is handed to the browser as
+        # well as used by the backend's own API client (which follows it out through the
+        # Gateway and back — a hairpin, but one hop, and the certificate is real).
+        LIVEKIT_API_URL: https://livekit.${BASE_DOMAIN}
+        LIVEKIT_FORCE_WSS_PROTOCOL: "true"
+
+        # ---- Transcripts. `RECORDING_ENABLE` plus `transcript` in the worker classes is
+        # what puts the button in the UI; the default map also carries
+        # `screen_recording`, which is left out: a video egress is a much larger Chrome,
+        # and there is no download route for its output.
+        RECORDING_ENABLE: "true"
+        RECORDING_WORKER_CLASSES: '{"transcript": "core.recording.worker.services.AudioCompositeEgressService"}'
+        # The frontend's recording page — `/recording/<id>`, SINGULAR (routes.ts). The
+        # backend puts `<this>/<id>` at the top of the Docs document as the link to the
+        # audio; the page fetches the recording and offers the file from /media, which is
+        # the media proxy in surround.yaml.
+        RECORDING_DOWNLOAD_BASE_URL: https://meet.${BASE_DOMAIN}/recording
+        SUMMARY_SERVICE_VERSION: "2"
+        SUMMARY_SERVICE_ENDPOINT: http://meet-summary/api/v2/async-jobs/transcribe/
+        # What the transcript panel shows as "your transcript will be sent to".
+        FRONTEND_TRANSCRIPTION_DESTINATION: https://docs.${BASE_DOMAIN}
+
+        SESSION_COOKIE_AGE: "43200"
+        LOGGING_LEVEL_LOGGERS_APP: INFO
+        LOGGING_LEVEL_LOGGERS_ROOT: INFO
+
+      # `createsuperuser` upstream runs Django's stock command with `--email` and
+      # `--password`. Neither exists here: Meet's USERNAME_FIELD is `admin_email` and the
+      # stock command takes no password flag — so the upstream Job fails on the first run
+      # and every run after, and it is not a Helm hook, so that is permanent noise.
+      # Replaced with an idempotent equivalent, the way Docs' is.
+      createsuperuser:
+        command:
+          - /bin/sh
+          - -c
+          - |
+            # `migrate --check`, not `check --database`: the migrate Job runs alongside
+            # this one, and a connectable database with no tables yet is the first thing
+            # this Job sees. Exits 0 only once every migration is applied.
+            until python manage.py migrate --check > /dev/null 2>&1; do
+              echo "Waiting for migrations"; sleep 5
+            done
+            python manage.py shell <<'PY'
+            import os
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+            email = os.environ["DJANGO_SUPERUSER_EMAIL"]
+
+            # Build the whole object before the first save: Meet's BaseModel.save() calls
+            # full_clean(), so an unsaved-then-set_password() order fails validation.
+            user = User.objects.filter(admin_email=email).first() or User(
+                admin_email=email, language="nl-nl"
+            )
+            user.is_active = True
+            user.is_staff = True
+            user.is_superuser = True
+            user.set_password(os.environ["DJANGO_SUPERUSER_PASSWORD"])
+            user.save()
+            print("superuser ready:", email)
+            PY
+        restartPolicy: Never
+
+    # ---------------------------------------------------------------- frontend
+    frontend:
+      image: {tag: v1.31.0}
+      replicas: 1
+      pdb: {enabled: false}
+      resources:
+        requests: {cpu: 25m, memory: 64Mi}
+        limits: {memory: 128Mi}
+      # THE GAUFRE. Meet's frontend has no switcher and no hook for one — the only
+      # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
+      # to add one <script> tag to every HTML response (`sub_filter`, in default.conf)
+      # and to serve the script itself from /custom/. Both files come from the
+      # `meet-frontend` ConfigMap (apps/kustomization.yaml) and are mounted over the
+      # image's own default.conf and beside it. No fork, no init container, and a chart
+      # bump that changes default.conf shows up as a diff against ours in git.
+      extraVolumes:
+        - name: custom
+          configMap: {name: meet-frontend}
+      extraVolumeMounts:
+        - {name: custom, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf, readOnly: true}
+        - {name: custom, mountPath: /srv/custom/switcher.js, subPath: switcher.js, readOnly: true}
+
+    # ---------------------------------------------------------------- transcript pipeline
+    # The summary service is one image, run four ways: the API (`summary`) that the
+    # backend POSTs jobs to, and three Celery workers each on their own queue. All four
+    # read `meet-s3` + `meet-summary` (postRenderers) and the same non-secret block below,
+    # anchored once because the chart has no shared env for them.
+    summary:
+      image: {tag: v1.31.0}
+      replicas: 1
+      pdb: {enabled: false}
+      resources:
+        requests: {cpu: 25m, memory: 192Mi}
+        limits: {memory: 512Mi}
+      envVars: &summaryEnv
+        # The ONE deliberate env-over-envFrom override. `meet-s3` carries
+        # AWS_S3_ENDPOINT_URL as the full URL Django's storage wants; the summary service
+        # uses the Minio client, which wants host:port and a separate TLS flag.
+        AWS_S3_ENDPOINT_URL: office-s3.office-data.svc.cluster.local:3900
+        AWS_S3_SECURE_ACCESS: "false"
+        # Speech to text: the whisperx API in this namespace (whisperx.yaml). The model
+        # name must be the one that pod loaded — v1.2.0 answers a request for any other
+        # model with 404.
+        WHISPERX_BASE_URL: http://meet-whisperx:8000/v1
+        WHISPERX_ASR_MODEL: small
+        # Language auto-detection; the allowed set defaults to en/fr/de/nl.
+        # No summaries, and no LLM: transcripts go to Docs as-is. The three LLM_* values
+        # are required by the settings class even when nothing reads them.
+        IS_SUMMARY_ENABLED: "false"
+        LLM_BASE_URL: http://disabled.invalid/v1
+        LLM_API_KEY: disabled
+        LLM_MODEL: disabled
+        # Where transcripts go: a Docs document owned by whoever started the transcript,
+        # created server-to-server (apps/docs/meet-token.yaml is the other end).
+        IS_LASUITE_DOCS_INTEGRATION_ENABLED: "true"
+        LASUITE_DOCS_BASE_URL: https://docs.${BASE_DOMAIN}
+
+    # `transcribe-queue`: download the recording, ffmpeg it, call whisperx, post to Docs.
+    # ffmpeg on an hour of audio is the memory peak of the whole pipeline bar whisperx.
+    celeryTranscribe:
+      image: {tag: v1.31.0}
+      replicas: 1
+      pdb: {enabled: false}
+      resources:
+        requests: {cpu: 50m, memory: 256Mi}
+        limits: {memory: 1Gi}
+      envVars:
+        <<: *summaryEnv
+        # The worker's call to whisperx has a hard-coded ten-minute read timeout; on CPU
+        # a long meeting takes longer than that. summary-sitecustomize.py (mounted below, found
+        # through PYTHONPATH) raises it to this many seconds for that one call.
+        PYTHONPATH: /etc/office
+        WHISPERX_READ_TIMEOUT: "3600"
+      extraVolumes:
+        - name: office
+          configMap: {name: meet-patches}
+      extraVolumeMounts:
+        - {name: office, mountPath: /etc/office/sitecustomize.py, subPath: summary-sitecustomize.py, readOnly: true}
+      instances:
+        - {name: default, extraEnvVars: {}}
+
+    # `call-webhook-queue`: tells the backend the job finished. Tiny.
+    celerySummaryBackend:
+      image: {tag: v1.31.0}
+      replicas: 1
+      pdb: {enabled: false}
+      resources:
+        requests: {cpu: 10m, memory: 128Mi}
+        limits: {memory: 384Mi}
+      envVars: *summaryEnv
+
+    # `summarize-queue`: the LLM step. Off (IS_SUMMARY_ENABLED=false), so no worker — a
+    # job on this queue would only ever be a misconfiguration.
+    celerySummarize:
+      image: {tag: v1.31.0}
+      replicas: 0
+      pdb: {enabled: false}
+      envVars: *summaryEnv
+
+    # The BACKEND's Celery worker (Django's, not the summary service's). CELERY_ENABLED
+    # is false above; nothing enqueues to it.
+    celeryBackend:
+      replicas: 0
+      pdb: {enabled: false}
+
+    # ---------------------------------------------------------------- not deployed
+    # Two LiveKit agents the chart also renders. `agentSubtitles` is live captions via
+    # Deepgram (a paid API, and keys we do not have). `agentMetadata` collects per-speaker
+    # timing to attribute transcript segments to participants by name — it is optional and
+    # the whisperx diarization already labels speakers; revisit if "Speaker 1" in the
+    # transcript is the complaint.
+    agentMetadata:
+      image: {tag: v1.31.0}
+      replicas: 0
+      pdb: {enabled: false}
+    agentSubtitles:
+      image: {tag: v1.31.0}
+      replicas: 0
+      pdb: {enabled: false}

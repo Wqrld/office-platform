@@ -32,3 +32,9 @@ spec:
     # clients (Thunderbird, iOS) connect to — so an unlisted SAN is not a quiet
     # degradation here, it is every client failing the handshake at once.
     - calendars.${BASE_DOMAIN}
+    # Meet, and LiveKit's SIGNALING host. The browser opens a WebSocket to livekit.* through
+    # the Gateway; media goes to ${LIVEKIT_IP} directly and needs no certificate. `turn.*`
+    # is deliberately absent: it points at ${LIVEKIT_IP}, where no HTTP-01 solver can
+    # answer, and a SAN that cannot be validated fails the WHOLE order (adr/0105).
+    - meet.${BASE_DOMAIN}
+    - livekit.${BASE_DOMAIN}

@@ -49,7 +49,7 @@ spec:
     # two objects will ever hold has to be here before the first install.
     generated:
       calendars-django:
-        - {env: DJANGO_SECRET_KEY, draw: secretkey}
+        - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
         - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
         # SALT_KEY derives Fernet keys from SECRET_KEY (PBKDF2) for the EncryptedJSONField
         # that holds channel tokens. Its upstream default is the literal string

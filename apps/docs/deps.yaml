@@ -40,7 +40,7 @@ spec:
     # These draw names match the objects already in the cluster.
     generated:
       docs-django:
-        - {env: DJANGO_SECRET_KEY, draw: secretkey}
+        - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
         - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
       docs-collaboration:
         - {env: Y_PROVIDER_API_KEY, draw: apikey}

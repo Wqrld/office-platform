@@ -6,9 +6,14 @@ metadata:
 data:
   BASE_DOMAIN: haaijer.dev
   STORAGE_CLASS: longhorn
-  TENANT: office
   # Public address of the shared Gateway. Currently a spare MetalLB address while the
   # legacy ingress-nginx still holds 45.136.141.136; becomes .136 at cutover.
   GATEWAY_IP: "45.136.141.168"
   # Swap to letsencrypt-gateway once the Gateway owns the public IP.
   TLS_ISSUER: letsencrypt-gateway
+  # LiveKit's media address: the one LoadBalancer on this platform that is not the
+  # Gateway (apps/livekit/README.md). WebRTC is UDP and ICE, which an L7 proxy cannot
+  # carry, so it gets its own MetalLB address. `turn.${BASE_DOMAIN}` is a manual A record
+  # to this address — it is outside the wildcard on purpose, since it must NOT point at
+  # the Gateway.
+  LIVEKIT_IP: "45.136.141.154"

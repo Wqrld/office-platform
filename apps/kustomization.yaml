@@ -24,6 +24,7 @@ resources:
   - docs/namespace.yaml
   - docs/deps.yaml
   - docs/search-token.yaml
+  - docs/meet-token.yaml
   - docs/oidc-refresh-key.yaml
   - docs/release.yaml
   - docs/media-proxy.yaml
@@ -35,6 +36,19 @@ resources:
   - calendars/deps.yaml
   - calendars/release.yaml
   - calendars/surround.yaml
+  # LiveKit before Meet: Meet's backend hands the browser LiveKit's address and calls its
+  # API for every room, and the egress webhook is the transcript pipeline's first hop.
+  # Meet after Docs: transcripts are delivered as Docs documents (apps/docs/meet-token.yaml).
+  - livekit/namespace.yaml
+  - livekit/secrets.yaml
+  - livekit/release.yaml
+  - livekit/surround.yaml
+  - meet/namespace.yaml
+  - meet/deps.yaml
+  - meet/tokens.yaml
+  - meet/whisperx.yaml
+  - meet/release.yaml
+  - meet/surround.yaml
 
 # The app switchers' files stay real .js/.json files rather than block scalars inside a
 # HelmRelease, so they can be read, linted and edited as what they are. Each surround points
@@ -42,12 +56,31 @@ resources:
 configMapGenerator:
   - name: drive-switcher
     namespace: office-drive
-    files: [drive/switcher.js]
+    files: [switcher.js]
     options:
       disableNameSuffixHash: true
       annotations:
         # The file is full of $variables that postBuild substitution would blank.
         kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Meet: the same switcher.js, plus the nginx config that injects it — mounted over the
+  # frontend image's own default.conf (apps/meet/release.yaml). Same `substitute:
+  # disabled`, for the same reason; default.conf has nginx `$uri` variables of its own.
+  - name: meet-frontend
+    namespace: office-meet
+    files: [switcher.js, meet/default.conf]
+    options:
+      disableNameSuffixHash: true
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Meet: two one-file Python patches, each imported at interpreter start by the process
+  # it is mounted into as `sitecustomize.py` (the files say why). Nothing to substitute.
+  - name: meet-patches
+    namespace: office-meet
+    files: [meet/summary-sitecustomize.py, meet/whisperx-sitecustomize.py]
+    options:
+      disableNameSuffixHash: true
 
   # Calendars' switcher is a REPLACEMENT for the widget script and the service list the
   # gaufre would otherwise load from static.suite.anct.gouv.fr and lasuite.numerique.gouv.fr;

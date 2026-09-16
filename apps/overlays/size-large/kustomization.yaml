@@ -133,6 +133,87 @@ patches:
               requests: {cpu: 100m, memory: 256Mi}
               limits: {memory: 1Gi}
 
+  # ---------------------------------------------------------------- meet
+  - target: {kind: HelmRelease, name: meet, namespace: office-meet}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: meet, namespace: office-meet}
+      spec:
+        values:
+          backend:
+            replicas: 3
+            resources:
+              requests: {cpu: 250m, memory: 768Mi}
+              limits: {memory: 2Gi}
+          frontend:
+            replicas: 3
+            resources:
+              requests: {cpu: 50m, memory: 128Mi}
+              limits: {memory: 256Mi}
+          summary:
+            replicas: 2
+            resources:
+              requests: {cpu: 50m, memory: 256Mi}
+              limits: {memory: 768Mi}
+          # `replicas` here reaches the one instance in `instances` (the chart merges the
+          # instance over these values), so no JSON6902 into the list is needed.
+          celeryTranscribe:
+            replicas: 2
+            resources:
+              requests: {cpu: 100m, memory: 512Mi}
+              limits: {memory: 2Gi}
+          celerySummaryBackend:
+            resources:
+              requests: {cpu: 10m, memory: 128Mi}
+              limits: {memory: 384Mi}
+
+  # Whisper on CPU does not scale out usefully — one transcript already takes most of a
+  # node — and a second replica is a second PVC's worth of models. At this size the answer
+  # is a GPU node or an external endpoint, not more of these.
+  - target: {kind: Deployment, name: meet-whisperx, namespace: office-meet}
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata: {name: meet-whisperx, namespace: office-meet}
+      spec:
+        template:
+          spec:
+            containers:
+              - name: whisperx
+                resources:
+                  requests: {cpu: "2", memory: 4Gi}
+                  limits: {memory: 8Gi}
+
+  # ---------------------------------------------------------------- livekit
+  # The SFU stays at ONE replica at every size. Its media ports are bound per node and its
+  # single MetalLB address fronts one pod; a second replica needs a second address and
+  # LiveKit's multi-node routing, which is a design change, not a profile.
+  - target: {kind: HelmRelease, name: livekit, namespace: office-livekit}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: livekit, namespace: office-livekit}
+      spec:
+        values:
+          resources:
+            requests: {cpu: "2", memory: 1Gi}
+            limits: {memory: 4Gi}
+
+  # Egress scales out cleanly (each takes jobs off the shared Redis queue); two here is
+  # two simultaneous transcripts.
+  - target: {kind: HelmRelease, name: livekit-egress, namespace: office-livekit}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: livekit-egress, namespace: office-livekit}
+      spec:
+        values:
+          replicaCount: 2
+          resources:
+            requests: {cpu: 500m, memory: 1Gi}
+            limits: {memory: 4Gi}
+
   # PDBs belong to the surround, not to the upstream chart: `platform-app` is the one
   # release that owns routes, policy and disruption budgets (05-app-contract.md), and the
   # upstream charts each spell their own PDB differently. Enabling both would give every
@@ -241,3 +322,44 @@ patches:
               worker:
                 {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
                  app.kubernetes.io/component: worker}
+
+  - target: {kind: HelmRelease, name: meet-platform, namespace: office-meet}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: meet-platform, namespace: office-meet}
+      spec:
+        values:
+          pdb:
+            enabled: true
+            maxUnavailable: 1
+            components:
+              # Read off the render. The transcribe worker's pods also carry
+              # `instance: default`; the three labels below are enough to select them.
+              backend:
+                {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+                 app.kubernetes.io/component: backend}
+              frontend:
+                {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+                 app.kubernetes.io/component: frontend}
+              summary:
+                {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+                 app.kubernetes.io/component: summary}
+              celery-transcribe:
+                {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+                 app.kubernetes.io/component: celery-transcribe}
+
+  - target: {kind: HelmRelease, name: livekit-platform, namespace: office-livekit}
+    patch: |
+      apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata: {name: livekit-platform, namespace: office-livekit}
+      spec:
+        values:
+          pdb:
+            enabled: true
+            maxUnavailable: 1
+            components:
+              # egress only: the SFU is single-replica above.
+              egress:
+                {app.kubernetes.io/name: egress, app.kubernetes.io/instance: livekit-egress}

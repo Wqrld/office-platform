@@ -79,7 +79,7 @@ about:
   This is what is configured.
 
 Add an entry per application as it lands. This is one of three lists of the same services,
-one per switcher: `apps/drive/switcher.js` and `apps/calendars/services.json` are the others.
+one per switcher: `apps/switcher.js` and `apps/calendars/services.json` are the others.
 An application added to one and not the rest is missing from a switcher.
 
 ## Restoring the legacy data

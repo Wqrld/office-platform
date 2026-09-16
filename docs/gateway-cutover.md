@@ -20,7 +20,7 @@ kubectl get svc -n ingress-nginx ingress-nginx-controller -o yaml > /tmp/nginx-s
 
 # 1. move nginx off .136 (it keeps serving legacy apps, just at a new address)
 kubectl annotate svc -n ingress-nginx ingress-nginx-controller \
-  metallb.universe.tf/loadBalancerIPs=45.136.141.154 --overwrite
+  metallb.universe.tf/loadBalancerIPs=45.136.141.156 --overwrite
 
 # 2. give .136 to the Gateway
 kubectl patch envoyproxy -n office-system office-gateway --type=merge \

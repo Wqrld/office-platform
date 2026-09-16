@@ -1,0 +1,185 @@
+# Release 2 of 3 for LiveKit, in two halves: the SFU and its egress worker. Both charts
+# come from livekit/livekit-helm at a pinned commit (clusters/prod/sources.yaml explains
+# why a commit). Neither has a `deps` release: LiveKit reads no Postgres, no bucket and no
+# OIDC, and its two inputs — a Valkey user and the API secret — are platform-generated and
+# assembled into secrets.yaml.
+#
+# THREE THINGS THIS FILE DOES AGAINST THE CHART'S GRAIN (plus `enableServiceLinks`), all
+# in `postRenderers`:
+#
+#   1. Config comes from a Secret, not the chart's ConfigMap. The chart renders
+#      `.Values.livekit` verbatim into a ConfigMap and feeds it to the process as
+#      LIVEKIT_CONFIG; that document holds the Redis password and the API secret. The
+#      `livekit:` values below are the NON-secret subset, so the ConfigMap the chart makes
+#      is valid but unused, and the env var is re-pointed at `livekit-config`. Keep the
+#      port numbers here and in secrets.yaml identical: the chart takes container ports
+#      from these values, the process takes them from the Secret.
+#
+#   2. No hostPort. The chart is written for `hostNetwork: true` (its default, refused by
+#      PSA baseline) and emits `hostPort` on every media port even with it off. Baseline
+#      forbids hostPort too. The ports list is replaced wholesale — an index-by-index
+#      removal would silently skip a port the next chart bump adds.
+#
+#   3. No LoadBalancer from the chart. `loadBalancer.type: disable` leaves a ClusterIP
+#      Service with only the http port, which the signaling HTTPRoute uses; the media
+#      Service on ${LIVEKIT_IP} is ours, in surround.yaml.
+#
+# `livekit` is also the release NAME, deliberately, and `fullnameOverride` keeps the
+# Service at `livekit` — surround.yaml's route backend and secrets.yaml's egress `ws_url`
+# both spell it.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: livekit, namespace: office-livekit}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: livekit-server
+      sourceRef: {kind: GitRepository, name: livekit-helm, namespace: flux-system}
+      reconcileStrategy: Revision
+  install:
+    remediation: {retries: 3}
+  upgrade:
+    remediation: {retries: 3}
+
+  postRenderers:
+    - kustomize:
+        patches:
+          - target: {kind: Deployment, name: livekit}
+            patch: |
+              # Kubernetes injects `LIVEKIT_PORT=tcp://<clusterip>:80` for the Service of the
+              # same name (and LIVEKIT_MEDIA_* for the media one), and livekit-server reads
+              # LIVEKIT_PORT as its `--port` flag: "could not parse tcp://… as uint". Off.
+              - op: add
+                path: /spec/template/spec/enableServiceLinks
+                value: false
+              # LIVEKIT_CONFIG is the container's first and only unconditional env var.
+              - op: replace
+                path: /spec/template/spec/containers/0/env/0/valueFrom
+                value:
+                  secretKeyRef: {name: livekit-config, key: config.yaml}
+              # The same ports the chart declares, minus hostPort. `metrics` is absent
+              # because `prometheus_port` is unset below.
+              - op: replace
+                path: /spec/template/spec/containers/0/ports
+                value:
+                  - {name: http, containerPort: 7880, protocol: TCP}
+                  - {name: rtc-udp, containerPort: 7882, protocol: UDP}
+                  - {name: rtc-tcp, containerPort: 7881, protocol: TCP}
+                  - {name: turn-udp, containerPort: 3478, protocol: UDP}
+
+  values:
+    fullnameOverride: livekit
+    replicaCount: 1
+    # The chart's appVersion (v1.11.0) is what its authors last bumped, not what they
+    # ship; the image is pinned here and updatecli/updatecli.d/livekit.yaml moves it.
+    image:
+      repository: livekit/livekit-server
+      tag: v1.13.7
+
+    # The non-secret half of secrets.yaml's `livekit-config`. See the header.
+    livekit:
+      port: 7880
+      log_level: info
+      rtc:
+        tcp_port: 7881
+        udp_port: 7882
+        use_external_ip: false
+        node_ip: ${LIVEKIT_IP}
+      turn:
+        enabled: true
+        domain: turn.${BASE_DOMAIN}
+        udp_port: 3478
+      keys: {}
+
+    storeKeysInSecret: {enabled: false}
+    podHostNetwork: false
+    loadBalancer: {type: disable}
+    turnLoadbalancer: {enable: false}
+    autoscaling: {enabled: false}
+    serviceMonitor: {create: false}
+
+    # Five hours is the chart default, to let long calls drain on a rolling deploy. On one
+    # replica there is nothing to roll to, and a five-hour Terminating pod is a stuck
+    # upgrade; ten minutes is a call-ending grace, not a session-length one.
+    terminationGracePeriodSeconds: 600
+
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      seccompProfile: {type: RuntimeDefault}
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}
+
+    resources:
+      requests: {cpu: 250m, memory: 256Mi}
+      limits: {memory: 1Gi}
+---
+# Egress: the recorder. Meet's transcript is a RoomCompositeEgress (audio only, OGG to
+# S3); egress joins the room as a hidden participant through the in-cluster signaling
+# address, renders it in a headless Chrome, and uploads. Chrome is why the memory numbers
+# below are what they are, even for audio-only output.
+#
+# Same config-in-a-Secret treatment as the server, for the same reason (the API secret).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: livekit-egress, namespace: office-livekit}
+spec:
+  interval: 30m
+  dependsOn: [{name: livekit}]
+  chart:
+    spec:
+      chart: egress
+      sourceRef: {kind: GitRepository, name: livekit-helm, namespace: flux-system}
+      reconcileStrategy: Revision
+  install:
+    remediation: {retries: 3}
+  upgrade:
+    remediation: {retries: 3}
+
+  postRenderers:
+    - kustomize:
+        patches:
+          - target: {kind: Deployment, name: livekit-egress}
+            patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/env/0/valueFrom
+                value:
+                  secretKeyRef: {name: egress-config, key: config.yaml}
+
+  values:
+    fullnameOverride: livekit-egress
+    replicaCount: 1
+    image:
+      repository: livekit/egress
+      tag: v1.14.1
+
+    # The non-secret half of `egress-config`; the chart needs `health_port` here to
+    # declare the container port its probes hit.
+    egress:
+      log_level: info
+      health_port: 8080
+      # Unset on purpose: with it set the chart adds a `metrics` container port and
+      # nothing scrapes it.
+      prometheus_port: null
+
+    autoscaling: {enabled: false}
+
+    # An hour is the chart default: an egress in flight is a recording someone asked for,
+    # and killing it mid-way loses it. Kept — but a Meet transcript is one meeting long.
+    terminationGracePeriodSeconds: 3600
+
+    # The image runs as `egress` (uid 1001, gid 0) and Chrome refuses to run as root
+    # anyway; stating it makes the audit label agree.
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1001
+      seccompProfile: {type: RuntimeDefault}
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: {drop: [ALL]}
+
+    resources:
+      requests: {cpu: 250m, memory: 1Gi}
+      limits: {memory: 3Gi}

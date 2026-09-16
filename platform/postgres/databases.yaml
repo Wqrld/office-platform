@@ -134,3 +134,27 @@ spec:
   owner: calendars
   ensure: present
   databaseReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata: {name: meet, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: meet
+  ensure: present
+  login: true
+  passwordSecret: {name: meet-db}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: meet, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: meet
+  owner: meet
+  ensure: present
+  databaseReclaimPolicy: retain
+  # Meet's room and user lookups use trigram indexes (core/migrations). Same reason as
+  # Docs: CREATE EXTENSION is superuser-only, so the migration cannot do it itself.
+  extensions:
+    - {name: pg_trgm, ensure: present}

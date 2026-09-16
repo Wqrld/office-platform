@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-livekit
+  labels:
+    # The Gateway's allowedRoutes selector: the signaling HTTPRoute in surround.yaml is
+    # silently ignored without it.
+    office.haaijer.dev/gateway-access: "true"
+    # `baseline`, and this namespace is why the profile is baseline and not restricted:
+    # the livekit-server and egress images set no securityContext of their own, egress
+    # runs Chrome, and LiveKit's chart would rather run with hostNetwork (refused — see
+    # release.yaml, which strips the hostPorts it also emits). None of that is
+    # `restricted`-clean, and audit/warn keeps saying so.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

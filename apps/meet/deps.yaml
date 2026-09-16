@@ -1,0 +1,50 @@
+# Release 1 of 3: everything Meet must have before it starts.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: meet-deps, namespace: office-meet}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  values:
+    app: meet
+    baseDomain: ${BASE_DOMAIN}
+
+    # DB_* with no prefix: Meet's settings module passes `environ_prefix=None` on every
+    # database value (meet/settings.py), so the `django` profile fits as-is.
+    postgres: {enabled: true, env: django}
+
+    # `cache` only. The backend's own Celery is OFF (CELERY_ENABLED=false in release.yaml):
+    # nothing in the transcript pipeline goes through it, and Meet reads the URL as
+    # CELERY_BROKER_URL, not the profile's DJANGO_CELERY_BROKER_URL. The SUMMARY service's
+    # Celery does need a broker, with a password in the URL — that URL is assembled in
+    # tokens.yaml from the same `valkey-user-meet` draw, which is why the platform still
+    # creates a broker password for `meet` even though this block does not ask for one.
+    cache: {enabled: true, env: django, uses: [cache]}
+
+    # Bucket `meet`: the audio egress lands here (LiveKit's egress worker uploads with the
+    # credentials Meet's backend hands it per request), the summary service reads it back
+    # by presigned URL and writes the transcript beside it. NO `publicEndpoint`: nothing
+    # presigns to a browser, so the bucket stays unpublished (adr/0110).
+    objectstore:
+      enabled: true
+      env: django-s3
+      quota: {maxSize: 20Gi}
+
+    # Open provisioning, like Drive and Calendars: a realm user who has never logged in
+    # is created on first login. Meet's OIDC_* names carry no prefix and match
+    # platform.oidc.env one for one; the callback is /api/v1.0/callback/ and the client's
+    # redirect URI in platform/identity/realm.yaml is the wildcard.
+    oidc: {enabled: true, createUser: true}
+
+    # DJANGO_EMAIL_*: Meet's mail settings use django-configurations' default prefix
+    # (meet/settings.py `EMAIL_HOST = values.Value(None)`), same as Docs and Drive.
+    smtp: {enabled: true, env: django-prefixed}
+
+    # Ordered, and can never gain an entry — `refreshInterval: "0"` means written once.
+    # The five app-to-app tokens are NOT here: both ends of each must read the same value,
+    # so they are drawn once in office-data (platform/secrets/service-tokens.yaml) and
+    # read from there by tokens.yaml.
+    generated:
+      meet-django:
+        - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
+        - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}

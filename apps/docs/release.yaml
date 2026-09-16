@@ -78,6 +78,7 @@ spec:
         - {secretRef: {name: docs-search}}
         - {secretRef: {name: docs-oidc-refresh}}
         - {secretRef: {name: docs-smtp}}
+        - {secretRef: {name: docs-meet}}
       envVars:
         DJANGO_SETTINGS_MODULE: impress.settings
         DJANGO_CONFIGURATION: Production
@@ -233,7 +234,7 @@ spec:
           # third option: our own services, served from our own domains, no call out to
           # lasuite.numerique.gouv.fr at any point.
           # Add an entry here as each application lands. This is one of THREE lists of the
-          # same services — `apps/drive/switcher.js` and `apps/calendars/services.json` are
+          # same services — `apps/switcher.js` and `apps/calendars/services.json` are
           # the others, one per switcher — and an application added to one and not the rest
           # is missing from a switcher.
           waffle:
@@ -256,6 +257,10 @@ spec:
                   maturity: beta
                   # Calendars' own favicon, served by its frontend from /favicon.png.
                   logo: https://calendars.${BASE_DOMAIN}/favicon.png
+                - name: Meet
+                  url: https://meet.${BASE_DOMAIN}
+                  maturity: beta
+                  logo: https://meet.${BASE_DOMAIN}/favicon-32x32.png
                 - name: Account
                   url: https://id.${BASE_DOMAIN}/realms/office/account
                   maturity: stable

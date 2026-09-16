@@ -172,8 +172,9 @@ Calendars, whose gaufre takes both as runtime settings, does not need any of thi
 keeps its own button and is pointed at our own files (`apps/calendars/README.md`). Drive is
 the one application where the list has to be restated in JavaScript.
 
-`FRONTEND_JS_URL` is the hook if we ever want one here — it injects a script of ours into
-the page, which is how mijn-bureau replaced the gaufre with their own button.
+`FRONTEND_JS_URL` is that hook — it injects a script of ours into the page — and what it
+injects is `apps/switcher.js`, shared with Meet, served here by `staticFiles` from
+`/custom/switcher.js`.
 
 ## Postgres needs three extensions, and only two are visible from the migrations
 

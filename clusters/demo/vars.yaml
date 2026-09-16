@@ -4,14 +4,16 @@ metadata:
   name: cluster-vars
   namespace: flux-system
 data:
-  # A DIFFERENT DOMAIN AND A DIFFERENT TENANT, deliberately. `${TENANT}` has been in every
-  # name since day one for exactly this (adr/0008); demo is the first thing that proves it
-  # was worth the trouble.
+  # A different domain and a different Gateway address. That is the whole difference from
+  # prod, together with the two `path:` lines that select the small profile. Resource names
+  # are NOT parameterised by environment — see README.md.
   BASE_DOMAIN: demo.haaijer.dev
   STORAGE_CLASS: longhorn
-  TENANT: demo
   # Its own MetalLB address. The Gateway is a cluster-scoped singleton per install, so demo
   # cannot share prod's — see README.md on why demo is a separate cluster, not a second
-  # namespace set on this one. Free pool addresses at the time of writing: .166 .154 .156
+  # namespace set on this one. Free pool addresses at the time of writing: .166 .156
+  # (.154 is prod LiveKit — see LIVEKIT_IP in clusters/prod/vars.yaml).
   GATEWAY_IP: "45.136.141.166"
   TLS_ISSUER: letsencrypt-gateway
+  # LiveKit's media address (see prod). Demo needs its own, like the Gateway.
+  LIVEKIT_IP: "45.136.141.156"

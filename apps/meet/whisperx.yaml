@@ -1,0 +1,102 @@
+# Speech to text: suitenumerique/meet-whisperx, the OpenAI-compatible WhisperX API Meet's
+# summary service is written against (`response_format=diarized_json` is its extension).
+# Not a chart — upstream ships none — so three plain objects here.
+#
+# ON CPU. There is no GPU on this node, and the image (built on a CUDA base) falls back to
+# CPU float32 when it finds none. `--model small` is the trade: large-v2, the upstream
+# default, is unusable without a GPU; small transcribes roughly at real time here and is
+# adequate for Dutch and English meetings. The summary service must ask for the SAME
+# model name (WHISPERX_ASR_MODEL in release.yaml) — v1.2.0 loads exactly one and 404s any
+# other. `v1.2.0` is the last tag; `main` moved the model to an env var and to a newer
+# pyannote pipeline, and is where to go next.
+#
+# Two prerequisites it cannot create for itself: the models, downloaded on first start
+# into a PVC (minutes, once), and HF_TOKEN, a Hugging Face token whose account has
+# accepted the gated pyannote model terms — the by-hand Secret in docs/bootstrap.md.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: meet-whisperx-models, namespace: office-meet}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ${STORAGE_CLASS}
+  resources: {requests: {storage: 10Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meet-whisperx
+  namespace: office-meet
+  labels: {app.kubernetes.io/name: meet-whisperx, app.kubernetes.io/part-of: office}
+spec:
+  replicas: 1
+  # One PVC, one model in memory: never two of these at once.
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app.kubernetes.io/name: meet-whisperx}}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: meet-whisperx, app.kubernetes.io/part-of: office}
+    spec:
+      priorityClassName: office-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: whisperx
+          image: docker.io/lasuite/whisper-api:v1.2.0
+          # `command` as well as `args`: the image's ENTRYPOINT is NVIDIA's wrapper script,
+          # which execs whatever follows — args alone would make it exec `--model`.
+          command: ["python3", "main.py"]
+          args: ["--model", "small", "--logging-config", "logging-config.yaml"]
+          envFrom: [{secretRef: {name: meet-whisperx}}]
+          env:
+            # Whisper v2 checkpoints fail torch's weights_only default; upstream's
+            # Dockerfile sets this too.
+            - {name: TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD, value: "1"}
+            # Eight of the node's ten cores, and no CPU limit: the summary service gives
+            # up on a transcription after ten minutes (a hard-coded read timeout in its
+            # worker), so a transcript is a race against that clock, and diarization on
+            # CPU is the slow half. What it costs the calls running alongside is
+            # accepted; what would fix it is a GPU. See README.md.
+            - {name: OMP_NUM_THREADS, value: "8"}
+            # whisperx-sitecustomize.py, mounted below: the image's CPU path is broken.
+            - {name: PYTHONPATH, value: /etc/office}
+          ports: [{name: http, containerPort: 8000}]
+          # Model load on CPU is minutes, and the first start also downloads. The startup
+          # probe absorbs that; liveness stays responsive afterwards.
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 15
+            failureThreshold: 80
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 500m, memory: 3Gi}
+            limits: {memory: 6Gi}
+          volumeMounts:
+            - {name: models, mountPath: /data/models}
+            - {name: tmp, mountPath: /tmp}
+            - {name: office, mountPath: /etc/office/sitecustomize.py, subPath: whisperx-sitecustomize.py, readOnly: true}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: meet-whisperx-models}
+        - name: tmp
+          emptyDir: {}
+        - name: office
+          configMap: {name: meet-patches}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: meet-whisperx, namespace: office-meet}
+spec:
+  selector: {app.kubernetes.io/name: meet-whisperx}
+  ports: [{name: http, port: 8000, targetPort: http}]

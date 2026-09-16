@@ -1,0 +1,88 @@
+# The shared tokens, read into the key names each Meet process expects. All three Secrets
+# read `meet-service-tokens` in office-data (platform/secrets/service-tokens.yaml), which
+# is where the values are drawn; the Valkey password comes from `valkey-user-meet` the same
+# way. Mirror images: apps/docs/meet-token.yaml reads the `docs` value into Docs, and
+# apps/livekit/secrets.yaml reads `livekit` into LiveKit and egress.
+#
+# The backend's half. LIVEKIT_API_KEY is the literal key NAME in LiveKit's `keys:` map;
+# the secret is what is generated. The same pair signs LiveKit's webhooks to the backend.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: meet-tokens, namespace: office-meet}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: meet-tokens
+    creationPolicy: Owner
+    template:
+      data:
+        LIVEKIT_API_KEY: office
+        LIVEKIT_API_SECRET: "{{ .livekit }}"
+        SUMMARY_SERVICE_API_TOKEN: "{{ .summary }}"
+        SUMMARY_SERVICE_WEBHOOK_API_TOKEN: "{{ .webhook }}"
+  data:
+    - {secretKey: livekit, remoteRef: {key: meet-service-tokens, property: livekit}}
+    - {secretKey: summary, remoteRef: {key: meet-service-tokens, property: summary}}
+    - {secretKey: webhook, remoteRef: {key: meet-service-tokens, property: webhook}}
+---
+# The summary service's half — the API and its three Celery workers all read this one.
+#
+# AUTHORIZED_TENANTS is the summary service's whole client table, as JSON in one variable
+# (summary/core/config.py): who may submit jobs (`api_key`, what the backend sends as
+# SUMMARY_SERVICE_API_TOKEN), where to report back (`webhook_url` + `webhook_api_key`,
+# what the backend checks as SUMMARY_SERVICE_WEBHOOK_API_TOKEN), and whether that tenant's
+# transcripts may be pushed into Docs. One tenant: this platform.
+#
+# The webhook URL is the PUBLIC one: the backend's Production settings set
+# SECURE_SSL_REDIRECT, so an in-cluster plain-http POST is answered with a 301 and the
+# job's result never lands. Out through the Gateway and back, like LiveKit's webhook.
+#
+# Three Redis URLs, one value: the summary service's Celery broker, its result backend and
+# its own job tracker all point at the Valkey BROKER (`noeviction`) — a queue must not lose
+# entries, and a result lost here is a transcript that never reaches Docs.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: meet-summary, namespace: office-meet}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: meet-summary
+    creationPolicy: Owner
+    template:
+      data:
+        AUTHORIZED_TENANTS: '[{"id": "office", "api_key": "{{ .summary }}", "webhook_url": "https://meet.${BASE_DOMAIN}/api/v1.0/recordings/external-process-hook/", "webhook_api_key": "{{ .webhook }}", "allowed_push_to_docs": true}]'
+        WHISPERX_API_KEY: "{{ .whisperx }}"
+        LASUITE_DOCS_SERVER_TO_SERVER_API_KEY: "{{ .docs }}"
+        CELERY_BROKER_URL: "redis://meet:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+        CELERY_RESULT_BACKEND: "redis://meet:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+        TASK_TRACKER_REDIS_URL: "redis://meet:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+  data:
+    - {secretKey: summary, remoteRef: {key: meet-service-tokens, property: summary}}
+    - {secretKey: webhook, remoteRef: {key: meet-service-tokens, property: webhook}}
+    - {secretKey: whisperx, remoteRef: {key: meet-service-tokens, property: whisperx}}
+    - {secretKey: docs, remoteRef: {key: meet-service-tokens, property: docs}}
+    - {secretKey: broker, remoteRef: {key: valkey-user-meet, property: broker}}
+---
+# The whisperx API's half. API_KEY is what the summary service presents as
+# WHISPERX_API_KEY above. HF_TOKEN is the one operator-supplied value in this pipeline: a
+# Hugging Face token whose account has accepted the gated pyannote model terms
+# (docs/bootstrap.md). It is applied by hand into office-data as Secret `huggingface`, key
+# `token`, and is not in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: meet-whisperx, namespace: office-meet}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: meet-whisperx
+    creationPolicy: Owner
+    template:
+      data:
+        API_KEY: "{{ .whisperx }}"
+        HF_TOKEN: "{{ .hf }}"
+  data:
+    - {secretKey: whisperx, remoteRef: {key: meet-service-tokens, property: whisperx}}
+    - {secretKey: hf, remoteRef: {key: huggingface, property: token}}

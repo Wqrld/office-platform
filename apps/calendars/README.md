@@ -310,7 +310,7 @@ element with id `lasuite-widget-lagaufre-shadow` before each push — so the pan
 that id and `init` must be repeatable, tearing its own listeners down.
 
 `services.json` is the **third** place this platform's inventory is stated to users, after
-`apps/docs/release.yaml`'s `waffle.data.services` and `apps/drive/switcher.js`. An
+`apps/docs/release.yaml`'s `waffle.data.services` and `apps/switcher.js`. An
 application added to one and not the others is missing from a switcher.
 
 **The one trap in the wiring:** the ConfigMap is generated in `apps/kustomization.yaml`

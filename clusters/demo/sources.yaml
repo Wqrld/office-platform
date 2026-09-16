@@ -106,7 +106,7 @@ metadata: {name: platform-deps, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
-  ref: {tag: "0.2.5"}
+  ref: {tag: "0.2.10"}
   secretRef: {name: harbor-auth}
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -115,5 +115,36 @@ metadata: {name: platform-app, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
-  ref: {tag: "0.2.5"}
+  ref: {tag: "0.2.10"}
   secretRef: {name: harbor-auth}
+---
+# Chart lives in-tree at src/helm/meet; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: suitenumerique-meet, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/meet
+  ref: {tag: v1.31.0}
+  ignore: |
+    /*
+    !/src/helm
+---
+# LiveKit. Not a La Suite application, and it DOES publish a Helm repository
+# (https://helm.livekit.io) — but that index stopped being updated at livekit-server 1.9.0
+# and egress 1.8.4 (mid-2025), while the chart repository itself is current and its last
+# git tag is v1.5.2, older still. So this is the second commit pin after Find's, for the
+# same reason: there is no tag that names the chart we deploy. Both charts (`livekit-server`
+# and `egress`) live at the repository root. The IMAGES are pinned separately in
+# apps/livekit/release.yaml — the charts' appVersion lags the images by several releases.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: livekit-helm, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/livekit/livekit-helm
+  ref: {branch: master, commit: 8f0ad0809c2be8cbed375a6f8bef10625e5e8a2b}
+  ignore: |
+    /*
+    !/livekit-server
+    !/egress

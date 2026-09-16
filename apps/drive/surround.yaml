@@ -55,7 +55,7 @@ spec:
     # French government's service list, both compiled into the frontend bundle. It is hidden
     # (release.yaml) and replaced with this one, served from Drive's own origin through the
     # only hook the page offers, FRONTEND_JS_URL.
-    # switcher.js stays a real file; kustomize turns it into this ConfigMap.
+    # apps/switcher.js stays a real file; kustomize turns it into this ConfigMap.
     staticFiles:
       enabled: true
       filesConfigMap: drive-switcher

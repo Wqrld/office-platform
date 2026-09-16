@@ -32,6 +32,12 @@
       "logo": "https://calendars.${BASE_DOMAIN}/favicon.png"
     },
     {
+      "name": "Meet",
+      "url": "https://meet.${BASE_DOMAIN}",
+      "maturity": "beta",
+      "logo": "https://meet.${BASE_DOMAIN}/favicon-32x32.png"
+    },
+    {
       "name": "Account",
       "url": "https://id.${BASE_DOMAIN}/realms/office/account",
       "maturity": "stable",

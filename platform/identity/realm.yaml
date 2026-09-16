@@ -42,6 +42,7 @@ spec:
     CLIENT_SECRET_DRIVE: {secret: {name: oidc-client-drive, key: secret}}
     CLIENT_SECRET_FIND:  {secret: {name: oidc-client-find, key: secret}}
     CLIENT_SECRET_CALENDARS: {secret: {name: oidc-client-calendars, key: secret}}
+    CLIENT_SECRET_MEET:  {secret: {name: oidc-client-meet, key: secret}}
     PW_LFHAAIJER:      {secret: {name: realm-user-passwords, key: l.f.haaijer}}
     PW_KEROELOFS:      {secret: {name: realm-user-passwords, key: k.e.roelofs}}
     PW_OADAMS:         {secret: {name: realm-user-passwords, key: o.adams}}
@@ -219,6 +220,31 @@ spec:
           frontchannel.logout.url: https://calendars.${BASE_DOMAIN}/api/v1.0/logout/
           frontchannel.logout.session.required: "false"
           post.logout.redirect.uris: https://calendars.${BASE_DOMAIN}/*
+      - clientId: meet
+        name: Meet
+        description: Meet — videovergaderen
+        enabled: true
+        alwaysDisplayInConsole: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "$${CLIENT_SECRET_MEET}"
+        rootUrl: https://meet.${BASE_DOMAIN}
+        baseUrl: https://meet.${BASE_DOMAIN}
+        adminUrl: https://meet.${BASE_DOMAIN}
+        redirectUris: ["https://meet.${BASE_DOMAIN}/*"]
+        webOrigins: ["https://meet.${BASE_DOMAIN}"]
+        standardFlowEnabled: true
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        frontchannelLogout: true
+        attributes:
+          backchannel.logout.url: https://meet.${BASE_DOMAIN}/api/v1.0/logout/
+          backchannel.logout.session.required: "true"
+          frontchannel.logout.url: https://meet.${BASE_DOMAIN}/api/v1.0/logout/
+          frontchannel.logout.session.required: "false"
+          post.logout.redirect.uris: https://meet.${BASE_DOMAIN}/*
       # Find is a resource SERVER, not a login client: it only introspects access tokens
       # other clients already issued. So no browser ever reaches it, and it needs no grant
       # of its own — a confidential client authenticates to the introspection endpoint with

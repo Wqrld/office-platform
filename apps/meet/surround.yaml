@@ -1,0 +1,63 @@
+# Release 3 of 3: the surround. Three routes, the media proxy, and the egress graph.
+#
+# No staticFiles: the switcher is served by the frontend pod itself (release.yaml's
+# extraVolumes and default.conf).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: meet-platform, namespace: office-meet}
+spec:
+  interval: 30m
+  dependsOn: [{name: meet}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  values:
+    app: meet
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      - host: meet
+        backend: {name: meet-frontend, port: 80}
+        paths: [/]
+
+      # The same four prefixes upstream's Ingress objects route to the backend: the API,
+      # the external API, the admin, and whitenoise's /static for the admin's CSS.
+      # LiveKit's webhook (/api/v1.0/rooms/webhooks-livekit/) and the summary service's
+      # hook arrive through this route too, from inside the cluster (tokens.yaml says why).
+      - name: api
+        host: meet
+        backend: {name: meet-backend, port: 80}
+        paths: [/api, /external-api, /admin, /static]
+        timeout: 120s
+
+      - name: media
+        host: meet
+        backend: {name: meet-media-proxy, port: 8080}
+        paths: [/media]
+        timeout: 300s
+
+    # The `/media` route's backend — adr/0109, the same contract as Docs and Drive: the
+    # proxy asks the backend "may this session read this key?" and replays the S3 headers
+    # it answers with onto the bucket. What it serves is the recording behind the link at
+    # the top of every transcript document (`/recording/<id>` → download).
+    mediaProxy:
+      enabled: true
+      auth: {service: meet-backend, port: 80, path: /api/v1.0/recordings/media-auth/}
+      objectstore: {bucket: meet}
+      locations:
+        - {path: "/media/", headers: {Content-Disposition: attachment}}
+
+    # Emitted, NOT enforced — Flannel ships no policy controller (adr/0103). `identity`
+    # is Keycloak; `app: livekit` is the backend's API calls to the SFU (room tokens,
+    # egress start/stop) — they go out through the Gateway to the public hostname, which
+    # is the `external: 443` rule, and the in-cluster rule is stated for when that
+    # changes; `external: 443` also covers OIDC discovery.
+    networkPolicy:
+      enabled: true
+      egress:
+        - {datastore: postgres}
+        - {datastore: cache}
+        - {datastore: objectstore}
+        - {identity: true}
+        - {app: livekit, port: 7880}
+        - {external: true, port: 443}
+
+    pdb: {enabled: false}

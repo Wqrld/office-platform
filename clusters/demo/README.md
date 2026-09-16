@@ -16,8 +16,16 @@ This was the obvious cheap option and it does not work. The platform layer creat
 cluster would have to either collide with those or grow a "share the singletons" mode —
 which is a real design change to `platform/`, not a profile.
 
-`${TENANT}` was put in every name from day one (adr/0008) precisely so this stays possible
-later. It is not possible today, and the size profile is not what unlocks it.
+Nor is a naming change what unlocks it. Resource names here are literal — `office-docs`,
+`office-data`, `office-password` — and demo renders exactly the same ones prod does. The
+`${TENANT}` substitution variable that adr/0008 reserved for this was declared in both
+clusters and never used in a single name, so it was removed rather than left as evidence
+of a property the tree does not have. What co-tenancy needs is the cluster-scoped
+singletons above, and a rename does not touch them.
+
+The charts keep a separate, live `tenant` value (`platform-lib`'s `part-of` label,
+`platform-app`'s NetworkPolicy namespace selectors). That one is real; it defaults to
+`office` and `config/` never overrides it.
 
 ## Does the small profile actually fit?
 

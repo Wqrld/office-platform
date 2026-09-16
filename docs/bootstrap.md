@@ -56,7 +56,7 @@ git clone <config> && git clone <helm-charts>     # side by side: tests render .
 
 | File | Change |
 |---|---|
-| `clusters/prod/vars.yaml` | `BASE_DOMAIN`, `GATEWAY_IP`, `STORAGE_CLASS`, `TENANT`, `TLS_ISSUER` |
+| `clusters/prod/vars.yaml` | `BASE_DOMAIN`, `GATEWAY_IP`, `LIVEKIT_IP`, `STORAGE_CLASS`, `TLS_ISSUER` |
 | `platform/gateway/clusterissuer.yaml` | the ACME contact address |
 | `release.sh`, `../helm-charts/scripts/publish.sh` | `REGISTRY` / `REPO` |
 | `clusters/prod/{sources,config-source,flux-instance}.yaml` | the same registry, in every `url:` |
@@ -151,9 +151,31 @@ flux get kustomizations --watch      # four objects, all Ready
 Expect this to take a while: CNPG, Keycloak and OpenSearch each initialise before the layer
 above them starts, and `disableWaitForJobs` means Flux reports Ready before migrations finish.
 
+## 4c. The Hugging Face token — Required for transcripts, same order as 4b
+
+The third and last credential you type. Meet's speech-to-text (`apps/meet/whisperx.yaml`)
+downloads pyannote's diarization models, which are gated: a Hugging Face account that has
+**clicked through the terms** on both model pages — https://huggingface.co/pyannote/speaker-diarization-3.1
+and https://huggingface.co/pyannote/segmentation-3.0 — and a read token from it. No
+generator can produce that. A valid token without the acceptance gets `403` on the model
+files and the pod dies with `'NoneType' object has no attribute 'to'`; to check before
+applying: `curl -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $T"
+https://huggingface.co/pyannote/segmentation-3.0/resolve/main/config.yaml` must be 200.
+
+```sh
+kubectl -n office-data create secret generic huggingface --from-literal=token='hf_...'
+```
+
+Read back by one ExternalSecret, `meet-whisperx` in `office-meet`. Without it the whisperx
+pod never becomes Ready and every transcript fails; everything else about Meet works.
+
+Also needed before Meet's first release: the `turn.<domain>` A record to `LIVEKIT_IP`
+(`./dns.py prod` prints it; it must NOT point at the Gateway), and the `livekit.<domain>`
+name resolving to the Gateway like every other — see `apps/livekit/README.md`.
+
 ## 5. After the layers are green — Required
 
-- **Realm clients**: on a *fresh* cluster the import creates the realm, its four clients and
+- **Realm clients**: on a *fresh* cluster the import creates the realm, its five clients and
   the users from `realm.yaml`, so there is nothing to do. `platform/identity/add-client.sh`
   is for adding a client to a realm that is **already** imported — the import is import-once
   and editing `realm.yaml` afterwards does nothing. Read `platform/identity/README.md`.
@@ -171,6 +193,7 @@ above them starts, and `disableWaitForJobs` means Flux reports Ready before migr
 ./dns.py prod --check          # every name on the certificate, resolving to the Gateway
 kubectl -n office-system get certificate office-tls    # Ready=True; one SAN failure fails all
 apps/drive/check-secrets.sh    # the post-renderer attached all ten workloads
+apps/meet/check-secrets.sh     # same for Meet's thirteen
 
 E2E_USER=<user> E2E_PASSWORD=$(kubectl -n office-identity get secret realm-user-passwords \
   -o jsonpath='{.data.<user>}' | base64 -d) apps/drive/e2e.py
@@ -212,6 +235,11 @@ symptom is recognisable, not so you can act on them.
   with nothing in the event about mail. `envFrom` is deliberately not `optional: true`:
   optional would start the pod and fall back to the upstream default of SMTP against
   `localhost:25`, so every invitation would fail at send time instead, one at a time.
+- **To rotate a generate-once Secret on purpose** (`refreshInterval: "0"`), the `force-sync`
+  annotation does nothing — delete the owned Secret and ESO re-creates it with fresh draws
+  for EVERY key in it. Then restart what reads it; for a `*-django` Secret the
+  `createsuperuser` Job also has to run again (any release does that) so the new
+  DJANGO_SUPERUSER_PASSWORD is the one in the database.
 - **A generate-once ExternalSecret cannot gain a key later.** `refreshInterval: "0"` means
   written once, not "re-draw when the spec changes". Adding a key to a live one silently
   never appears; forcing it rotates every other consumer's password.

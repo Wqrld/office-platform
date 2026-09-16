@@ -1,10 +1,11 @@
-/* The app switcher for Drive, injected through FRONTEND_JS_URL.
+/* The app switcher for the apps whose frontends ship none we can use: Drive and Meet.
  *
- * Drive's built-in gaufre is not usable here: it loads a widget script from
- * static.suite.anct.gouv.fr and reads the French government's service list, and both are
- * compiled into the frontend bundle with no runtime override. FRONTEND_JS_URL is the only
- * hook the page offers, so the switcher is rebuilt in ~80 lines rather than left pointing
- * at another country's services.
+ * Drive's built-in gaufre loads a widget script from static.suite.anct.gouv.fr and reads
+ * the French government's service list, both compiled into the bundle with no runtime
+ * override; FRONTEND_JS_URL is the only hook its page offers. Meet has no switcher at all
+ * and no hook, so its nginx injects a <script> tag (apps/meet/default.conf). One file
+ * serves both: `apps/kustomization.yaml` puts it in a ConfigMap per app, and the only
+ * per-app part is where in the page it mounts (MOUNTS, keyed by hostname).
  *
  * Keep the service list here in step with the other two: Docs' `waffle.data.services` and
  * `apps/calendars/services.json`. One list per switcher, and an application added to one and
@@ -18,7 +19,9 @@
   var BASE = location.hostname.split(".").slice(1).join(".");
   var SERVICES = [
     { name: "Docs", url: "https://docs." + BASE, icon: "https://docs." + BASE + "/assets/icon-docs.svg" },
-    { name: "Drive", url: "https://drive." + BASE, icon: "/assets/logo-icon_beta.svg" },
+    { name: "Drive", url: "https://drive." + BASE, icon: "https://drive." + BASE + "/assets/logo-icon_beta.svg" },
+    { name: "Calendars", url: "https://calendars." + BASE, icon: "https://calendars." + BASE + "/favicon.png" },
+    { name: "Meet", url: "https://meet." + BASE, icon: "https://meet." + BASE + "/favicon-32x32.png" },
     { name: "Account", url: "https://id." + BASE + "/realms/office/account", icon: null },
   ];
 
@@ -108,11 +111,16 @@
     return wrap;
   }
 
-  // Drive renders its chrome client-side, so wait for it rather than for DOMContentLoaded.
-  // `.c__left-panel__footer__drive` is Drive's own class and is where the gaufre sat
-  // (ExplorerLayout.tsx); the header slot comes from the ui-kit and its class name is not
-  // ours to rely on, so it is tried by shape and then given up on for a fixed button.
-  var MOUNTS = [".c__left-panel__footer__drive", "[class*='header__right']", "[class*='__header'] > *:last-child"];
+  // Both apps render their chrome client-side, so wait for it rather than for
+  // DOMContentLoaded. Drive: `.c__left-panel__footer__drive` is Drive's own class and is
+  // where the gaufre sat (ExplorerLayout.tsx); the header slot comes from the ui-kit and
+  // its class name is not ours to rely on, so it is tried by shape. Meet: the header's
+  // <nav> holds one Stack with the login/user menu (layout/Header.tsx); in a call there
+  // is no header at all. Anything unmatched falls back to a fixed button.
+  var MOUNTS = {
+    drive: [".c__left-panel__footer__drive", "[class*='header__right']", "[class*='__header'] > *:last-child"],
+    meet: ["nav > div"],
+  }[location.hostname.split(".")[0]] || [];
 
   function mount() {
     if (document.querySelector(".office-sw")) return true;

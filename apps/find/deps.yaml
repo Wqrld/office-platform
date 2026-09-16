@@ -36,4 +36,4 @@ spec:
 
     generated:
       find-django:
-        - {env: DJANGO_SECRET_KEY, draw: secretkey}
+        - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}

@@ -1,0 +1,23 @@
+# The whisperx API image: pinned in apps/meet/whisperx.yaml, driven by meet-whisperx's git
+# tags (its images are tagged the same). A bump here is NOT hands-off: `main` moved the
+# model from a CLI flag to an env var, so the first tag past v1.2.0 changes the args in
+# whisperx.yaml too — read the PR.
+name: "meet-whisperx"
+
+sources:
+  whisperx:
+    name: "latest meet-whisperx release"
+    kind: gittag
+    spec:
+      url: "https://github.com/suitenumerique/meet-whisperx"
+      versionfilter: {kind: semver, pattern: ">=1.2.0"}
+
+targets:
+  image:
+    name: "whisperx image tag"
+    kind: file
+    sourceid: whisperx
+    spec:
+      file: "apps/meet/whisperx.yaml"
+      matchpattern: 'lasuite/whisper-api:v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: 'lasuite/whisper-api:{{ source "whisperx" }}'

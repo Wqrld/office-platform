@@ -1,0 +1,35 @@
+# Meet: one git tag drives the chart pin AND every image tag, like Docs — the chart
+# declares `appVersion: latest`, so the images are pinned explicitly in release.yaml.
+name: "La Suite Meet"
+
+sources:
+  meet:
+    name: "latest Meet release"
+    kind: gittag
+    spec:
+      url: "https://github.com/suitenumerique/meet"
+      versionfilter:
+        kind: semver
+        pattern: ">=1.31.0"
+
+targets:
+  # Anchored to the repository URL, like docs.yaml — sources.yaml holds every git-tag pin.
+  chart:
+    name: "GitRepository tag"
+    kind: file
+    sourceid: meet
+    spec:
+      file: "clusters/prod/sources.yaml"
+      matchpattern: 'url: https://github\.com/suitenumerique/meet\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
+      replacepattern: 'url: https://github.com/suitenumerique/meet\n  ref: {tag: {{ source "meet" }}}'
+
+  # Every `tag: vX.Y.Z` in release.yaml — the backend's top-level `image` and the six
+  # per-component overrides. One pattern: they must never hold different values.
+  images:
+    name: "workload image tags"
+    kind: file
+    sourceid: meet
+    spec:
+      file: "apps/meet/release.yaml"
+      matchpattern: 'tag: v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: 'tag: {{ source "meet" }}'

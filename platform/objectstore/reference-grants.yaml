@@ -24,3 +24,14 @@ spec:
     - {kind: GarageKey, namespace: office-drive}
   to:
     - {kind: GarageCluster, name: office-s3}
+---
+# Meet: transcript recordings (audio egress from LiveKit) and the transcripts themselves.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata: {name: office-meet, namespace: office-data}
+spec:
+  from:
+    - {kind: GarageBucket, namespace: office-meet}
+    - {kind: GarageKey, namespace: office-meet}
+  to:
+    - {kind: GarageCluster, name: office-s3}
