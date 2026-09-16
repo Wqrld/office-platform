@@ -6,4 +6,4 @@ description: >-
   at carries the same version.
 type: application
 # The platform version. release.sh sets it in all four charts at once; never by hand.
-version: 0.2.10
+version: 2.0.0

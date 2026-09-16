@@ -2,4 +2,4 @@ apiVersion: v2
 name: platform-lib
 description: Shared helpers for the office platform charts — names, labels, routes, OIDC, workloads.
 type: library
-version: 0.2.10
+version: 2.0.0
