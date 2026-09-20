@@ -1,0 +1,25 @@
+# One application's namespace; `${APP}` is set per Kustomization by the control plane.
+# `gateway-access` is the Gateway's allowedRoutes selector: without it a route attaches
+# to nothing and reports no error. PSA `baseline` because Collabora and Calendars' caldav
+# need capabilities `restricted` forbids (their READMEs); `restricted` stays on audit/warn.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-${APP}
+  labels:
+    office.haaijer.dev/gateway-access: "true"
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# `defaultRequest` only, so it can refuse nothing — platform/guardrails.yaml. It is for the
+# container that arrives without requests, which would otherwise land as BestEffort.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: office-${APP}
+spec:
+  limits:
+    - type: Container
+      defaultRequest: {cpu: 25m, memory: 64Mi}

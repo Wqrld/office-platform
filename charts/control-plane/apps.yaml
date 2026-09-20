@@ -1,0 +1,28 @@
+# The application table: every app the platform knows, what it needs running first, and
+# the hostnames it serves — the one place the dependencies between applications are
+# stated (Flux enforces them with `dependsOn` and health gating) and the one place the
+# certificate's SAN list comes from, so an app that is off has no SAN and needs no record.
+#
+# `internal: true` marks an app an organisation does not choose: it is pulled in by
+# whatever requires it and dropped with it. Adding an application is one entry here, one
+# directory under apps/, and one stanza per size profile. tests/build.py asserts this file
+# and apps/ agree.
+collabora: {hosts: [collabora]}
+# Drive's `configure-wopi` Job calls Collabora's discovery endpoint at install.
+drive: {requires: [collabora], hosts: [drive]}
+# No browser reaches Find, but Docs does — over the public URL, because a pod-to-pod call
+# carries no X-Forwarded-Proto and Find 301s it (apps/find/README.md). Without its SAN
+# the handshake fails and search silently falls back to title-only.
+find: {hosts: [find]}
+# Docs' search-flags Job and its reindex both assume Find exists.
+docs: {requires: [find], hosts: [docs]}
+# Also the host CalDAV clients connect to, so its SAN is every client's handshake.
+calendars: {hosts: [calendars]}
+# WebRTC media; nothing but Meet uses it. `livekit.*` is the SIGNALLING host, a WebSocket
+# through the Gateway; media goes to livekit.ip directly. `turn.*` is deliberately no host
+# here: it points at livekit.ip, where no HTTP-01 solver can answer, and a SAN that cannot
+# be validated fails the whole certificate (adr/0105).
+livekit: {internal: true, hosts: [livekit]}
+# Meet's backend hands the browser LiveKit's address; transcripts are delivered as Docs
+# documents (apps/docs/meet-token.yaml).
+meet: {requires: [docs, livekit], hosts: [meet]}

@@ -1,16 +1,16 @@
 {{- if .Values.oidc.enabled }}
-{{- $app := include "platform.deps.app" . }}
+{{- $app := include "platform.app" . }}
 {{- $o := .Values.oidc }}
 {{- $client := $o.client | default $app }}
 # The client secret is generated in-cluster and read by BOTH Keycloak and the app from this
-# one Secret — it is never in git and never passes through Helm values (adr/0005).
+# one Secret — it is never in git and never passes through Helm values (history/design/adr/0005).
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: {{ $app }}-oidc
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   refreshInterval: {{ $o.refreshInterval | quote }}
   secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.identity }}}

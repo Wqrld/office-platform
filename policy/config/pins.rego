@@ -1,5 +1,5 @@
 # Static rules on the config repo: decisions already made, encoded so they survive the
-# person who made them (10-verification.md, "Static rules on the config repo").
+# person who made them (history/design/10-verification.md, "Static rules on the config repo").
 #
 # These run over the SOURCE files, not the rendered output, because that is where a pin
 # lives. Everything here is a few lines of rego standing in for a paragraph in an ADR.
@@ -8,22 +8,19 @@ package main
 import rego.v1
 
 # --- no semver ranges ---------------------------------------------------------------------
-# adr/0003. One bad upstream release must not be able to reach prod everywhere at once. A
+# history/design/adr/0003. One bad upstream release must not be able to reach prod everywhere at once. A
 # range is anything that is not a bare version: "^1.2", "~1.2", ">=1.2", "1.2.x", "*".
 
-range_markers := ["^", "~", ">", "<", "*", " - ", "x", "X"]
-
-is_range(v) if {
-	some m in range_markers
-	contains(v, m)
-}
+# Rather than list range markers (an "x" marker also matched `1.2.3-hotfix`), a pin is
+# anything that is a bare semver, with an optional prerelease; everything else is a range.
+is_range(v) if not regex.match(`^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`, v)
 
 deny contains msg if {
 	input.kind == "HelmRelease"
 	v := input.spec.chart.spec.version
 	is_range(v)
 	msg := sprintf(
-		"HelmRelease/%s pins chart version %q — a semver range lets an upstream release reach the cluster with nothing changed here (adr/0003)",
+		"HelmRelease/%s pins chart version %q — a semver range lets an upstream release reach the cluster with nothing changed here (history/design/adr/0003)",
 		[input.metadata.name, v],
 	)
 }
@@ -32,7 +29,7 @@ deny contains msg if {
 	input.kind in {"OCIRepository", "GitRepository", "HelmChart"}
 	v := input.spec.ref.semver
 	msg := sprintf(
-		"%s/%s uses ref.semver %q — pin an exact tag instead (adr/0003)",
+		"%s/%s uses ref.semver %q — pin an exact tag instead (history/design/adr/0003)",
 		[input.kind, input.metadata.name, v],
 	)
 }
@@ -56,7 +53,7 @@ deny contains msg if {
 }
 
 # --- images pinned separately from the chart ------------------------------------------------
-# adr/0012. A chart bump must not be able to move the application underneath it, so the image
+# adr/0104. A chart bump must not be able to move the application underneath it, so the image
 # tag is stated in our values even when the chart would default it correctly.
 
 deny contains msg if {
@@ -72,7 +69,7 @@ deny contains msg if {
 }
 
 # --- migrations must not be retried ---------------------------------------------------------
-# Decided in 04-platform-charts.md. A failed migration retried automatically compounds the
+# Decided in history/design/04-platform-charts.md. A failed migration retried automatically compounds the
 # failure: Helm rolls back the code and leaves the schema where the migration left it.
 # Only asserted for releases that actually run one, which here is any release whose values
 # mention a migrate job.

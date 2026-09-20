@@ -1,22 +1,18 @@
 # Shared Postgres
 
-One CNPG `Cluster`. Each application gets a `Database` and a `DatabaseRole` emitted by
-`platform-deps`, so adding an application never edits this directory.
+One CNPG `Cluster`. Each application's `Database` and `DatabaseRole` is rendered by
+`platform-tenants` from one line in its values, so adding an application never edits this
+directory.
 
-## No connection pooler, deliberately
+## No connection pooler
 
-`06-datastores.md` calls for two PgBouncer `Pooler`s (transaction mode for the app, session
-mode for migrations). That is the right answer for ten Django apps with Celery workers. It is
-not yet the right answer for one: a pooler here would be an unused component plus a real
-correctness trap, because Django's `CONN_MAX_AGE` must be `0` behind a transaction pooler and
-getting that wrong presents as migrations that hang rather than fail.
-
-**Add a transaction-mode `Pooler` when** a second Django application lands, or when
-`max_connections` pressure actually appears. Point applications at the pooler service and set
-`CONN_MAX_AGE=0`; leave migration Jobs on `office-pg-rw`.
+Five Django apps with their workers sit well under `max_connections: 200`. A transaction-mode
+`Pooler` is the answer when that pressure appears, not before: it is a correctness trap
+(Django's `CONN_MAX_AGE` must be `0` behind it, and getting it wrong presents as migrations
+that hang), and migration Jobs would have to stay on `office-pg-rw` either way.
 
 ## Backups — NOT YET CONFIGURED
 
-CNPG backs up via Barman to object storage, which does not exist until the object-store layer
-lands. **Until then this cluster has no automated backup.** The one irreplaceable dataset
+CNPG backs up via Barman to object storage; Garage exists, the Barman configuration does
+not. **This cluster has no automated backup.** The one irreplaceable dataset
 (legacy Docs) is held as an offline dump under `backups/` in the working tree.

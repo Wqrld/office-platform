@@ -1,6 +1,4 @@
-# Release 4 of 4: the surround.
-#
-# ONE route. Not `/`, not `/api`, not `/admin` — the mijn-bureau reference publishes all
+# Find's surround. ONE route. Not `/`, not `/api`, not `/admin` — the mijn-bureau reference publishes all
 # three; here the Django admin is reachable by port-forward only.
 #
 # It has to be published at all (rather than reached pod-to-pod) because Find's Production
@@ -23,9 +21,7 @@ spec:
         backend: {name: find-backend, port: 80}
         paths: [/api/v1.0/documents/]
 
-    # Emitted, NOT enforced (adr/0103). Do not cite it as segmentation.
     networkPolicy:
-      enabled: true
       egress:
         - {datastore: postgres}
         - {datastore: cache}
@@ -33,4 +29,3 @@ spec:
         - {identity: true}
         - {external: true, port: 443}
 
-    pdb: {enabled: false}

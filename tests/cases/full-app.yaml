@@ -1,8 +1,5 @@
 # Everything platform-app can emit, at once. Nothing deploys this shape; it exists so a
 # template touching a branch no live app uses still has a golden to break.
-#
-# `metrics` is on here and nowhere else: the ServiceMonitor is inert on this cluster (no
-# Prometheus operator) but the template is live code, and this is the only place it renders.
 app: full
 tenant: office
 baseDomain: haaijer.dev
@@ -63,13 +60,6 @@ networkPolicy:
     - {identity: true}
     - {app: collabora, port: 9980}
     - {external: true, port: 443}
-
-metrics:
-  enabled: true
-  port: 9100
-  path: /metrics
-  components:
-    backend: {app.kubernetes.io/component: backend}
 
 extraObjects:
   - apiVersion: v1

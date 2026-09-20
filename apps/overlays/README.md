@@ -1,7 +1,7 @@
 # Size profiles
 
 Three profiles — `small`, `medium`, `large` — selected per cluster by one value, `size`, in
-its `cluster.yaml`. `05-app-contract.md` designed this; this file is what was actually
+its `cluster.yaml`. `history/design/05-app-contract.md` designed this; this file is what was actually
 built, including the places it differs from the design.
 
 ## How it fits together
@@ -29,7 +29,7 @@ than a migration.
 
 ## Two differences from the design
 
-**A component, not a patch file.** `03-repo-layout.md` says `overlays/size-small.yaml`. A
+**A component, not a patch file.** `history/design/03-repo-layout.md` says `overlays/size-small.yaml`. A
 plain patch file cannot hold both strategic-merge and JSON6902 entries, and Drive needs
 JSON6902 — its `celeryWorkers` is a list, a merge patch replaces a list wholesale, and the
 list carries the `probes` the chart dereferences without a nil guard. A merge patch there is
@@ -46,7 +46,7 @@ same reason `apps/overlays/` does.
 
 Adding an app is **one directory plus one stanza in `size-small`** (and in `size-large`, if
 its replica knobs differ). It is not a single-file change, and it cannot be, for the reason
-`00-start-here.md` #13 already records: the upstream charts share no values schema, so the
+`history/design/00-start-here.md` #13 already records: the upstream charts share no values schema, so the
 numbers can only be written where each chart spells them. An untargeted `kind: HelmRelease`
 patch would be a silent no-op on every chart whose path differed.
 

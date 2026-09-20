@@ -1,8 +1,7 @@
-# Explicit resource list: dropping a file into this directory must not silently deploy it.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - namespace.yaml
+  - ../namespace.yaml
   - deps.yaml
   - release.yaml
   - surround.yaml

@@ -1,7 +1,4 @@
-# Release 3 of 3: the surround. Three routes, the media proxy, and the egress graph.
-#
-# No staticFiles: the switcher is served by the frontend pod itself (release.yaml's
-# extraVolumes and default.conf).
+# Meet's surround. No staticFiles: the frontend pod serves the switcher itself (release.yaml).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: meet-platform, namespace: office-meet}
@@ -45,13 +42,11 @@ spec:
       locations:
         - {path: "/media/", headers: {Content-Disposition: attachment}}
 
-    # Emitted, NOT enforced — Flannel ships no policy controller (adr/0103). `identity`
-    # is Keycloak; `app: livekit` is the backend's API calls to the SFU (room tokens,
+    # `app: livekit` is the backend's API calls to the SFU (room tokens,
     # egress start/stop) — they go out through the Gateway to the public hostname, which
     # is the `external: 443` rule, and the in-cluster rule is stated for when that
     # changes; `external: 443` also covers OIDC discovery.
     networkPolicy:
-      enabled: true
       egress:
         - {datastore: postgres}
         - {datastore: cache}
@@ -60,4 +55,3 @@ spec:
         - {app: livekit, port: 7880}
         - {external: true, port: 443}
 
-    pdb: {enabled: false}

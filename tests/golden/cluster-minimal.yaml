@@ -13,6 +13,7 @@ data:
   STORAGE_CLASS: "longhorn"
   GATEWAY_IP: "10.0.0.5"
   TLS_ISSUER: "letsencrypt-gateway"
+  ACME_EMAIL: "ops@example.org"
   S3_MODE: "external"
   TLS_HOSTS: "[\"id.example.org\",\"docs.example.org\",\"find.example.org\"]"
 ---
@@ -212,7 +213,6 @@ kind: Kustomization
 metadata:
   name: app-docs
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -226,6 +226,7 @@ spec:
     - {name: platform}
     - {name: app-find}
   postBuild:
+    substitute: {"APP":"docs"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -234,7 +235,6 @@ kind: Kustomization
 metadata:
   name: app-find
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -247,6 +247,7 @@ spec:
   dependsOn:
     - {name: platform}
   postBuild:
+    substitute: {"APP":"find"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/layers.yaml
@@ -323,9 +324,8 @@ spec:
 # Source: control-plane/templates/sources.yaml
 # Our own charts, at THIS chart's version: release.sh publishes the config artifact and all
 # four charts under one number, so nothing here is ever bumped by hand and a control plane
-# can only ever pair with the platform charts it was released with. platform-lib is
-# vendored into the two application charts at package time, so nothing references it
-# directly. The registry is the organisation's one knob in this file.
+# can only ever pair with the platform charts it was released with. The registry is the
+# organisation's one knob in this file.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -348,5 +348,18 @@ metadata:
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  ref: {tag: "<version>"}
+  secretRef: {name: harbor-auth}
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: platform-tenants
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-tenants
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}

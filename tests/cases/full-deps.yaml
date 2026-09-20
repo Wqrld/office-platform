@@ -62,3 +62,8 @@ generated:
   full-collaboration:
     - {env: Y_PROVIDER_API_KEY, draw: apikey}
     - {env: COLLABORATION_SERVER_SECRET, draw: serversecret}
+
+shared:
+  full-tokens:
+    PEER_API_KEY: office
+    PEER_API_SECRET: {from: peer-service-tokens, key: full}

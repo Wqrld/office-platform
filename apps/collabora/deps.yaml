@@ -1,7 +1,5 @@
-# Release 1 of 3. Collabora has no database, cache, bucket or OIDC client — it is handed a
-# short-lived WOPI token by Drive and never talks to Keycloak. All that is left is the admin
-# credential, which the chart otherwise base64s straight out of its own values.yaml
-# (`admin` / `examplepass`).
+# Collabora's prerequisites: only the admin credential — it is handed a WOPI token by Drive
+# and never talks to Keycloak. Without this the chart ships `admin` / `examplepass`.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: collabora-deps, namespace: office-collabora}

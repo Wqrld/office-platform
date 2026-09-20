@@ -1,0 +1,807 @@
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: calendars
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: calendars
+  owner: calendars
+  ensure: present
+  databaseReclaimPolicy: retain
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: docs
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: docs
+  owner: docs
+  ensure: present
+  databaseReclaimPolicy: retain
+  extensions:
+    - {name: pg_trgm, ensure: present}
+    - {name: unaccent, ensure: present}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: drive
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: drive
+  owner: drive
+  ensure: present
+  databaseReclaimPolicy: retain
+  extensions:
+    - {name: ltree, ensure: present}
+    - {name: pg_trgm, ensure: present}
+    - {name: unaccent, ensure: present}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: find
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: find
+  owner: find
+  ensure: present
+  databaseReclaimPolicy: retain
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: keycloak
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: keycloak
+  owner: keycloak
+  ensure: present
+  databaseReclaimPolicy: retain
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: meet
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: meet
+  owner: meet
+  ensure: present
+  databaseReclaimPolicy: retain
+  extensions:
+    - {name: pg_trgm, ensure: present}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: calendars
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: calendars
+  ensure: present
+  login: true
+  passwordSecret: {name: calendars-db}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: docs
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: docs
+  ensure: present
+  login: true
+  passwordSecret: {name: docs-db}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: drive
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: drive
+  ensure: present
+  login: true
+  passwordSecret: {name: drive-db}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: find
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: find
+  ensure: present
+  login: true
+  passwordSecret: {name: find-db}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: keycloak
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: keycloak
+  ensure: present
+  login: true
+  passwordSecret: {name: keycloak-db}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: meet
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: meet
+  ensure: present
+  login: true
+  passwordSecret: {name: meet-db}
+---
+# Source: platform-tenants/templates/oidc.yaml
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-calendars
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-calendars
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/oidc.yaml
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-docs
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-docs
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/oidc.yaml
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-drive
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-drive
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/oidc.yaml
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-find
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-find
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/oidc.yaml
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-meet
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-meet
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: calendars-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: calendars-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: calendars
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: docs-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: docs-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: docs
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: drive-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: drive-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: drive
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: find-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: find-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: find
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: keycloak-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: keycloak-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: keycloak
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: meet-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: meet-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: meet
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-cache-users
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-cache-users, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: default}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: docs}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-broker-users
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-broker-users, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: default}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: docs}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-user-calendars
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-calendars, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: cache}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: broker}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-user-drive
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-drive, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: cache}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: broker}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-user-find
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-find, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: cache}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-user-livekit
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-livekit, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: broker}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-user-meet
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-meet, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: cache}}]
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: broker}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-cache-acl
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: valkey-cache-acl
+    creationPolicy: Owner
+    template:
+      data:
+        default: "{{ .default }}"
+        calendars: "{{ .calendars }}"
+        docs: "{{ .docs }}"
+        drive: "{{ .drive }}"
+        find: "{{ .find }}"
+        meet: "{{ .meet }}"
+  data:
+    - {secretKey: default, remoteRef: {key: valkey-cache-users, property: default}}
+    - {secretKey: calendars, remoteRef: {key: valkey-user-calendars, property: cache}}
+    - {secretKey: docs, remoteRef: {key: valkey-cache-users, property: docs}}
+    - {secretKey: drive, remoteRef: {key: valkey-user-drive, property: cache}}
+    - {secretKey: find, remoteRef: {key: valkey-user-find, property: cache}}
+    - {secretKey: meet, remoteRef: {key: valkey-user-meet, property: cache}}
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-broker-acl
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: valkey-broker-acl
+    creationPolicy: Owner
+    template:
+      data:
+        default: "{{ .default }}"
+        calendars: "{{ .calendars }}"
+        docs: "{{ .docs }}"
+        drive: "{{ .drive }}"
+        livekit: "{{ .livekit }}"
+        meet: "{{ .meet }}"
+  data:
+    - {secretKey: default, remoteRef: {key: valkey-broker-users, property: default}}
+    - {secretKey: calendars, remoteRef: {key: valkey-user-calendars, property: broker}}
+    - {secretKey: docs, remoteRef: {key: valkey-broker-users, property: docs}}
+    - {secretKey: drive, remoteRef: {key: valkey-user-drive, property: broker}}
+    - {secretKey: livekit, remoteRef: {key: valkey-user-livekit, property: broker}}
+    - {secretKey: meet, remoteRef: {key: valkey-user-meet, property: broker}}
+---
+# Source: platform-tenants/templates/grants.yaml
+# Who, outside the data namespace, may point a bucket or key at the cluster. Here and not
+# beside the app: the operator's webhook rejects a cross-namespace reference at dry-run,
+# so a grant in the same Kustomization as its bucket is evaluated too late.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata:
+  name: office-docs
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  from:
+    - {kind: GarageBucket, namespace: office-docs}
+    - {kind: GarageKey, namespace: office-docs}
+  to:
+    - {kind: GarageCluster, name: office-s3}
+---
+# Source: platform-tenants/templates/grants.yaml
+# Who, outside the data namespace, may point a bucket or key at the cluster. Here and not
+# beside the app: the operator's webhook rejects a cross-namespace reference at dry-run,
+# so a grant in the same Kustomization as its bucket is evaluated too late.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata:
+  name: office-drive
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  from:
+    - {kind: GarageBucket, namespace: office-drive}
+    - {kind: GarageKey, namespace: office-drive}
+  to:
+    - {kind: GarageCluster, name: office-s3}
+---
+# Source: platform-tenants/templates/grants.yaml
+# Who, outside the data namespace, may point a bucket or key at the cluster. Here and not
+# beside the app: the operator's webhook rejects a cross-namespace reference at dry-run,
+# so a grant in the same Kustomization as its bucket is evaluated too late.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata:
+  name: office-meet
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  from:
+    - {kind: GarageBucket, namespace: office-meet}
+    - {kind: GarageKey, namespace: office-meet}
+  to:
+    - {kind: GarageCluster, name: office-s3}

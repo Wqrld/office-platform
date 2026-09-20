@@ -1,17 +1,17 @@
 {{- if .Values.cache.enabled }}
-{{- $app := include "platform.deps.app" . }}
+{{- $app := include "platform.app" . }}
 {{- $c := .Values.cache }}
-{{- $keys := include "platform.profile" (list "cache" $c.env) | fromYaml }}
+{{- $keys := include "platform.profile" (list $ "cache" $c.env) | fromYaml }}
 # One Secret, one URL per use. The instances are separate on purpose: eviction policy and
 # persistence are per-instance, and an evicting broker silently drops queued tasks
-# (06-datastores.md). The ACL user is created by the 30-platform layer — adr/0107.
+# (history/design/06-datastores.md). The ACL user is created by the platform layer — adr/0107.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: {{ $app }}-cache
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   refreshInterval: {{ $c.refreshInterval | quote }}
   secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}

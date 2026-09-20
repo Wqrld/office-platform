@@ -30,16 +30,17 @@ The chart NAME is kept. Only the version is replaced.
 import difflib
 import pathlib
 import re
-import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import render  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 GOLDEN = HERE / "golden"
-RENDER = HERE / "render.sh"
 
 # platform-app-0.2.4 -> platform-app-<version>. Anchored to our own chart names so an
 # upstream chart label passing through extraObjects is left alone.
-CHART_LABEL = re.compile(r"^(\s*helm\.sh/chart:\s*)(platform-(?:lib|deps|app))-\S+$", re.M)
+CHART_LABEL = re.compile(r"^(\s*helm\.sh/chart:\s*)(platform-(?:deps|app))-\S+$", re.M)
 VERSION = re.search(r"^version: (\S+)", (HERE.parent / "charts/control-plane/Chart.yaml").read_text(), re.M).group(1)
 
 
@@ -48,28 +49,23 @@ def normalise(text: str) -> str:
     return text.replace(f'tag: "{VERSION}"', 'tag: "<version>"')
 
 
-def cases() -> list[str]:
-    out = subprocess.run([RENDER, "--list"], capture_output=True, text=True, check=True)
-    return out.stdout.split()
-
-
-def render(name: str) -> str:
-    out = subprocess.run([RENDER, name], capture_output=True, text=True)
-    if out.returncode != 0:
-        sys.exit(f"golden: rendering {name} failed:\n{out.stderr}")
-    return normalise(out.stdout)
+def rendered(name: str) -> str:
+    try:
+        return normalise(render.render_case(name))
+    except RuntimeError as e:
+        sys.exit(f"golden: rendering {name} failed:\n{e}")
 
 
 def main() -> int:
     update = "--update" in sys.argv[1:]
     GOLDEN.mkdir(exist_ok=True)
 
-    names = cases()
+    names = [c["name"] for c in render.cases()]
     stale = {p.name for p in GOLDEN.glob("*.yaml")} - {f"{n}.yaml" for n in names}
     failed = []
 
     for name in names:
-        got = render(name)
+        got = rendered(name)
         path = GOLDEN / f"{name}.yaml"
 
         if update:

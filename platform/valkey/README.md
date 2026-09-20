@@ -14,13 +14,12 @@ This cluster's CNI enforces no NetworkPolicy (adr/0103), so any pod can reach th
 instances. The per-user ACLs are therefore load-bearing, not defence in depth. `default` is
 `off -@all` so there is no ambient access.
 
-## The seam: adding an application touches this directory
+## Adding an application
 
-The chart takes its ACL user list and its password Secret at the instance level, so a new
-application needs a user here *and* its own app file — the one place the "one file per app"
-property does not hold. Accepted for now (P5: an exception used once is an exception). If a
-third application makes it annoying, the fix is an operator with a per-user CRD, not
-per-app instances.
+`charts/platform-tenants/values.yaml` (`cache: [cache, broker]`) generates the password
+and assembles the ACL Secret; the *permissions* are the Valkey chart's own values, so each
+instance here still takes one line under `auth.aclUsers`. Six apps in, that is the one
+place "one line per app" does not hold; an operator with a per-user CRD would close it.
 
 `+flushdb` is granted on the cache because Django's `cache.clear()` calls it and fails with
 `ConnectionInterrupted` when it is disabled. It is *not* granted on the broker.
@@ -33,16 +32,9 @@ its pattern — and a pattern the application does not actually use is a cache t
 denies every write. So today an application that holds one app's credentials could read
 another's logical DB.
 
-Tightening this means verifying, per app, that the upstream chart exposes a cache key prefix
-and that Celery's own keys honour it. Worth doing at the second application, not before.
-
-## Adding an application's ACL user
-
-Two files:
-
-1. `platform/valkey/{cache,broker}.yaml` — one line each under `auth.aclUsers`.
-2. `platform/secrets/valkey-users.yaml` — a new `valkey-user-<app>` ExternalSecret, and one
-   line per assembler.
+The credential is the isolation, and that is the decision: tightening to key patterns means
+verifying per app that the upstream chart exposes a key prefix and that Celery's own keys
+honour it, and a pattern an app does not use is a cache that silently denies every write.
 
 Never add a `dataFrom` entry to `valkey-{cache,broker}-users`. That was the original shape
 and it does not work; the file's header comment has the full account. Short version, all

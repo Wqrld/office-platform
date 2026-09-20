@@ -13,6 +13,7 @@ data:
   STORAGE_CLASS: "longhorn"
   GATEWAY_IP: "45.136.141.166"
   TLS_ISSUER: "letsencrypt-gateway"
+  ACME_EMAIL: "wereld03@gmail.com"
   S3_MODE: "garage"
   TLS_HOSTS: "[\"id.demo.haaijer.dev\",\"s3.demo.haaijer.dev\",\"calendars.demo.haaijer.dev\",\"collabora.demo.haaijer.dev\",\"docs.demo.haaijer.dev\",\"drive.demo.haaijer.dev\",\"find.demo.haaijer.dev\",\"livekit.demo.haaijer.dev\",\"meet.demo.haaijer.dev\"]"
   LIVEKIT_IP: "45.136.141.156"
@@ -213,7 +214,6 @@ kind: Kustomization
 metadata:
   name: app-calendars
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -226,6 +226,7 @@ spec:
   dependsOn:
     - {name: objectstore}
   postBuild:
+    substitute: {"APP":"calendars"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -234,7 +235,6 @@ kind: Kustomization
 metadata:
   name: app-collabora
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -247,6 +247,7 @@ spec:
   dependsOn:
     - {name: objectstore}
   postBuild:
+    substitute: {"APP":"collabora"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -255,7 +256,6 @@ kind: Kustomization
 metadata:
   name: app-docs
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -269,6 +269,7 @@ spec:
     - {name: objectstore}
     - {name: app-find}
   postBuild:
+    substitute: {"APP":"docs"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -277,7 +278,6 @@ kind: Kustomization
 metadata:
   name: app-drive
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -291,6 +291,7 @@ spec:
     - {name: objectstore}
     - {name: app-collabora}
   postBuild:
+    substitute: {"APP":"drive"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -299,7 +300,6 @@ kind: Kustomization
 metadata:
   name: app-find
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -312,6 +312,7 @@ spec:
   dependsOn:
     - {name: objectstore}
   postBuild:
+    substitute: {"APP":"find"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -320,7 +321,6 @@ kind: Kustomization
 metadata:
   name: app-livekit
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -333,6 +333,7 @@ spec:
   dependsOn:
     - {name: objectstore}
   postBuild:
+    substitute: {"APP":"livekit"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
@@ -341,7 +342,6 @@ kind: Kustomization
 metadata:
   name: app-meet
   namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
   retryInterval: 2m
@@ -356,6 +356,7 @@ spec:
     - {name: app-docs}
     - {name: app-livekit}
   postBuild:
+    substitute: {"APP":"meet"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/layers.yaml
@@ -453,9 +454,8 @@ spec:
 # Source: control-plane/templates/sources.yaml
 # Our own charts, at THIS chart's version: release.sh publishes the config artifact and all
 # four charts under one number, so nothing here is ever bumped by hand and a control plane
-# can only ever pair with the platform charts it was released with. platform-lib is
-# vendored into the two application charts at package time, so nothing references it
-# directly. The registry is the organisation's one knob in this file.
+# can only ever pair with the platform charts it was released with. The registry is the
+# organisation's one knob in this file.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -478,5 +478,18 @@ metadata:
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  ref: {tag: "<version>"}
+  secretRef: {name: harbor-auth}
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: platform-tenants
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-tenants
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}

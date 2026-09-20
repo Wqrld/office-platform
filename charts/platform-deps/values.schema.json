@@ -1,20 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "platform-deps",
-  "description": "Everything an app must have before it starts. `additionalProperties: false` everywhere it is modelled: a typo'd values key that silently does nothing is the most common Helm failure mode, and this file is the only thing that catches it (10-verification.md, \"Schema validation\"). Env-name profiles (`env: canonical|django|...`) are plain strings here rather than an enum — `platform.profile` already fails naming every profile it has, and a list in two places is a list that drifts.",
+  "description": "Everything an app must have before it starts. `additionalProperties: false` everywhere it is modelled: a typo'd values key that silently does nothing is the most common Helm failure mode, and this file is the only thing that catches it (history/design/10-verification.md, \"Schema validation\"). Env-name profiles (`env: django|...`) are plain strings here rather than an enum — `platform.profile` already fails naming every profile it has, and a list in two places is a list that drifts.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "global": {
-      "description": "Helm's own passthrough to subcharts. Modelled only so declaring it is not an error.",
-      "type": "object"
-    },
-    "platform-lib": {
-      "description": "Helm coalesces a key per dependency into the parent's values, so this one is present on every render whether or not anyone writes it. Without it `additionalProperties: false` rejects the chart's own defaults.",
-      "type": "object"
-    },
-    "nameOverride": {"type": "string"},
     "app": {"type": "string"},
+    "env": {"type": "string"},
     "tenant": {"type": "string"},
     "baseDomain": {"type": "string"},
 
@@ -176,7 +168,7 @@
     },
 
     "generated": {
-      "description": "Secret name -> an ORDERED list of variables, each with its own draw (adr/0005, adr/0106). A map would let Helm's key sort silently rewrite `dataFrom`, and these objects cannot gain a variable once drawn.",
+      "description": "Secret name -> an ORDERED list of variables, each with its own draw (history/design/adr/0005, adr/0106). A map would let Helm's key sort silently rewrite `dataFrom`, and these objects cannot gain a variable once drawn.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -190,6 +182,21 @@
             "draw": {"type": "string"},
             "generator": {"type": "string", "description": "ClusterGenerator for this draw; default platform.passwordGenerator"}
           }
+        }
+      }
+    },
+
+    "shared": {
+      "description": "Secret name -> env name -> a value read from a Secret in office-data, or a constant.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "oneOf": [
+            {"type": "string"},
+            {"type": "object", "additionalProperties": false, "required": ["from", "key"],
+             "properties": {"from": {"type": "string"}, "key": {"type": "string"}}}
+          ]
         }
       }
     }

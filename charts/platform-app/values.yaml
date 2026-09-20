@@ -1,5 +1,5 @@
 # The application this surround wraps. It creates nothing that runs — it creates everything
-# around what the upstream chart's release created (04-platform-charts.md).
+# around what the upstream chart's release created (history/design/04-platform-charts.md).
 app: ""
 tenant: office
 baseDomain: ""                     # supplied as ${BASE_DOMAIN} by the app file
@@ -38,7 +38,7 @@ networkPolicy:
   # NOT ENFORCED on this cluster: Flannel ships no policy controller (adr/0103). Emitted
   # because the egress graph is real knowledge and expressing it costs nothing — but do not
   # claim network segmentation anywhere on the strength of it.
-  enabled: false
+  enabled: true
   # Each entry is one of:
   #   {datastore: postgres|cache|objectstore}   resolved from `datastores` below
   #   {app: collabora, port: 9980}              another app's namespace
@@ -97,14 +97,5 @@ staticFiles:
   resources:
     requests: {cpu: 10m, memory: 16Mi}
     limits: {memory: 64Mi}
-
-metrics:
-  # Off by default, unlike the design set: the monitoring.coreos.com CRDs exist here but the
-  # Prometheus operator does not, so a ServiceMonitor would be an object nothing reads.
-  # Turn on with the operator, not before.
-  enabled: false
-  port: 9100
-  path: /metrics
-  components: {}
 
 extraObjects: []

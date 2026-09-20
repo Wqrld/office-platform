@@ -25,14 +25,11 @@ The default `celery` args carry no `--concurrency`, so it preforks one process p
 ten on this node, each a whole Django. The container is killed with exit 137 a few seconds
 after a startup log that looks completely healthy. Pinned to 2.
 
-## `/media` is an nginx proxy of ours
+## `/media` is the surround's media proxy
 
-See the comment at the top of `media-proxy.yaml`. Short version: Docs authorises media by
-subrequest and replays the S3 signature headers, and Envoy Gateway's `SecurityPolicy`
-ext-auth appends the original path to its configured path, so Docs' `media-auth` endpoint
-can never be reached that way. Verified working: a restricted document's attachment is 403
-anonymously and 200 with a session, and public documents are readable by anyone — which is
-what `link_reach` says should happen.
+`mediaProxy` in surround.yaml — `charts/platform-app/templates/mediaproxy.yaml` says why.
+Verified: a restricted document's attachment is 403 anonymously and 200 with a session,
+and public documents are readable by anyone, which is what `link_reach` says should happen.
 
 ## The theme file REPLACES upstream's default, it does not merge
 

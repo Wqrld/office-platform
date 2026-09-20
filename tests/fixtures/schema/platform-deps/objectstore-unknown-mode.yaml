@@ -1,4 +1,4 @@
-# expect: value must be one of
+# expect: '/objectstore/mode': value must be one of 'garage', 'external'
 # `objectstore.mode` has two values and `s3` is neither. Left to the template it would fall
 # through to the Garage branch and provision a bucket on a store the organisation meant to
 # replace — a working app writing to the wrong place, which nothing reports.

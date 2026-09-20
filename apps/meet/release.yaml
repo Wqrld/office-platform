@@ -216,15 +216,21 @@ spec:
       # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
       # to add one <script> tag to every HTML response (`sub_filter`, in default.conf)
       # and to serve the script itself from /custom/. Both files come from the
-      # `meet-frontend` ConfigMap (kustomization.yaml) and are mounted over the
-      # image's own default.conf and beside it. No fork, no init container, and a chart
-      # bump that changes default.conf shows up as a diff against ours in git.
+      # `meet-frontend` ConfigMap (kustomization.yaml). No fork, no init container, and a
+      # chart bump that changes default.conf shows up as a diff against ours in git.
+      #
+      # default.conf is a `subPath` mount because it replaces one file in a directory the
+      # image owns; nginx reads it at start, so a change to it needs a restart anyway.
+      # The script is a DIRECTORY mount: a subPath is a copy the kubelet never refreshes,
+      # and Drive serves the same file live, so Meet must too.
       extraVolumes:
+        - name: conf
+          configMap: {name: meet-frontend, items: [{key: default.conf, path: default.conf}]}
         - name: custom
-          configMap: {name: meet-frontend}
+          configMap: {name: meet-frontend, items: [{key: switcher.js, path: switcher.js}]}
       extraVolumeMounts:
-        - {name: custom, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf, readOnly: true}
-        - {name: custom, mountPath: /srv/custom/switcher.js, subPath: switcher.js, readOnly: true}
+        - {name: conf, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf, readOnly: true}
+        - {name: custom, mountPath: /srv/custom, readOnly: true}
 
     # ---------------------------------------------------------------- transcript pipeline
     # The summary service is one image, run four ways: the API (`summary`) that the

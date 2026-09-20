@@ -31,7 +31,7 @@ patches:
 
   - target: {kind: Keycloak, name: keycloak, namespace: office-identity}
     patch: |
-      apiVersion: k8s.keycloak.org/v2alpha1
+      apiVersion: k8s.keycloak.org/v2beta1
       kind: Keycloak
       metadata: {name: keycloak, namespace: office-identity}
       spec:

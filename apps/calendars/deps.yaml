@@ -1,4 +1,4 @@
-# Release 1 of 3: everything Calendars must have before it starts.
+# Calendars' prerequisites.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: calendars-deps, namespace: office-calendars}
@@ -7,11 +7,12 @@ spec:
   chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
   values:
     app: calendars
+    env: calendars
     baseDomain: ${BASE_DOMAIN}
 
     # One database, two schemas: Django owns `public` and SabreDAV's tables go in `sabre`.
     # The caldav container reads the same credentials under PG* names — see release.yaml.
-    postgres: {enabled: true, env: django}
+    postgres: {enabled: true}
 
     # THREE URLs, which is why this app has its own profile. Dramatiq keeps task results in
     # a second store, and DRAMATIQ_RESULT_BACKEND_URL carries the password, so it cannot be
@@ -24,7 +25,6 @@ spec:
     # one password draw — a separate `db` only keeps result payloads out of the session keys.
     cache:
       enabled: true
-      env: dramatiq
       uses: [cache, broker, results]
       instances:
         results:
@@ -41,7 +41,7 @@ spec:
     # module passes `environ_prefix=None` on every mail value, and its from-address is
     # Django's stock DEFAULT_FROM_EMAIL. The relay account itself is applied by hand into
     # office-data once and is not in git — docs/bootstrap.md.
-    smtp: {enabled: true, env: django}
+    smtp: {enabled: true}
 
     # Both blocks are ORDERED LISTS, and neither can ever gain an entry: `refreshInterval:
     # "0"` means written once and never again, not "re-draw on a spec change", so a variable

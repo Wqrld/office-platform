@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["apps"],
+  "properties": {
+    "apps": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "postgres": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {"extensions": {"type": "array", "items": {"type": "string"}}}
+          },
+          "cache": {"type": "array", "items": {"enum": ["cache", "broker"]}, "minItems": 1},
+          "oidc": {"type": "boolean"},
+          "bucket": {"type": "boolean"}
+        }
+      }
+    },
+    "legacyValkeyUsers": {"type": "array", "items": {"type": "string"}},
+    "objectStore": {"enum": ["garage", "external"]},
+    "tenant": {"type": "string", "minLength": 1},
+    "namespaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"data": {"type": "string"}, "identity": {"type": "string"}}
+    },
+    "postgresCluster": {"type": "string"},
+    "garageCluster": {"type": "string"},
+    "passwordGenerator": {"type": "string"}
+  }
+}

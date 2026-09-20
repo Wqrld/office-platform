@@ -1,9 +1,4 @@
-# Release 1 of 3: everything Docs must have before it starts.
-#
-# Replaces the hand-written datastores.yaml and secrets.yaml — 174 lines of ExternalSecret
-# and Garage boilerplate — with the values that actually differ between applications. The
-# rendered output was verified identical to those files object-for-object, and a
-# server-side dry-run confirmed adopting the live objects is a no-op.
+# Docs' prerequisites.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: docs-deps, namespace: office-docs}
@@ -12,19 +7,20 @@ spec:
   chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
   values:
     app: docs
+    env: lasuite
     baseDomain: ${BASE_DOMAIN}
 
-    postgres: {enabled: true, env: django}
+    postgres: {enabled: true}
 
     # Two instances: the cache evicts and does not persist, the broker must not evict —
     # an evicting broker silently drops queued Celery tasks.
-    cache: {enabled: true, env: django, uses: [cache, broker]}
+    cache: {enabled: true, uses: [cache, broker]}
 
     # The legacy bucket was called `docs` and the restored database refers to its objects
     # by exactly that name, so the alias is not free to change.
     # `mode` is the organisation's (control-plane `objectStore.mode`): garage provisions a
     # bucket and a key here; external reshapes their S3 credential instead.
-    objectstore: {enabled: true, env: django-s3, mode: "${S3_MODE}", quota: {maxSize: 20Gi}}
+    objectstore: {enabled: true, mode: "${S3_MODE}", quota: {maxSize: 20Gi}}   # quoted: `${` is not valid inside a flow map
 
     # The restored database already holds every user; login matches by sub, then email.
     # storeRefreshToken: search forwards the user's access token to Find, and `search` is
@@ -34,7 +30,7 @@ spec:
 
     # The relay account itself is applied by hand into office-data once and is not in git —
     # docs/bootstrap.md. This only reshapes it into the DJANGO_EMAIL_* names Docs reads.
-    smtp: {enabled: true, env: django-prefixed}
+    smtp: {enabled: true}
 
     # A LIST, not a map: `dataFrom` is ordered and its order is part of the spec, so a
     # re-sort would make ESO draw new values — logging every user out and breaking
@@ -47,3 +43,6 @@ spec:
       docs-collaboration:
         - {env: Y_PROVIDER_API_KEY, draw: apikey}
         - {env: COLLABORATION_SERVER_SECRET, draw: serversecret}
+    shared:
+      docs-search: {SEARCH_INDEXER_SECRET: {from: find-service-tokens, key: docs}}
+      docs-meet: {DJANGO_SERVER_TO_SERVER_API_TOKENS: {from: meet-service-tokens, key: docs}}

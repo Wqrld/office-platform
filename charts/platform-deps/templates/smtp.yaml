@@ -1,7 +1,7 @@
 {{- if .Values.smtp.enabled }}
-{{- $app := include "platform.deps.app" . }}
+{{- $app := include "platform.app" . }}
 {{- $s := .Values.smtp }}
-{{- $keys := include "platform.profile" (list "smtp" $s.env) | fromYaml }}
+{{- $keys := include "platform.profile" (list $ "smtp" $s.env) | fromYaml }}
 {{- $cred := $s.credentialSecret }}
 # The one credential on this platform that is neither generated in-cluster nor minted by an
 # operator: an SMTP relay account is issued by somebody else, so it is applied by hand into
@@ -18,7 +18,7 @@ metadata:
   name: {{ $app }}-smtp
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   refreshInterval: {{ $s.refreshInterval | quote }}
   secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}

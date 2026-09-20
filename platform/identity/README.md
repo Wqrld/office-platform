@@ -1,7 +1,7 @@
 # Identity — Keycloak
 
 Operator and server are one release. `vendor/keycloak-operator/` is a verbatim copy of
-`keycloak/keycloak-k8s-resources` at **26.7.3**; everything we change about it is in
+`keycloak/keycloak-k8s-resources` at the version `vendor/keycloak-operator/kustomization.yaml` pins; everything we change about it is in
 `vendor/keycloak-operator/kustomization.yaml`. `vendor/keycloak-operator/update.sh` checks
 for a newer tag and, if there is one, re-downloads all five files and bumps the version
 comment in the same commit — run by hand, or weekly by CI alongside updatecli
@@ -29,31 +29,12 @@ Treat the realm as bootstrap, not as continuously reconciled config. If drift be
 real problem, the 26.7 `KeycloakOIDCClient` CRD reconciles a single client continuously
 and takes its secret from a `secretRef` — that is the upgrade path for the client half.
 
-## Imported users get no roles unless you say so
+## Users are not in the realm file
 
-A realm import takes each user representation **literally**. An absent `realmRoles` key
-means *no roles*, not "the realm's defaults" — `default-roles-<realm>` is applied only to
-users created through registration or the admin API. Every user in `realm.yaml` therefore
-carries an explicit:
-
-```yaml
-realmRoles: [default-roles-office]
-```
-
-Without it the symptom is narrow and misleading. Login works everywhere, because Docs
-reads the ID token and never inspects roles. But the access token has no `aud: account`
-and an empty `resource_access`, so every `/realms/office/account/*` REST call returns
-401 and the Account Console renders its generic **"Something went wrong"** page — with no
-server-side error event to find, since a 401 there is not an auth *failure*, it is a
-missing authorization.
-
-To repair a realm that was already imported without it, grant the role rather than
-reimporting — deleting the realm would re-issue every `sub`:
-
-```
-POST /admin/realms/office/users/<id>/role-mappings/realm
-[{"id": "<default-roles-office id>", "name": "default-roles-office", ...}]
-```
+Create them in the admin console; they get `default-roles-office` there. An imported user
+would not: the import takes the representation literally, and without `realmRoles` the
+access token has no `aud: account` and the Account Console 401s with no server-side
+event. That is why the file carries no users — an organisation's users are its own anyway.
 
 ## Adding a client to a realm that is already imported
 
@@ -138,7 +119,7 @@ $ curl http://keycloak-service.office-identity.svc:8080/realms/office/.well-know
 ```
 
 Applications must consume both halves: browser endpoints external, backend endpoints
-internal. `apps/docs/secrets.yaml` is the worked example.
+internal. `charts/platform-deps/templates/_oidc.tpl` renders it; `apps/docs/deps.yaml` is the worked example.
 
 ## Admin access
 

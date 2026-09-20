@@ -1,9 +1,5 @@
-# Release 3 of 3: the surround. It creates nothing that runs — it creates everything around
-# what DINUM's chart created.
-#
-# Replaces routes.yaml. Routes are grouped by BACKEND rather than one per path, because a
-# BackendTrafficPolicy attaches to an HTTPRoute: an upload path wants a body limit and a
-# websocket path must not have one, so they cannot share an object.
+# Docs' surround. Routes are grouped by BACKEND, not path: a BackendTrafficPolicy attaches
+# to an HTTPRoute, and an upload path wants a body limit a websocket path must not have.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: docs-platform, namespace: office-docs}
@@ -43,11 +39,13 @@ spec:
         paths: [/collaboration/ws, /collaboration/api]
         websocket: true             # setting requestBuffer here is a render-time error
 
-    # Emitted, NOT enforced: Flannel ships no policy controller (adr/0103). Written down so
-    # the egress graph exists somewhere, and so it starts working unchanged the day a
-    # policy-capable CNI arrives. Do not cite it as segmentation.
-    networkPolicy:
+    mediaProxy:
       enabled: true
+      auth: {service: docs-backend, port: 80, path: /api/v1.0/documents/media-auth/}
+      objectstore: {bucket: docs}
+      locations: [{path: /media/}]
+
+    networkPolicy:
       egress:
         - {datastore: postgres}
         - {datastore: cache}
@@ -57,4 +55,3 @@ spec:
         - {external: true, port: 443}
 
     # One replica at this size, so no PDB: it could only block drains.
-    pdb: {enabled: false}

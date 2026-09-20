@@ -1,11 +1,10 @@
 # One SAN certificate for every platform hostname; the Gateway's single HTTPS listener
 # selects from it by SNI. Neither this file nor the Gateway is edited to add an
-# application. See platform/docs/adr/0105.
+# application. See docs/adr/0105.
 #
 # RULE: a hostname may be served only once its DNS resolves to the Gateway.
 # Let's Encrypt fails the whole certificate if any single SAN fails validation, so one
-# mispointed record takes down TLS for every application. This is why Harbor and the
-# Longhorn UI are absent — they still resolve to ingress-nginx (see deferred/).
+# mispointed record takes down TLS for every application.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

@@ -1,6 +1,6 @@
 # Two instances, not one. Eviction policy and persistence are per-instance settings; a
 # logical DB number does not separate them. An evicting broker silently drops queued
-# Celery tasks, which presents as "some uploads never get processed" (06-datastores.md).
+# Celery tasks, which presents as "some uploads never get processed" (history/design/06-datastores.md).
 #
 # This one is the Django cache: evicting, no persistence, losing it is harmless.
 apiVersion: helm.toolkit.fluxcd.io/v2

@@ -1,4 +1,4 @@
-# Release 1 of 3: everything Drive must have before it starts.
+# Drive's prerequisites.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: drive-deps, namespace: office-drive}
@@ -7,16 +7,16 @@ spec:
   chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
   values:
     app: drive
+    env: lasuite
     baseDomain: ${BASE_DOMAIN}
 
-    postgres: {enabled: true, env: django}
+    postgres: {enabled: true}
 
     # Two instances: an evicting broker silently drops queued Celery tasks.
-    cache: {enabled: true, env: django, uses: [cache, broker]}
+    cache: {enabled: true, uses: [cache, broker]}
 
     objectstore:
       enabled: true
-      env: django-s3
       mode: ${S3_MODE}     # the organisation's — see apps/docs/deps.yaml
       quota: {maxSize: 50Gi}
       # Makes this bucket internet-reachable — adr/0110. The browser PUTs to a presigned
@@ -30,7 +30,7 @@ spec:
 
     # Same spelling as Docs — the two settings modules are identical in the EMAIL_* block.
     # The relay account is applied by hand into office-data once; docs/bootstrap.md.
-    smtp: {enabled: true, env: django-prefixed}
+    smtp: {enabled: true}
 
     # A list, not a map: `dataFrom` is ordered and Helm sorts map keys, so a map would let
     # a re-sort rewrite the object. This cannot gain an entry later — see platform-deps.

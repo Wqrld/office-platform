@@ -1,10 +1,10 @@
 # 0111 — OpenSearch runs with the security plugin on
 
-**Status:** accepted · **Date:** 2026-09-06 · **Decides:** design set `06-datastores.md`
+**Status:** accepted · **Date:** 2026-09-06 · **Decides:** design set `history/design/06-datastores.md`
 (deferred at M6)
 
 ## Context
-`06-datastores.md` defers the OpenSearch security posture to the milestone that first needs
+`history/design/06-datastores.md` defers the OpenSearch security posture to the milestone that first needs
 the server. That is M6 — full-text search from Docs through Find — so it is decided here.
 
 The reference deployment we work from runs `DISABLE_SECURITY_PLUGIN=true` and plain HTTP,

@@ -1,0 +1,27 @@
+# One line per application. Provisioned whether the app is enabled or not, so a disabled
+# app comes back with its data (adr/0107). Adding an app: a line here, plus its ACL
+# permissions in platform/valkey/{cache,broker}.yaml, which are the Valkey charts' values.
+#
+#   postgres: {extensions: [...]}  a role and a database on the shared cluster
+#   cache: [cache, broker]         one generated password per Valkey instance
+#   oidc: true                     a client secret Keycloak imports and the app reads back
+#   bucket: true                   may create a bucket and a key on the platform's Garage
+apps:
+  keycloak:  {postgres: {}}
+  docs:      {postgres: {extensions: [pg_trgm, unaccent]}, cache: [cache, broker], oidc: true, bucket: true}
+  drive:     {postgres: {extensions: [ltree, pg_trgm, unaccent]}, cache: [cache, broker], oidc: true, bucket: true}
+  find:      {postgres: {}, cache: [cache], oidc: true}
+  calendars: {postgres: {}, cache: [cache, broker], oidc: true}
+  meet:      {postgres: {extensions: [pg_trgm]}, cache: [cache, broker], oidc: true, bucket: true}
+  livekit:   {cache: [broker]}
+
+# Valkey passwords drawn before generation was per app live in `valkey-<instance>-users`
+# next to `default`. Live, and a re-draw logs every user out, so they stay there.
+legacyValkeyUsers: [docs]
+
+objectStore: garage              # ${S3_MODE}; grants only exist when the platform runs the store
+tenant: office                   # apps live in <tenant>-<app>
+namespaces: {data: office-data, identity: office-identity}
+postgresCluster: office-pg
+garageCluster: office-s3
+passwordGenerator: office-password

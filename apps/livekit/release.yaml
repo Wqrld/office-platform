@@ -9,11 +9,9 @@
 #
 #   1. Config comes from a Secret, not the chart's ConfigMap. The chart renders
 #      `.Values.livekit` verbatim into a ConfigMap and feeds it to the process as
-#      LIVEKIT_CONFIG; that document holds the Redis password and the API secret. The
-#      `livekit:` values below are the NON-secret subset, so the ConfigMap the chart makes
-#      is valid but unused, and the env var is re-pointed at `livekit-config`. Keep the
-#      port numbers here and in secrets.yaml identical: the chart takes container ports
-#      from these values, the process takes them from the Secret.
+#      LIVEKIT_CONFIG; that document holds the Redis password and the API secret. The env
+#      var is re-pointed at `livekit-config`, and `livekit:` below is only the port numbers,
+#      which the chart also reads for the Service. Keep them equal to secrets.yaml's.
 #
 #   2. No hostPort. The chart is written for `hostNetwork: true` (its default, refused by
 #      PSA baseline) and emits `hostPort` on every media port even with it off. Baseline
@@ -77,20 +75,9 @@ spec:
       repository: livekit/livekit-server
       tag: v1.13.7
 
-    # The non-secret half of secrets.yaml's `livekit-config`. See the header.
     livekit:
       port: 7880
-      log_level: info
-      rtc:
-        tcp_port: 7881
-        udp_port: 7882
-        use_external_ip: false
-        node_ip: ${LIVEKIT_IP}
-      turn:
-        enabled: true
-        domain: turn.${BASE_DOMAIN}
-        udp_port: 3478
-      keys: {}
+      rtc: {tcp_port: 7881, udp_port: 7882}
 
     storeKeysInSecret: {enabled: false}
     podHostNetwork: false

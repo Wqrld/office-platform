@@ -1,6 +1,6 @@
 # The platform's own hard invariants, asserted against rendered output.
 #
-# These are the rules 10-verification.md lists for Kyverno. Kyverno is not installed
+# These are the rules history/design/10-verification.md lists for Kyverno. Kyverno is not installed
 # (adr/0102 — PSA first), so until it is, this is where they live: the same assertions,
 # checked at render time instead of at admission. When Kyverno arrives these become its
 # fixtures rather than being deleted.
@@ -9,7 +9,7 @@ package main
 import rego.v1
 
 # --- disruption budgets -----------------------------------------------------------------
-# The invariant 10-verification.md names as "the one most likely to regress silently".
+# The invariant history/design/10-verification.md names as "the one most likely to regress silently".
 # A minAvailable PDB on a single-replica workload blocks every drain, and nothing fails
 # until someone drains a node — by which time it reads as a node problem, not a chart one.
 
@@ -113,13 +113,14 @@ deny contains msg if {
 
 deny contains msg if {
 	input.kind == "Deployment"
-	input.spec.template.spec.securityContext.seccompProfile.type != "RuntimeDefault"
+	# `!=` on a missing field is undefined, not true — `not ... ==` is what catches an omission.
+	not input.spec.template.spec.securityContext.seccompProfile.type == "RuntimeDefault"
 	msg := sprintf("Deployment/%s does not set seccompProfile RuntimeDefault", [input.metadata.name])
 }
 
 deny contains msg if {
 	some c in containers
-	c.securityContext.allowPrivilegeEscalation != false
+	not c.securityContext.allowPrivilegeEscalation == false
 	msg := sprintf("container %q does not set allowPrivilegeEscalation: false", [c.name])
 }
 

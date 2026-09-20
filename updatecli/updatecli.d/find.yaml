@@ -23,9 +23,6 @@ sources:
       tag: main
 
 targets:
-  # Anchored to the repository URL for the same reason docs.yaml is: sources.yaml holds
-  # several GitRepositories and an unanchored pattern already rewrote Drive's tag to a Docs
-  # version once.
   chart:
     name: "GitRepository commit"
     kind: file

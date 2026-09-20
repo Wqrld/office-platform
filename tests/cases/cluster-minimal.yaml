@@ -1,6 +1,8 @@
 domain: example.org
 gateway:
   ip: 10.0.0.5
+  acmeEmail: ops@example.org
 size: small
 apps: {drive: false, collabora: false, calendars: false, meet: false}
 objectStore: {mode: external}
+registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}

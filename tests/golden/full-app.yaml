@@ -78,7 +78,7 @@ spec:
 # workload blocks every node drain forever — the live bug this rule exists to prevent.
 #
 # The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
-# the size profile alongside replicas, not inferred here (05-app-contract.md).
+# the size profile alongside replicas, not inferred here (history/design/05-app-contract.md).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -101,7 +101,7 @@ spec:
 # workload blocks every node drain forever — the live bug this rule exists to prevent.
 #
 # The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
-# the size profile alongside replicas, not inferred here (05-app-contract.md).
+# the size profile alongside replicas, not inferred here (history/design/05-app-contract.md).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -124,7 +124,7 @@ spec:
 # workload blocks every node drain forever — the live bug this rule exists to prevent.
 #
 # The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
-# the size profile alongside replicas, not inferred here (05-app-contract.md).
+# the size profile alongside replicas, not inferred here (history/design/05-app-contract.md).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -147,7 +147,7 @@ spec:
 # workload blocks every node drain forever — the live bug this rule exists to prevent.
 #
 # The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
-# the size profile alongside replicas, not inferred here (05-app-contract.md).
+# the size profile alongside replicas, not inferred here (history/design/05-app-contract.md).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -170,7 +170,7 @@ spec:
 # workload blocks every node drain forever — the live bug this rule exists to prevent.
 #
 # The surround cannot see the upstream release's replica count, so `pdb.enabled` is set by
-# the size profile alongside replicas, not inferred here (05-app-contract.md).
+# the size profile alongside replicas, not inferred here (history/design/05-app-contract.md).
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -197,15 +197,6 @@ metadata:
   name: full-extra
 ---
 # Source: platform-app/templates/mediaproxy.yaml
-# The `/media` route's backend — adr/0109 for why a running pod lives in the surround.
-#
-# La Suite authorises an attachment by SUBREQUEST: ask the backend "may this session read
-# this key?", then replay the S3 authorization headers it answers with onto the bucket.
-# Envoy Gateway's extAuth cannot express it — `extAuth.http.path` is a prefix and Envoy
-# appends the original path, so the check 404s and denies everything.
-#
-# WHAT WOULD REMOVE THIS: media served through the application's own backend, or a fixed
-# (non-prefixed) ext-auth path in Envoy Gateway.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -218,9 +209,7 @@ metadata:
     app.kubernetes.io/part-of: office
     helm.sh/chart: platform-app-<version>
   annotations:
-    # nginx configuration is full of $variables and Flux's postBuild substitution would
-    # expand every one of them to the empty string — $host, $request_uri and the
-    # auth_request_set values all vanish, and the proxy silently serves 403s.
+    # nginx config is full of $variables; Flux's substitution would blank every one.
     kustomize.toolkit.fluxcd.io/substitute: disabled
 data:
   default.conf: |
@@ -292,18 +281,8 @@ data:
     }
 ---
 # Source: platform-app/templates/static.yaml
-# A few files served from the application's own origin.
-#
-# It exists because some upstream frontends take a URL rather than content: Drive's
-# `FRONTEND_JS_URL` injects a <script> tag, and there is no other way to reach that page.
-# Serving it from our own host keeps the application free of a third-party CDN.
-#
-# The files come from a ConfigMap someone else made — `filesConfigMap` — rather than from
-# values, so they can stay real files in the config repo instead of block scalars inside a
-# HelmRelease. nginx reads from disk per request and a mounted ConfigMap updates in place,
-# so editing them does not need a restart.
-#
-# Not a general web server: everything here is public, cached and read-only.
+# The `/custom` route's backend, or wherever `staticFiles.path` points.
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -316,6 +295,7 @@ metadata:
     app.kubernetes.io/part-of: office
     helm.sh/chart: platform-app-<version>
   annotations:
+    # nginx config is full of $variables; Flux's substitution would blank every one.
     kustomize.toolkit.fluxcd.io/substitute: disabled
 data:
   default.conf: |
@@ -326,11 +306,9 @@ data:
       location = /healthz { access_log off; return 200 "ok\n"; }
       location /custom/ {
         alias /srv/;
-        # Everything here is ours and public, but it is still served from the application's
-        # origin, so it gets the same treatment as any other asset.
         add_header Cache-Control "public, max-age=600" always;
         add_header X-Content-Type-Options nosniff always;
-        types { application/javascript js; text/css css; image/svg+xml svg; }
+        types { application/javascript js; text/css css; image/svg+xml svg; application/json json; }
       }
     }
 ---
@@ -390,7 +368,6 @@ spec:
   template:
     metadata:
       annotations:
-        # nginx reads its config once at startup, so a ConfigMap change needs a restart.
         checksum/config: 11ff21a570caf606294e174d8cfc76a7c879bc3badd3c9ab80e30faf7f0dd10a
       labels:
         app.kubernetes.io/name: full-media-proxy
@@ -401,7 +378,6 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: nginx
-          # Fully qualified: this cluster's CRI-O resolves a bare name against quay.io.
           # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
           image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
           ports:
@@ -451,7 +427,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 478bb129217a670ca66382a3389e30d1ca08c0a0274d51ebf7b0b5028eb78598
+        checksum/config: c0ae27bbae707920cd48bd036a50e914a62ed452d98d13aa75b362b08a006a69
       labels:
         app.kubernetes.io/name: full-static
     spec:
@@ -461,6 +437,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: nginx
+          # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
           image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
           ports:
             - {name: http, containerPort: 8080}
@@ -479,15 +456,17 @@ spec:
             initialDelaySeconds: 3
           volumeMounts:
             - {name: conf, mountPath: /etc/nginx/conf.d}
-            - {name: files, mountPath: /srv}
+            - mountPath: /srv
+              name: files
             - {name: cache, mountPath: /var/cache/nginx}
             - {name: run, mountPath: /var/run}
             - {name: tmp, mountPath: /tmp}
       volumes:
         - name: conf
           configMap: {name: full-static-conf}
-        - name: files
-          configMap: {name: full-switcher}
+        - configMap:
+            name: full-switcher
+          name: files
         - {name: cache, emptyDir: {}}
         - {name: run, emptyDir: {}}
         - {name: tmp, emptyDir: {}}

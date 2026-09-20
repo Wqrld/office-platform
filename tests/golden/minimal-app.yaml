@@ -1,4 +1,46 @@
 ---
+# Source: platform-app/templates/networkpolicy.yaml
+# NOT ENFORCED HERE. Flannel has no policy controller, so this object is decorative on this
+# cluster and has been verified to have no effect (adr/0103). It is emitted anyway because
+# the egress graph below is hard-won knowledge that is worth stating declaratively — and
+# because the day a policy-capable CNI arrives, it starts working without an app change.
+#
+# Do not cite this object as network segmentation in a security review.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: minimal
+  namespace: office-minimal
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: minimal-platform
+    app.kubernetes.io/instance: minimal-platform
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # The shared Gateway is the only way in.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: office-system
+    # Pods of this app talk to each other.
+    - from:
+        - podSelector: {}
+  egress:
+    # DNS, or nothing else resolves. The single most common omission.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - {protocol: UDP, port: 53}
+        - {protocol: TCP, port: 53}
+    - to:
+        - podSelector: {}
+---
 # Source: platform-app/templates/routes.yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

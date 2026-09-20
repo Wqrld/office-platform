@@ -8,7 +8,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: luc@haaijer.dev
+    email: ${ACME_EMAIL}
     privateKeySecretRef: {name: letsencrypt-gateway}
     solvers:
       - http01:
@@ -27,7 +27,7 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: luc@haaijer.dev
+    email: ${ACME_EMAIL}
     privateKeySecretRef: {name: letsencrypt-gateway-staging}
     solvers:
       - http01:

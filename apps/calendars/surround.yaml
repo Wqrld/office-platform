@@ -1,11 +1,6 @@
-# Release 3 of 3: the surround. Routes, the app switcher's two files, and the egress graph.
-#
-# No media proxy and no ServiceMonitor — Calendars needs neither. Storage is
-# FileSystemStorage under DATA_DIR and nothing in `core/models.py` declares a file field, so
-# `/media` has no content to serve; Django's own static files are collected into the image at
-# build time and served by whitenoise, which is why `/static` is a BACKEND path below rather
-# than a separate workload. `staticFiles` under it is a different thing entirely: two files
-# of ours, for the gaufre.
+# Calendars' surround. No media proxy: nothing declares a file field, so `/media` has no
+# content. `/static` is a BACKEND path (whitenoise serves it); `staticFiles` below is ours,
+# for the gaufre.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: calendars-platform, namespace: office-calendars}
@@ -59,15 +54,11 @@ spec:
       enabled: true
       filesConfigMap: calendars-gaufre
 
-    # Emitted, NOT enforced — Flannel ships no policy controller (adr/0103). Do not cite it
-    # as segmentation. `identity` is Keycloak; `external: 443` is for OIDC discovery over
-    # the public issuer URL and for outbound channel sync.
+    # `external: 443` is OIDC discovery over the public issuer URL and outbound channel sync.
     networkPolicy:
-      enabled: true
       egress:
         - {datastore: postgres}
         - {datastore: cache}
         - {identity: true}
         - {external: true, port: 443}
 
-    pdb: {enabled: false}

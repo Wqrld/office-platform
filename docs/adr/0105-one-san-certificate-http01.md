@@ -1,6 +1,6 @@
 # 0105 — One SAN certificate, solved over HTTP-01 through the Gateway
 
-**Status:** accepted · **Date:** 2026-09-02 · **Amends:** design set `00-start-here.md` (M1)
+**Status:** accepted · **Date:** 2026-09-02 · **Amends:** design set `history/design/00-start-here.md` (M1)
 
 ## Context
 M1 calls for "wildcard or per-host, DNS-01 either way". DNS-01 needs provider API

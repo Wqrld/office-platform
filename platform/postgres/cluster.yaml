@@ -17,6 +17,6 @@ spec:
   postgresql:
     parameters:
       max_connections: "200"        # Django + Celery across apps; no pooler yet, see README
-  enableSuperuserAccess: true
+  enableSuperuserAccess: false    # nothing reads the superuser Secret; the operator creates extensions itself
   monitoring:
     enablePodMonitor: false         # no Prometheus on this cluster yet (adr/0103 sibling)

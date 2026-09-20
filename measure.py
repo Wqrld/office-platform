@@ -5,13 +5,12 @@ Render a size profile and add up what it asks the scheduler for.
 The 5-to-5,000 claim, and the narrower "a demo fits on a spare node" claim, both rest on
 numbers nobody has ever added up. This adds them up.
 
-    ./measure.py fetch                        # populate the chart cache from the pins
     ./measure.py render --size small          # per-namespace request totals, apps + platform
     ./measure.py compare                      # assert medium renders what no profile renders
 
-What it does, in order: build every app and the platform layer the way Flux does with the
-size profile as a component (tests/render.py), substitute the cluster vars the control
-plane renders for prod, `helm template` every HelmRelease against its pinned chart, and sum
+What it does, in order: build every app and the platform layer the way the cluster does
+(tests/render.py: profile as a component, cluster-vars substituted), `helm template` every
+HelmRelease against its pinned chart (fetched into .charts/ on first use), and sum
 `resources.requests` over every container of every pod-bearing object, multiplied by its
 replica count.
 
@@ -25,17 +24,13 @@ scheduler admits on, and it does not predict what will actually be used.
 import argparse
 import pathlib
 import re
-import subprocess
 import sys
-import tempfile
 
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests"))
 import render as flux  # noqa: E402
 
-ROOT = flux.ROOT
-CACHE = ROOT / ".charts"
 LAYERS = {"apps": flux.apps, "platform": flux.platform}
 
 POD_KINDS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
@@ -46,10 +41,6 @@ OPERATOR_KINDS = {
     "Keycloak": ("instances", "resources"),
     "GarageCluster": (None, None),
 }
-
-
-def sh(cmd, **kw):
-    return subprocess.run(cmd, check=True, capture_output=True, text=True, **kw).stdout
 
 
 def quantity(v):
@@ -64,89 +55,6 @@ def quantity(v):
     mult = {"": 1, "m": 1e-3, "k": 1e3, "M": 1e6, "G": 1e9, "T": 1e12,
             "Ki": 2**10, "Mi": 2**20, "Gi": 2**30, "Ti": 2**40}
     return n * mult.get(unit, 1)
-
-
-def control_plane(cluster):
-    return flux.control_plane(flux.CASES / f"cluster-{cluster}.yaml")
-
-
-def load_vars(cluster):
-    """The postBuild substitution map, as the control plane renders it for the cluster."""
-    return next(d["data"] for d in control_plane(cluster)
-                if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
-
-
-def substitute(text, variables):
-    """Flux postBuild, near enough. `$${X}` escapes to a literal `${X}` and is left alone."""
-    text = text.replace("$${", "\0ESC\0")
-    for key, value in variables.items():
-        text = text.replace("${" + key + "}", str(value))
-    # An unresolved ${...} would break the YAML parse or silently blank a value; neither is
-    # something to discover halfway down a sum.
-    left = set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", text))
-    if left:
-        print(f"warning: unsubstituted variables: {', '.join(sorted(left))}", file=sys.stderr)
-    return text.replace("\0ESC\0", "${")
-
-
-# ---------------------------------------------------------------- chart resolution
-
-def sources(cluster):
-    """(kind, name) -> source spec, as the control plane renders them. The pins live in
-    its sources.yaml and nowhere else; this tool must not carry a second copy of them."""
-    return {(d["kind"], d["metadata"]["name"]): d["spec"] for d in control_plane(cluster)
-            if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
-
-
-def fetch(cluster):
-    """Populate the chart cache. Everything is pinned, so this is reproducible."""
-    CACHE.mkdir(exist_ok=True)
-    srcs = sources(cluster)
-    for (kind, name), spec in srcs.items():
-        target = CACHE / name
-        if target.exists():
-            print(f"  cached  {name}")
-            continue
-        if kind == "GitRepository":
-            tag = spec["ref"]["tag"]
-            print(f"  git     {name} @ {tag}")
-            sh(["git", "clone", "--depth", "1", "--branch", tag, "--filter=blob:none",
-                "--sparse", spec["url"], str(target)])
-            sh(["git", "sparse-checkout", "set", "src/helm"], cwd=target)
-        elif kind == "HelmRepository":
-            if spec.get("type") == "oci":
-                # An OCI registry is not a repository index; `helm template` resolves
-                # oci:// refs directly, so there is nothing to add.
-                print(f"  oci     {name}")
-                continue
-            print(f"  repo    {name} -> {spec['url']}")
-            # --force-update: this runs against whatever helm repos the machine already
-            # has, and a stale entry under the same name is otherwise a hard failure.
-            sh(["helm", "repo", "add", "--force-update", name, spec["url"]])
-        else:
-            # OCIRepository: our own charts in Harbor, which needs credentials this tool
-            # has no business holding. platform-app/platform-deps create no pods anyway —
-            # they are routes, policies and secrets — so their absence costs nothing here.
-            print(f"  skip    {name} ({kind})")
-    sh(["helm", "repo", "update"])
-
-
-def chart_for(release, srcs):
-    """Locate the chart a HelmRelease names. Returns (ref, extra helm args) or None."""
-    spec = release["spec"]
-    if "chartRef" in spec:
-        return None                                    # OCIRepository — see fetch()
-    cs = spec["chart"]["spec"]
-    ref = cs["sourceRef"]
-    src = srcs.get((ref["kind"], ref["name"]))
-    if src is None:
-        return None
-    if ref["kind"] == "GitRepository":
-        path = CACHE / ref["name"] / cs["chart"]
-        return (str(path), []) if path.exists() else None
-    if ref["kind"] == "HelmRepository":
-        return (f"{ref['name']}/{cs['chart']}", ["--version", cs["version"]])
-    return None
 
 
 # ---------------------------------------------------------------- summation
@@ -207,10 +115,9 @@ def limitranges(docs):
 
 
 def render(layer, size, cluster):
-    variables = load_vars(cluster)
-    srcs = sources(cluster)
-    raw = yaml.safe_dump_all(LAYERS[layer](size))
-    docs = [d for d in yaml.safe_load_all(substitute(raw, variables)) if d]
+    values = flux.CASES / f"cluster-{cluster}.yaml"
+    srcs = flux.sources(values)
+    docs = LAYERS[layer](size, values=values)
     lrs = limitranges(docs)
 
     rows = []            # (namespace, name, cpu, memory, note)
@@ -220,24 +127,13 @@ def render(layer, size, cluster):
         name = meta.get("name", "?")
 
         if kind == "HelmRelease":
-            resolved = chart_for(doc, srcs)
-            if resolved is None:
-                rows.append((ns, f"{name} (chart not resolvable)", 0.0, 0.0, "skip"))
+            try:
+                chart = flux.chart_for(doc, srcs)
+                out = flux.helm_template(chart, name, ns, doc["spec"].get("values", {}), ["--include-crds"])
+            except RuntimeError as exc:
+                rows.append((ns, f"{name} (render FAILED)", 0.0, 0.0, str(exc).strip().splitlines()[-1][:80]))
                 continue
-            ref, extra = resolved
-            with tempfile.NamedTemporaryFile("w", suffix=".yaml") as vf:
-                yaml.safe_dump(doc["spec"].get("values", {}), vf)
-                vf.flush()
-                try:
-                    out = sh(["helm", "template", name, ref, "-n", ns, "-f", vf.name,
-                              "--include-crds"] + extra)
-                except subprocess.CalledProcessError as exc:
-                    rows.append((ns, f"{name} (render FAILED)", 0.0, 0.0,
-                                 exc.stderr.strip().splitlines()[-1][:80]))
-                    continue
-            for sub in yaml.safe_load_all(out):
-                if not sub:
-                    continue
+            for sub in out:
                 got = walk(sub)
                 if got:
                     cpu, mem, reps, unset = got
@@ -297,7 +193,6 @@ def report(rows, label):
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    f = sub.add_parser("fetch");   f.add_argument("--cluster", default="prod")
     r = sub.add_parser("render")
     r.add_argument("layers", nargs="*", choices=list(LAYERS))
     r.add_argument("--size", default="medium", choices=flux.SIZES)
@@ -307,22 +202,20 @@ def main():
     c.add_argument("layers", nargs="*", choices=list(LAYERS))
     args = ap.parse_args()
 
-    if args.cmd == "fetch":
-        fetch(args.cluster)
-        return 0
-
     if args.cmd == "compare":
+        # A profile is a component; every Kustomization built with `size-medium` must equal
+        # itself built with no components at all.
         rc = 0
-        for layer in args.layers or list(LAYERS):
-            # A profile is a component; rendering with `size-medium` must equal rendering
-            # with none. Names differ per app, so compare with the profile's name removed.
-            with_profile = yaml.safe_dump_all(LAYERS[layer]("medium"))
-            without = (yaml.safe_dump_all(flux.flux_build("platform", [], "platform")
-                                          + flux.flux_build("platform/objectstore", [], "objectstore"))
-                       if layer == "platform" else
-                       yaml.safe_dump_all([d for a in flux.APPS for d in flux.flux_build(f"apps/{a}", [], f"app-{a}")]))
-            same = with_profile == without
-            print(f"{'IDENTICAL' if same else 'DIFFERS  '}  {layer} at medium {'==' if same else '!='} {layer} with no profile")
+        medium = ("--set", "size=medium")
+        vars_ = flux.variables(flux.PROD, medium)
+        for ks in (d for d in flux.control_plane(flux.PROD, medium) if d["kind"] == "Kustomization"):
+            name = ks["metadata"]["name"]
+            layer = "apps" if name.startswith("app-") else "platform"
+            if layer not in (args.layers or list(LAYERS)) or name == "infra":
+                continue
+            bare = {**ks, "spec": {k: v for k, v in ks["spec"].items() if k != "components"}}
+            same = flux.build(ks, vars_) == flux.build(bare, vars_)
+            print(f"{'IDENTICAL' if same else 'DIFFERS  '}  {name} at medium {'==' if same else '!='} {name} with no profile")
             rc |= not same
         return rc
 

@@ -1,0 +1,20 @@
+{{- if eq .Values.objectStore "garage" }}
+{{- range $app, $t := .Values.apps }}{{ if $t.bucket }}
+---
+# Who, outside the data namespace, may point a bucket or key at the cluster. Here and not
+# beside the app: the operator's webhook rejects a cross-namespace reference at dry-run,
+# so a grant in the same Kustomization as its bucket is evaluated too late.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata:
+  name: {{ $.Values.tenant }}-{{ $app }}
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  from:
+    - {kind: GarageBucket, namespace: {{ $.Values.tenant }}-{{ $app }}}
+    - {kind: GarageKey, namespace: {{ $.Values.tenant }}-{{ $app }}}
+  to:
+    - {kind: GarageCluster, name: {{ $.Values.garageCluster }}}
+{{- end }}{{ end }}
+{{- end }}

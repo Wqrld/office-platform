@@ -1,37 +1,18 @@
-# Size profile `small` — the applications. 5-50 people, one node, no HA.
-#
-# THIS IS A KUSTOMIZE COMPONENT, NOT A PATCH FILE. The design set (03-repo-layout.md) says
-# "one file per profile"; a plain patch file cannot hold both strategic-merge and JSON6902
-# entries, and Drive needs JSON6902 — see `celeryWorkers` below. A Component is the same
-# one-file-per-profile property with both patch kinds available, so the profile stays a
-# single self-contained unit instead of splintering into a file per patch kind.
-#
-# WHY THIS IS NOT IN platform-lib. The numbers below land in DINUM's and Collabora's chart
-# values, rendered by helm-controller from THEIR HelmReleases. Our library chart is not in
-# that render at all, and the three charts share no values schema — `backend.resources`,
-# `celeryWorkers[0].resources` and a bare `resources` are three different paths for the
-# same concept. A profile that lived in platform-lib could not reach any of them.
-# 00-start-here.md #13 already records this; it is restated here because the obvious
-# refactor ("put the table in the library chart") looks right and silently no-ops.
+# Size profile `small` — the applications. 5-50 people, one node, no HA. README.md is the
+# mechanism; two things to know when editing:
 #
 # EVERY PATCH IS NAME-TARGETED. An untargeted `kind: HelmRelease` patch would apply one
-# values path to every release, and a path a chart does not have is a silent no-op, not an
-# error.
+# values path to every release, and a path a chart does not have is a silent no-op.
 #
-# Requests are what the scheduler reads, so requests are what this profile moves. Memory
-# limits move with them because a limit far above a small request is an OOM the node
-# absorbs rather than the pod; CPU limits stay unset everywhere (throttling a demo is worse
-# than letting it burst into idle capacity).
+# Requests are what the scheduler reads, so requests are what this profile moves; memory
+# limits move with them. CPU limits stay unset everywhere (throttling a demo is worse than
+# letting it burst into idle capacity).
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
 patches:
   # ---------------------------------------------------------------- docs
-  # Five workloads. Everything here is a map merge, except `celery.args`, which is a list:
-  # a JSON merge patch replaces a list wholesale, so the full command is restated. That is
-  # correct rather than lossy — the concurrency IS the sizing decision for a Celery worker,
-  # and upstream's argless default preforks one process per CPU (ten on this node), which
-  # is an OOMKill within seconds of a clean start.
+  # `celery.args` is a list, so the full command is restated with the size's concurrency.
   - target: {kind: HelmRelease, name: docs, namespace: office-docs}
     patch: |
       apiVersion: helm.toolkit.fluxcd.io/v2

@@ -1,0 +1,8 @@
+# expect: minItems
+# `paths: []` renders `matches:` null, which Gateway API reads as PathPrefix / — a catch-all.
+app: nopaths
+baseDomain: example.test
+routes:
+  - host: nopaths
+    backend: {name: nopaths, port: 80}
+    paths: []

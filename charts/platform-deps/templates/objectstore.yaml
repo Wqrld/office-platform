@@ -1,7 +1,7 @@
 {{- if .Values.objectstore.enabled }}
-{{- $app := include "platform.deps.app" . }}
+{{- $app := include "platform.app" . }}
 {{- $o := .Values.objectstore }}
-{{- $keys := include "platform.profile" (list "objectstore" $o.env) | fromYaml }}
+{{- $keys := include "platform.profile" (list $ "objectstore" $o.env) | fromYaml }}
 {{- $bucket := $o.bucket | default $app }}
 {{- if and $o.publicEndpoint (not (hasKey $keys "publicEndpoint")) }}{{ fail (printf "objectstore.publicEndpoint is set but profile %q has no env name for it" $o.env) }}{{ end }}
 {{- if eq $o.mode "external" }}
@@ -20,7 +20,7 @@ metadata:
   name: {{ $app }}-s3
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   refreshInterval: {{ $o.refreshInterval | quote }}
   secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}
@@ -61,7 +61,7 @@ metadata:
   name: {{ $bucket }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   clusterRef: {name: {{ $o.cluster.name }}, namespace: {{ $o.cluster.namespace }}}
   globalAlias: {{ $o.globalAlias | default $bucket }}
@@ -77,7 +77,7 @@ metadata:
   name: {{ $app }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   clusterRef: {name: {{ $o.cluster.name }}, namespace: {{ $o.cluster.namespace }}}
   name: {{ $app }}

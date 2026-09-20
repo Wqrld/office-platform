@@ -1,4 +1,4 @@
-# Release 3 of 3: the surround. One HTTPRoute for signaling, one LoadBalancer for media.
+# LiveKit's surround: one HTTPRoute for signaling, one LoadBalancer for media.
 #
 # THE ONE LOADBALANCER THAT IS NOT THE GATEWAY. Everything else on this platform enters
 # through Envoy on ${GATEWAY_IP}; WebRTC cannot — media is UDP, ICE needs the address it
@@ -10,7 +10,7 @@
 # This Service is written by hand rather than by the chart because the chart's own
 # LoadBalancer modes are cloud-specific (aws/gke/do) and put the http port on it too;
 # `loadBalancer.type: disable` in release.yaml leaves a ClusterIP Service for the route
-# and this file adds the media one. `extraObjects` is the escape hatch (05-app-contract.md
+# and this file adds the media one. `extraObjects` is the escape hatch (history/design/05-app-contract.md
 # tier 3); what would remove it is a `loadBalancer.type: generic` upstream.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -60,13 +60,10 @@ spec:
             - {name: rtc-udp, port: 7882, targetPort: 7882, protocol: UDP}
             - {name: turn-udp, port: 3478, targetPort: 3478, protocol: UDP}
 
-    # Emitted, NOT enforced — Flannel ships no policy controller (adr/0103). `cache` is
-    # the Valkey broker; `external: 443` is the webhook to Meet's backend, which goes out
-    # through the Gateway (secrets.yaml says why).
+    # `cache` is the Valkey broker; `external: 443` is the webhook to Meet's backend, which
+    # goes out through the Gateway (secrets.yaml says why).
     networkPolicy:
-      enabled: true
       egress:
         - {datastore: cache}
         - {external: true, port: 443}
 
-    pdb: {enabled: false}

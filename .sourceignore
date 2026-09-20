@@ -1,6 +1,6 @@
-# Kept out of the Flux OCI artifact: these run in CI or are published separately, never
-# read from inside the cluster. Everything the cluster reads lives in infra/, platform/ and
-# apps/.
+# Kept out of the Flux OCI artifact: what runs in CI, is published separately, or is run
+# by hand from a checkout. The cluster reads infra/, platform/ and apps/, minus the
+# operator scripts and test fixtures listed at the end.
 /.github/
 /updatecli/
 # The checks themselves, and the rules they run. Rendering, diffing, the binding check and
@@ -18,3 +18,11 @@
 /dns.py
 /.charts/
 /built/
+# Run by hand from a checkout, or read by nothing.
+**/README.md
+/apps/drive/e2e.py
+/apps/drive/sample.odt
+/apps/*/check-secrets.sh
+/platform/identity/add-client.sh
+/platform/identity/set-smtp.sh
+/platform/identity/vendor/keycloak-operator/update.sh

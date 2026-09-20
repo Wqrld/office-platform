@@ -14,12 +14,12 @@ import rego.v1
 
 # --- tenant -----------------------------------------------------------------------------
 # `tenant` is one of only two handles that reach a resource an upstream chart generates
-# (adr/0008). If it stops landing in part-of, "select the whole platform in one query"
+# (history/design/adr/0008). If it stops landing in part-of, "select the whole platform in one query"
 # quietly stops being true.
 
 selectable_kinds := {
 	"HTTPRoute", "BackendTrafficPolicy", "NetworkPolicy", "PodDisruptionBudget",
-	"Deployment", "Service", "ServiceMonitor", "ExternalSecret",
+	"Deployment", "Service", "ExternalSecret",
 }
 
 deny contains msg if {

@@ -1,0 +1,21 @@
+{{- range $app, $t := .Values.apps }}{{ if $t.oidc }}
+---
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-{{ $app }}
+  namespace: {{ $.Values.namespaces.identity }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-{{ $app }}
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ `{{ .password }}` }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: {{ $.Values.passwordGenerator }}}}
+{{- end }}{{ end }}

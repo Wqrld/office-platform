@@ -1,6 +1,6 @@
 # 0102 — Pod Security Admission first; Kyverno deferred
 
-**Status:** accepted · **Date:** 2026-09-02 · **Amends:** design set `adr/0013`
+**Status:** accepted · **Date:** 2026-09-02 · **Amends:** design set `adr/0102`
 
 ## Context
 The design set makes Kyverno the invariant layer from M1: mutate the portable half of the
@@ -12,7 +12,7 @@ namespace. No Kyverno yet.
 
 ## Reasoning
 `enforce: restricted` rejects most upstream images unless something mutates their security
-context first — which is precisely the mutation `adr/0013` warns breaks a fresh bootstrap
+context first — which is precisely the mutation `adr/0102` warns breaks a fresh bootstrap
 when applied cluster-wide to Keycloak, CNPG, Garage and DINUM's images.
 
 Auditing `restricted` produces exactly the evidence needed: a list of which real pods fail

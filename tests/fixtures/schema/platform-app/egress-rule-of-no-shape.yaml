@@ -1,0 +1,9 @@
+# expect: oneOf
+# `identity: false` is not a rule, and a datastore rule ignores `port`; either used to
+# render silently as nothing.
+app: noshape
+baseDomain: example.test
+networkPolicy:
+  enabled: true
+  egress:
+    - {identity: false}

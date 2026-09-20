@@ -12,6 +12,7 @@ resources:
   - gateway/traffic.yaml
   - secrets/generator.yaml
   - secrets/stores.yaml
+  - tenants.yaml
   - secrets/valkey-users.yaml
   - secrets/database-users.yaml
   - secrets/opensearch-users.yaml
@@ -24,8 +25,31 @@ resources:
   - opensearch/cluster.yaml
   # objectstore/ is its own layer — see objectstore/kustomization.yaml
   - identity/namespace.yaml
-  - identity/vendor/keycloak-operator   # vendored upstream, pinned 26.7.3 — see its kustomization
+  - identity/vendor/keycloak-operator   # vendored upstream, pinned in its kustomization
   - identity/keycloak.yaml
   - identity/smtp.yaml               # the relay account, read in for realm.yaml's placeholders
   - identity/realm.yaml
-  # gateway/deferred/ is deliberately absent — see gateway/deferred/README.md
+
+# PHASE 1 OF THE HANDOVER TO platform-tenants (tenants.yaml). The per-app objects below are
+# claimed by that Helm release; without these labels Helm refuses them ("invalid ownership
+# metadata"), and without `prune: disabled` kustomize-controller would delete them — and
+# ESO their Secrets — before helm-controller re-created them. The next release deletes
+# secrets/database-users.yaml, secrets/valkey-users.yaml, postgres/databases.yaml, the
+# oidc-client-* ExternalSecrets in identity/keycloak.yaml and this block.
+patches:
+  - target: {kind: ExternalSecret, namespace: office-data, name: "(docs|drive|find|calendars|meet|keycloak)-db|valkey-.*"}
+    patch: |
+      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
+      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
+  - target: {kind: ExternalSecret, namespace: office-identity, name: "oidc-client-.*"}
+    patch: |
+      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
+      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
+  - target: {kind: Database}
+    patch: |
+      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
+      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
+  - target: {kind: DatabaseRole}
+    patch: |
+      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
+      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}

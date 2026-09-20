@@ -11,25 +11,6 @@
 #   2. ${NAME} is also Flux's postBuild substitution syntax, so Flux would blank it before
 #      Keycloak ever saw it. `$${NAME}` escapes it: Flux emits a literal ${NAME} and still
 #      substitutes ${BASE_DOMAIN} elsewhere in this same file.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: realm-user-passwords, namespace: office-identity}
-spec:
-  # Generate once. Rotating these under a logged-in user would look like an outage.
-  refreshInterval: "0"
-  target: {name: realm-user-passwords, creationPolicy: Owner}
-  dataFrom:
-    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
-      rewrite: [{regexp: {source: "password", target: "l.f.haaijer"}}]
-    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
-      rewrite: [{regexp: {source: "password", target: "k.e.roelofs"}}]
-    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
-      rewrite: [{regexp: {source: "password", target: "o.adams"}}]
-    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
-      rewrite: [{regexp: {source: "password", target: "r.i.rupert"}}]
-    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
-      rewrite: [{regexp: {source: "password", target: "s.molinagarcia"}}]
----
 apiVersion: k8s.keycloak.org/v2beta1
 kind: KeycloakRealmImport
 metadata:
@@ -43,11 +24,6 @@ spec:
     CLIENT_SECRET_FIND:  {secret: {name: oidc-client-find, key: secret}}
     CLIENT_SECRET_CALENDARS: {secret: {name: oidc-client-calendars, key: secret}}
     CLIENT_SECRET_MEET:  {secret: {name: oidc-client-meet, key: secret}}
-    PW_LFHAAIJER:      {secret: {name: realm-user-passwords, key: l.f.haaijer}}
-    PW_KEROELOFS:      {secret: {name: realm-user-passwords, key: k.e.roelofs}}
-    PW_OADAMS:         {secret: {name: realm-user-passwords, key: o.adams}}
-    PW_RIRUPERT:       {secret: {name: realm-user-passwords, key: r.i.rupert}}
-    PW_SMOLINAGARCIA:  {secret: {name: realm-user-passwords, key: s.molinagarcia}}
     # The relay account, read into this namespace by smtp.yaml. Placeholders are the only
     # way a secret reaches the realm, and smtpServer is a map of STRINGS in the CRD — hence
     # the TLS flags travelling as "true"/"false" rather than as booleans.
@@ -266,54 +242,3 @@ spec:
         implicitFlowEnabled: false
         directAccessGrantsEnabled: false
         serviceAccountsEnabled: false
-    # These emails are load-bearing: the restored Docs database identifies users by
-    # `sub` first and falls back to email, so an email that does not match here orphans
-    # that user's documents. Taken from `select email from impress_user`.
-    # `realmRoles` is NOT optional here. A realm import takes the user representation
-    # literally: no `realmRoles` key means no roles at all, not "the realm defaults".
-    # Only users created through registration or the admin API get `default-roles-<realm>`
-    # applied for them. Without it a user's access token carries no `aud: account` and an
-    # empty `resource_access`, so every Account Console REST call 401s and the console
-    # renders "Something went wrong". Docs still logs in, because it reads the ID token and
-    # never looks at roles — which is exactly why this stayed invisible.
-    users:
-      - username: l.f.haaijer
-        email: l.f.haaijer@student.utwente.nl
-        firstName: Luc
-        lastName: Haaijer
-        emailVerified: true
-        enabled: true
-        realmRoles: [default-roles-office]
-        credentials: [{type: password, value: "$${PW_LFHAAIJER}", temporary: false}]
-      - username: k.e.roelofs
-        email: k.e.roelofs@student.utwente.nl
-        firstName: Karsten
-        lastName: Roelofs
-        emailVerified: true
-        enabled: true
-        realmRoles: [default-roles-office]
-        credentials: [{type: password, value: "$${PW_KEROELOFS}", temporary: false}]
-      - username: o.adams
-        email: o.adams@student.utwente.nl
-        firstName: Olaf
-        lastName: Adams
-        emailVerified: true
-        enabled: true
-        realmRoles: [default-roles-office]
-        credentials: [{type: password, value: "$${PW_OADAMS}", temporary: false}]
-      - username: r.i.rupert
-        email: r.i.rupert@student.utwente.nl
-        firstName: Ruud
-        lastName: Rupert
-        emailVerified: true
-        enabled: true
-        realmRoles: [default-roles-office]
-        credentials: [{type: password, value: "$${PW_RIRUPERT}", temporary: false}]
-      - username: s.molinagarcia
-        email: s.molinagarcia@student.utwente.nl
-        firstName: Sergio
-        lastName: Molina Garcia
-        emailVerified: true
-        enabled: true
-        realmRoles: [default-roles-office]
-        credentials: [{type: password, value: "$${PW_SMOLINAGARCIA}", temporary: false}]

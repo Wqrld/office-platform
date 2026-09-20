@@ -1,9 +1,12 @@
-{{- $app := include "platform.app.name" . }}
+{{- $app := include "platform.app" . }}
 {{- range $route := .Values.routes }}
 {{- $name := include "platform.app.routeName" (list $app $route) }}
 {{- if or $route.requestBuffer $route.timeout $route.websocket }}
 {{- if and $route.websocket $route.requestBuffer }}
 {{- fail (printf "route %q sets both websocket and requestBuffer. Buffering a request that never ends is how you break a websocket — an editing session is one request that legitimately lasts all day." $name) }}
+{{- end }}
+{{- if and $route.websocket $route.timeout }}
+{{- fail (printf "route %q sets both websocket and timeout: a websocket has no request timeout, only websocketIdleTimeout" $name) }}
 {{- end }}
 ---
 # Body size and timeouts, the Gateway API way. `requestBuffer` makes Envoy hold the whole
@@ -16,7 +19,7 @@ metadata:
   name: {{ $name }}
   namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list $) | nindent 4 }}
+    {{- include "platform.labels" $ | nindent 4 }}
 spec:
   targetRefs:
     - {group: gateway.networking.k8s.io, kind: HTTPRoute, name: {{ $name }}}
@@ -24,13 +27,15 @@ spec:
   requestBuffer:
     limit: {{ $route.requestBuffer }}
   {{- end }}
+  {{- if $route.websocket }}
   timeout:
     http:
-      {{- if $route.websocket }}
       requestTimeout: 0s
       connectionIdleTimeout: {{ $.Values.websocketIdleTimeout }}
-      {{- else }}
+  {{- else if $route.timeout }}
+  timeout:
+    http:
       requestTimeout: {{ $route.timeout }}
-      {{- end }}
+  {{- end }}
 {{- end }}
 {{- end }}

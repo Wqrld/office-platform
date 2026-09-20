@@ -17,7 +17,7 @@ spec:
 # The `docs` OIDC client secret. Generated here, in Keycloak's namespace, and read by
 # BOTH sides: the realm import substitutes it into the client definition, and Docs reads
 # it back through the `office-identity` ClusterSecretStore. Neither side holds the value
-# in git — 07-identity-and-secrets.md, "One name, two consumers".
+# in git — history/design/07-identity-and-secrets.md, "One name, two consumers".
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: oidc-client-docs, namespace: office-identity}
@@ -139,7 +139,7 @@ spec:
     # the internal Service URL and answers with URLs derived from the request, while
     # still advertising the external host to browsers. Without it, an app doing its token
     # exchange against http://keycloak-service:8080 gets rejected, and the failure looks
-    # exactly like a wrong client secret. (08-app-inventory.md, "Upstream gotchas")
+    # exactly like a wrong client secret. (docs/app-inventory.md, "Upstream gotchas")
     backchannelDynamic: true
   http:
     # TLS terminates at the shared Gateway; the hop from Envoy to Keycloak is in-cluster.
@@ -152,9 +152,10 @@ spec:
     # Routing is ours: an HTTPRoute on the shared Gateway, below.
     enabled: false
   bootstrapAdmin:
-    # Only consulted the first time a Keycloak is created against an empty database. On
-    # THIS cluster the CR landed before this stanza did, so the live admin credential is
-    # the operator-generated `keycloak-initial-admin` Secret, not this one.
+    # Only consulted the first time a Keycloak is created against an empty database —
+    # which is the credential add-client.sh and set-smtp.sh read. A Keycloak created
+    # before this stanza existed has the operator-generated `keycloak-initial-admin`
+    # instead; none of ours is that old.
     user: {secret: keycloak-bootstrap-admin}
   networkPolicy:
     # This cluster's CNI enforces nothing (adr/0103). An operator-managed policy here

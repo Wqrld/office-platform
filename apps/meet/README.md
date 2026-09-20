@@ -13,7 +13,6 @@
 | `whisperx.yaml` | the STT API: PVC for models, Deployment, Service |
 | `surround.yaml` | routes and the (unenforced) egress policy |
 | `default.conf` | the frontend nginx config, upstream's plus the switcher injection |
-| `check-secrets.sh` | asserts which workloads get which Secrets; run after a chart bump |
 
 The switcher script itself is `apps/switcher.js`, shared with Drive.
 
@@ -66,7 +65,7 @@ in a call there is no header and the button falls back to a fixed position.
 
 ```sh
 kubectl -n office-meet get pods                         # backend, frontend, summary, celery-transcribe-default, celery-summary-backend, whisperx Running; 4 at 0 replicas
-./apps/meet/check-secrets.sh                            # after a chart bump
+./tests/check-secrets.py meet                           # after a chart bump
 kubectl -n office-meet logs deploy/meet-whisperx | tail  # "Uvicorn running" after the model loads
 ```
 End to end: sign in at `https://meet.${BASE_DOMAIN}`, start a meeting, start a transcript,

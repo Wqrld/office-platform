@@ -10,7 +10,7 @@ protects zero pods while looking exactly like protection.
 
 So this renders each profile the way the cluster would — Flux builds each app and the
 platform layer with the profile as a component, then `helm template` every HelmRelease
-against its pinned chart — and asserts the four invariants from 10-verification.md:
+against its pinned chart — and asserts the four invariants from history/design/10-verification.md:
 
   * `replicas > 1` implies a PodDisruptionBudget that actually selects those pods;
   * `replicas == 1` implies NO PodDisruptionBudget selects them (the small profile is the
@@ -29,23 +29,17 @@ in a demo. And every patch target in every profile must match an object that exi
 the profile is applied per app, a typo'd target is a silent no-op in every one of them,
 and nothing but this notices.
 
-Chart resolution is imported from binding.py rather than copied: the pins are read from the
-rendered control plane and one reader of them is enough. Needs network, like the binding
-check, for the same reason.
+Needs network, like the binding check: the pinned upstream charts are rendered.
 """
 from __future__ import annotations
 
 import argparse
 import pathlib
-import shutil
-import subprocess
 import sys
-import tempfile
 
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import binding  # noqa: E402  — the chart-resolution half of this check already exists there
 import render  # noqa: E402
 
 HERE = render.ROOT
@@ -56,31 +50,16 @@ INSTANCE_KINDS = {"Cluster", "Keycloak"}
 HA_SIZE = "large"
 
 
-def render_releases(docs: list[dict], srcs: dict, work: pathlib.Path, variables: dict,
-                    problems: list[str]) -> list[dict]:
+def render_releases(docs: list[dict], srcs: dict, problems: list[str]) -> list[dict]:
     """Every HelmRelease in `docs`, rendered. Non-release objects are passed through."""
     rendered = [d for d in docs if d.get("kind") != "HelmRelease"]
     for rel in [d for d in docs if d.get("kind") == "HelmRelease"]:
         name, ns = rel["metadata"]["name"], rel["metadata"]["namespace"]
-        values = render.substitute(rel["spec"].get("values") or {}, variables)
-        chart = binding.local_chart(rel)
-        if chart is None and rel["spec"].get("chartRef"):
-            problems.append(f"{ns}/{name}: chartRef did not resolve under charts/")
-            continue
-        if chart is None:
-            try:
-                chart = binding.fetch_upstream(rel, srcs, work)
-            except Exception as e:                                   # noqa: BLE001
-                problems.append(f"{ns}/{name}: {e}")
-                continue
-        if chart is None:
-            problems.append(f"{ns}/{name}: neither chart nor chartRef")
-            continue
-        if binding.local_chart(rel) and not (pathlib.Path(chart) / "charts").exists():
-            subprocess.run(["helm", "dependency", "build", chart],
-                           check=True, capture_output=True, text=True)
         try:
-            out = binding.helm_template(chart, name, ns, values)
+            chart = render.chart_for(rel, srcs)
+            if chart is None:
+                raise RuntimeError("chartRef did not resolve under charts/")
+            out = render.helm_template(chart, name, ns, rel["spec"].get("values") or {})
         except RuntimeError as e:
             problems.append(f"{ns}/{name}: {e}")
             continue
@@ -95,9 +74,15 @@ def render_releases(docs: list[dict], srcs: dict, work: pathlib.Path, variables:
 
 def selects(selector: dict, labels: dict) -> bool:
     match = (selector or {}).get("matchLabels") or {}
-    if not match and not (selector or {}).get("matchExpressions"):
+    exprs = (selector or {}).get("matchExpressions") or []
+    if not match and not exprs:
         return False        # an empty selector matches every pod in the namespace
-    return all(labels.get(k) == v for k, v in match.items())
+    ops = {"In": lambda k, v: labels.get(k) in v,
+           "NotIn": lambda k, v: labels.get(k) not in v,
+           "Exists": lambda k, v: k in labels,
+           "DoesNotExist": lambda k, v: k not in labels}
+    return (all(labels.get(k) == v for k, v in match.items())
+            and all(ops[e["operator"]](e["key"], e.get("values", [])) for e in exprs))
 
 
 def sets_resources(node) -> bool:
@@ -155,13 +140,13 @@ def every_target_matches(size: str, objects: list[dict]) -> list[str]:
     return problems
 
 
-def check(size: str, srcs: dict, work: pathlib.Path, variables: dict) -> tuple[list[str], dict]:
+def check(size: str, srcs: dict) -> tuple[list[str], dict]:
     problems: list[str] = []
 
     raw_apps, raw_platform = render.apps(size), render.platform(size)
     problems += every_target_matches(size, raw_apps + raw_platform)
-    apps = render_releases(render.substitute(raw_apps, variables), srcs, work, variables, problems)
-    platform = render_releases(render.substitute(raw_platform, variables), srcs, work, variables, problems)
+    apps = render_releases(raw_apps, srcs, problems)
+    platform = render_releases(raw_platform, srcs, problems)
 
     workloads = [d for d in apps if d.get("kind") in WORKLOAD_KINDS]
     pdbs = [d for d in apps if d.get("kind") == "PodDisruptionBudget"]
@@ -237,21 +222,16 @@ def main() -> int:
     args = ap.parse_args()
 
     sizes = args.sizes or list(render.SIZES)
-    srcs = binding.sources()
-    variables = binding.variables()
-    work = pathlib.Path(tempfile.mkdtemp(prefix="profiles-"))
+    srcs = render.sources()
     problems: list[str] = []
     garages: dict[str, dict] = {}
 
-    try:
-        print("== rendering each profile")
-        for size in sizes:
-            found, garage = check(size, srcs, work, variables)
-            problems += found
-            garages[size] = garage
-        problems += small_profile_covers_every_app()
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    print("== rendering each profile")
+    for size in sizes:
+        found, garage = check(size, srcs)
+        problems += found
+        garages[size] = garage
+    problems += small_profile_covers_every_app()
 
     # Garage's replication factor cannot be changed in place: raising it is a rebuild of the
     # cluster, not a profile patch. A profile that appears to raise it promises a redundancy

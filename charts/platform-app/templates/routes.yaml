@@ -1,4 +1,4 @@
-{{- $app := include "platform.app.name" . }}
+{{- $app := include "platform.app" . }}
 {{- $base := .Values.baseDomain }}
 {{- range $route := .Values.routes }}
 {{- $name := include "platform.app.routeName" (list $app $route) }}
@@ -21,7 +21,7 @@ metadata:
   name: {{ $name }}
   namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list $) | nindent 4 }}
+    {{- include "platform.labels" $ | nindent 4 }}
 spec:
   parentRefs:
     - name: {{ $.Values.gateway.name }}
@@ -58,7 +58,7 @@ metadata:
   name: {{ $name }}-deny
   namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list $) | nindent 4 }}
+    {{- include "platform.labels" $ | nindent 4 }}
 spec:
   directResponse:
     statusCode: 403

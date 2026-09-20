@@ -13,7 +13,6 @@ sources:
         pattern: ">=1.31.0"
 
 targets:
-  # Anchored to the repository URL, like docs.yaml — sources.yaml holds every git-tag pin.
   chart:
     name: "GitRepository tag"
     kind: file
@@ -31,5 +30,5 @@ targets:
     sourceid: meet
     spec:
       file: "apps/meet/release.yaml"
-      matchpattern: 'tag: v[0-9]+\.[0-9]+\.[0-9]+'
-      replacepattern: 'tag: {{ source "meet" }}'
+      matchpattern: '(image: \{tag: |image:\n(?:[ \t]*#.*\n)*[ \t]+tag: )v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: '${1}{{ source "meet" }}'

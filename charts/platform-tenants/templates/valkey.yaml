@@ -1,0 +1,68 @@
+{{- /*
+Passwords are GENERATED one app at a time and ASSEMBLED into the one Secret per instance
+the Valkey chart wants (`usersExistingSecret`). A generate-once ExternalSecret cannot gain
+a key, so the generators never change shape and only the assemblers, which read, do.
+*/ -}}
+{{- $legacy := .Values.legacyValkeyUsers }}
+{{- range $inst := list "cache" "broker" }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-{{ $inst }}-users
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-{{ $inst }}-users, creationPolicy: Owner}
+  dataFrom:
+    {{- range concat (list "default") $legacy }}
+    {{- include "tenants.draw" (list $ .) | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- range $app, $t := .Values.apps }}{{ if and $t.cache (not (has $app $legacy)) }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-user-{{ $app }}
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-{{ $app }}, creationPolicy: Owner}
+  dataFrom:
+    {{- range $t.cache }}
+    {{- include "tenants.draw" (list $ .) | nindent 4 }}
+    {{- end }}
+{{- end }}{{ end }}
+{{- range $inst := list "cache" "broker" }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: valkey-{{ $inst }}-acl
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: {{ $.Values.namespaces.data }}}
+  target:
+    name: valkey-{{ $inst }}-acl
+    creationPolicy: Owner
+    template:
+      data:
+        default: "{{ `{{ .default }}` }}"
+        {{- range $app, $t := $.Values.apps }}{{ if has $inst $t.cache }}
+        {{ $app }}: "{{ printf "{{ .%s }}" $app }}"
+        {{- end }}{{ end }}
+  data:
+    - {secretKey: default, remoteRef: {key: valkey-{{ $inst }}-users, property: default}}
+    {{- range $app, $t := $.Values.apps }}{{ if has $inst $t.cache }}
+    {{- if has $app $legacy }}
+    - {secretKey: {{ $app }}, remoteRef: {key: valkey-{{ $inst }}-users, property: {{ $app }}}}
+    {{- else }}
+    - {secretKey: {{ $app }}, remoteRef: {key: valkey-user-{{ $app }}, property: {{ $inst }}}}
+    {{- end }}
+    {{- end }}{{ end }}
+{{- end }}

@@ -1,11 +1,11 @@
 # 0110 — the object store is published, scoped to one bucket
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `06-datastores.md`
+**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `history/design/06-datastores.md`
 
 ## Context
 Docs never exposes the object store. Attachments are *downloaded* through our media proxy,
 which signs server-side and talks to Garage over cluster DNS, and uploads go through Django.
-Garage has no public address and does not need one. `06-datastores.md` states that as a
+Garage has no public address and does not need one. `history/design/06-datastores.md` states that as a
 property of the platform.
 
 Drive uploads differently. `core/api/utils.generate_upload_policy` returns a **presigned PUT

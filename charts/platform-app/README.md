@@ -1,7 +1,7 @@
 # platform-app
 
 The surround. It creates everything *around* what an upstream chart's release created
-(`docs/design/04-platform-charts.md`). It creates almost nothing that runs — the one
+(`docs/history/design/04-platform-charts.md`). It creates almost nothing that runs — the one
 exception is the media proxy, which is a route's backend rather than part of the
 application; `docs/adr/0109` argues that case.
 
@@ -13,7 +13,6 @@ application; `docs/adr/0109` argues that case.
 | `BackendTrafficPolicy` | **Real.** Body limits and timeouts; HTTPRoute cannot express either. |
 | `PodDisruptionBudget` | Real when replicas > 1. Off at the `small` profile, where it could only block drains. |
 | `NetworkPolicy` | **Emitted, NOT enforced.** Flannel ships no policy controller — `docs/adr/0103`. |
-| `ServiceMonitor` | **Off by default.** The CRDs exist; the Prometheus operator does not. |
 | `HTTPRouteFilter` | **Real.** A 403 at the edge for `routes[].deny`. |
 | media proxy | **Real, and it runs.** Off unless `mediaProxy.enabled` — `docs/adr/0109`. |
 
@@ -102,7 +101,6 @@ recreated.
 ## What it cannot know
 
 The upstream release's replica count lives in another release's values, so `pdb.enabled` is
-set by the size profile alongside replicas rather than inferred. The `pdb.components` and
-`metrics.components` selectors are stated explicitly because an upstream chart's Service
+set by the size profile alongside replicas rather than inferred. The `pdb.components` selectors are stated explicitly because an upstream chart's Service
 names are not derivable from its component labels — that is the price of attaching to a
 chart we do not own.

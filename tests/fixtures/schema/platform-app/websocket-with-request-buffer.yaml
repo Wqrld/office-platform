@@ -1,4 +1,4 @@
-# expect: at '/routes/0'
+# expect: at '/routes/0': 'not' failed
 # Buffering a request that never ends is how you break a websocket. The template also fails
 # on this pair; the schema fails on it before anything renders, which is where the author is.
 app: ws

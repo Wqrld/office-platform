@@ -30,6 +30,7 @@ A hostname in a file no kustomization lists does not appear, because it would no
 served either.
 """
 import argparse
+import atexit
 import pathlib
 import re
 import socket
@@ -52,6 +53,7 @@ def values_file(path):
         return path
     f = tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False)
     yaml.safe_dump(release["spec"].get("values") or {}, f)
+    atexit.register(pathlib.Path(f.name).unlink)
     return pathlib.Path(f.name)
 
 

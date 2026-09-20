@@ -1,4 +1,4 @@
-# Release 3 of 3: the surround.
+# Collabora's surround.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: collabora-platform, namespace: office-collabora}
@@ -24,12 +24,8 @@ spec:
           - /cool/adminws
           - /cool/getMetrics
 
-    # Emitted, NOT enforced — Flannel has no policy controller (adr/0103). Do not cite it
-    # as segmentation.
     networkPolicy:
-      enabled: true
       egress:
         # Drive, at its PUBLIC name — that is the WOPISrc Drive signs into the token.
         - {external: true, port: 443}
 
-    pdb: {enabled: false}

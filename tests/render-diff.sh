@@ -47,7 +47,7 @@ echo
 git -C "$HERE" worktree add --detach "$WORK/base" "$BASE_SHA" >/dev/null 2>&1 || {
   echo "render-diff: could not check out $BASE_SHA; nothing to compare"; exit 0; }
 mkdir -p "$WORK/base/tests"
-cp "$HERE/tests/build.py" "$HERE/tests/render.py" "$WORK/base/tests/"
+cp "$HERE"/tests/*.py "$WORK/base/tests/"
 
 # The base is allowed to fail to build — it might predate a layer this commit adds — and
 # that is reported rather than treated as this change's fault.

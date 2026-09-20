@@ -3,7 +3,7 @@
 
     ./tests/binding.py [app ...]        default: every app under apps/
 
-This is the test 10-verification.md calls "the test this architecture needs and a
+This is the test history/design/10-verification.md calls "the test this architecture needs and a
 chart-per-app architecture did not", and it is the one that pays for adr/0012.
 
 The gap it closes: our surround SELECTS INTO workloads that a different release created.
@@ -22,185 +22,43 @@ So this one renders the upstream release and the surround release TOGETHER and a
     left enabled is a second, unauthenticated way in.
 
 Upstream charts come from the pins the control plane renders (charts/control-plane/templates/
-sources.yaml) — a git tag for La Suite (adr/0104) or a chart repository for Collabora — so
-this checks the version that is actually deployed, not whatever is current.
-
-Needs network: it fetches the pinned upstream charts. That makes it a PR check, not a
-pre-commit hook.
+sources.yaml), so this checks the version that is actually deployed. Needs network.
 """
 from __future__ import annotations
 
 import argparse
 import pathlib
-import shutil
-import subprocess
 import sys
-import tempfile
-
-import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
-
-HERE = render.ROOT
-PROD = render.CASES / "cluster-prod.yaml"
 
 # Kinds the surround owns. Two objects of these selecting the same pods is the failure.
 SURROUND_OWNED = {"PodDisruptionBudget", "ServiceMonitor", "HorizontalPodAutoscaler", "NetworkPolicy"}
 
 
-def load_all(path: pathlib.Path) -> list[dict]:
-    with open(path) as f:
-        return [d for d in yaml.safe_load_all(f) if d]
-
-
-def docs_in(text: str) -> list[dict]:
-    return [d for d in yaml.safe_load_all(text) if d]
-
-
-def sources() -> dict[str, dict]:
-    """name -> source object, as the control plane renders them for prod."""
-    return {d["metadata"]["name"]: d for d in render.control_plane(PROD)
-            if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
-
-
-def variables() -> dict[str, str]:
-    """prod's cluster-vars, as the control plane renders them."""
-    return next(d["data"] for d in render.control_plane(PROD)
-                if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
-
-
-substitute = render.substitute
-
-
-def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[str] | None = None) -> list[dict]:
-    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-        yaml.safe_dump(values, f)
-        vf = f.name
-    cmd = ["helm", "template", release, chart, "--namespace", ns,
-           "--kube-version", "1.34.2", "--values", vf, *(extra or [])]
-    out = subprocess.run(cmd, capture_output=True, text=True)
-    pathlib.Path(vf).unlink()
-    if out.returncode != 0:
-        raise RuntimeError(f"helm template failed for {release}:\n{out.stderr}")
-    return docs_in(out.stdout)
-
-
-def git_checkout(url: str, ref: dict, dest: pathlib.Path) -> None:
-    """Shallow-checkout a GitRepository ref, which may be a tag OR a bare commit.
-
-    `--branch` takes a branch or a tag and rejects a SHA, so a commit pin needs the
-    fetch-then-checkout form. Find is pinned that way because upstream has never cut a
-    release — see apps/find/README.md.
-    """
-    if tag := ref.get("tag"):
-        subprocess.run(["git", "clone", "--depth", "1", "--branch", tag, "--quiet", url, str(dest)],
-                       check=True, capture_output=True, text=True)
-        return
-
-    commit = ref["commit"]
-    dest.mkdir(parents=True)
-    for cmd in (["git", "init", "--quiet"],
-                ["git", "remote", "add", "origin", url],
-                ["git", "fetch", "--depth", "1", "--quiet", "origin", commit],
-                ["git", "checkout", "--quiet", "FETCH_HEAD"]):
-        subprocess.run(cmd, cwd=dest, check=True, capture_output=True, text=True)
-
-
-def fetch_upstream(rel: dict, srcs: dict, work: pathlib.Path) -> str | None:
-    """Return a local chart path for a HelmRelease's chart, fetching the pinned version."""
-    spec = rel["spec"]
-    if "chart" not in spec:
-        return None                       # chartRef — one of ours, rendered from the repo
-    cs = spec["chart"]["spec"]
-    src = srcs.get(cs["sourceRef"]["name"])
-    if src is None:
-        raise RuntimeError(f"{rel['metadata']['name']}: no source {cs['sourceRef']['name']}")
-
-    if src["kind"] == "GitRepository":
-        ref = src["spec"]["ref"]
-        dest = work / src["metadata"]["name"]
-        if not dest.exists():
-            git_checkout(src["spec"]["url"], ref, dest)
-        return str(dest / cs["chart"])
-
-    if src["kind"] == "HelmRepository":
-        dest = work / f"repo-{src['metadata']['name']}" / cs["version"]
-        # `helm pull --untar` refuses to overwrite, so a second caller for the same chart
-        # fails with "file already exists" — which reads like a broken pin rather than a
-        # cache hit. The version is in the path because the cache outlives one release.
-        if not (dest / cs["chart"]).is_dir():
-            dest.mkdir(parents=True, exist_ok=True)
-            out = subprocess.run(
-                ["helm", "pull", cs["chart"], "--repo", src["spec"]["url"],
-                 "--version", cs["version"], "--untar", "--untardir", str(dest)],
-                capture_output=True, text=True,
-            )
-            if out.returncode != 0:
-                raise RuntimeError(
-                    f"helm pull {cs['chart']} {cs['version']} from {src['spec']['url']}: {out.stderr.strip()}")
-        return str(dest / cs["chart"])
-
-    raise RuntimeError(f"unsupported source kind {src['kind']}")
-
-
-def local_chart(rel: dict) -> str | None:
-    """Our own charts, rendered from charts/ rather than pulled from the registry."""
-    ref = rel["spec"].get("chartRef")
-    if not ref:
-        return None
-    p = HERE / "charts" / ref["name"]
-    return str(p) if p.is_dir() else None
-
-
-def check_app(app_dir: pathlib.Path, srcs: dict, work: pathlib.Path, variables: dict) -> list[str]:
+def check_app(app: str, srcs: dict) -> list[str]:
+    """The app as the cluster builds it (profile and substitution included), every
+    HelmRelease rendered against its chart."""
     problems: list[str] = []
-    app = app_dir.name
-
-    releases: list[dict] = []
-    for f in sorted(app_dir.glob("*.yaml")):
-        for d in load_all(f):
-            if d.get("kind") == "HelmRelease":
-                releases.append(d)
-
+    docs = render.apps("medium", [app])
     upstream: list[dict] = []
     surround: list[dict] = []
-    # Objects the app dir declares directly — Docs' hand-written media proxy is one, until
-    # it moves onto platform-app's mediaProxy (adr/0109).
-    plain: list[dict] = []
-    for f in sorted(app_dir.glob("*.yaml")):
-        for d in load_all(f):
-            if d.get("kind") not in {"HelmRelease", "Kustomization"}:
-                plain.append(d)
+    plain = [d for d in docs if d.get("kind") not in {"HelmRelease", "Kustomization"}]
 
-    for rel in releases:
-        name = rel["metadata"]["name"]
-        ns = rel["metadata"]["namespace"]
-        values = substitute(rel["spec"].get("values") or {}, variables)
-
-        chart = local_chart(rel)
-        if chart:
-            if not (pathlib.Path(chart) / "charts").exists():
-                subprocess.run(["helm", "dependency", "build", chart],
-                               check=True, capture_output=True, text=True)
-            surround += helm_template(chart, name, ns, values)
+    for rel in (d for d in docs if d.get("kind") == "HelmRelease"):
+        name, ns = rel["metadata"]["name"], rel["metadata"]["namespace"]
+        values = rel["spec"].get("values") or {}
+        try:
+            chart = render.chart_for(rel, srcs)
+        except RuntimeError as e:
+            problems.append(f"{app}/{name}: {e}")
             continue
-
-        if rel["spec"].get("chartRef"):
-            # A chartRef we could not resolve locally. Saying "no chart" here would be a
-            # lie that sends the reader looking in the wrong repo.
-            problems.append(
-                f"{app}/{name}: chartRef {rel['spec']['chartRef']['name']!r} did not resolve to a "
-                f"chart under charts/"
-            )
-            continue
-
-        chart = fetch_upstream(rel, srcs, work)
         if chart is None:
-            problems.append(f"{app}/{name}: neither chart nor chartRef")
+            problems.append(f"{app}/{name}: chartRef did not resolve to a chart under charts/")
             continue
         try:
-            upstream += helm_template(chart, name, ns, values)
+            (surround if render.local_chart(rel) else upstream).extend(render.helm_template(chart, name, ns, values))
         except RuntimeError as e:
             problems.append(f"{app}/{name}: {e}")
 
@@ -252,19 +110,11 @@ def main() -> int:
     ap.add_argument("apps", nargs="*")
     args = ap.parse_args()
 
-    srcs = sources()
-    vars_ = variables()
-    work = pathlib.Path(tempfile.mkdtemp(prefix="binding-"))
+    srcs = render.sources()
     problems: list[str] = []
-
-    try:
-        dirs = [HERE / "apps" / a for a in args.apps] if args.apps else \
-               sorted(p for p in (HERE / "apps").iterdir() if p.is_dir() and (p / "release.yaml").exists())
-        print("== rendering upstream releases at their pinned versions")
-        for d in dirs:
-            problems += check_app(d, srcs, work, vars_)
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
+    print("== rendering upstream releases at their pinned versions")
+    for app in args.apps or [a for a in render.APPS if (render.ROOT / "apps" / a / "release.yaml").exists()]:
+        problems += check_app(app, srcs)
 
     print()
     if problems:

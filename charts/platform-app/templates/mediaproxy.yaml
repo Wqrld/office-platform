@@ -1,7 +1,3 @@
-{{- /* The nginx config as a named template, so the Deployment can hash the RENDERED file:
-       a template fix shipped in a chart bump must restart the proxy just as a values change
-       does (0.2.9's proxy_hide_header did not, and the old config ran until a restart by
-       hand). Top-level because `define` must be; the values come in through the dict. */ -}}
 {{- define "platform.mediaProxy.conf" -}}
 {{- $root := .root }}{{- $m := .m }}{{- $s3 := .s3 -}}
 server {
@@ -58,101 +54,20 @@ server {
 }
 {{- end }}
 {{- if .Values.mediaProxy.enabled }}
-{{- $app := include "platform.app.name" . }}
 {{- $m := .Values.mediaProxy }}
-{{- $name := printf "%s-media-proxy" $app }}
-{{- $selector := dict "app.kubernetes.io/name" $name }}
-{{/* The selector's own name wins: a Deployment selector is immutable and this one must
-     match the object Docs already runs, so that release can be adopted. */}}
-{{- $labels := mustMerge (deepCopy $selector) (include "platform.labels" (list .) | fromYaml) }}
+{{- $name := printf "%s-media-proxy" (include "platform.app" .) }}
 {{- $s3 := printf "%s:%d" $m.objectstore.host (int $m.objectstore.port) }}
-# The `/media` route's backend — adr/0109 for why a running pod lives in the surround.
-#
-# La Suite authorises an attachment by SUBREQUEST: ask the backend "may this session read
-# this key?", then replay the S3 authorization headers it answers with onto the bucket.
-# Envoy Gateway's extAuth cannot express it — `extAuth.http.path` is a prefix and Envoy
-# appends the original path, so the check 404s and denies everything.
-#
-# WHAT WOULD REMOVE THIS: media served through the application's own backend, or a fixed
-# (non-prefixed) ext-auth path in Envoy Gateway.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $name }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- toYaml $labels | nindent 4 }}
-  annotations:
-    # nginx configuration is full of $variables and Flux's postBuild substitution would
-    # expand every one of them to the empty string — $host, $request_uri and the
-    # auth_request_set values all vanish, and the proxy silently serves 403s.
-    kustomize.toolkit.fluxcd.io/substitute: disabled
-data:
-  default.conf: |
-{{ include "platform.mediaProxy.conf" (dict "root" $ "m" $m "s3" $s3) | indent 4 }}
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ $name }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- toYaml $labels | nindent 4 }}
-spec:
-  replicas: {{ $m.replicas }}
-  selector:
-    matchLabels:
-      {{- toYaml $selector | nindent 6 }}
-  template:
-    metadata:
-      annotations:
-        # nginx reads its config once at startup, so a ConfigMap change needs a restart.
-        checksum/config: {{ include "platform.mediaProxy.conf" (dict "root" $ "m" $m "s3" $s3) | sha256sum }}
-      labels:
-        {{- toYaml $selector | nindent 8 }}
-    spec:
-      priorityClassName: {{ $m.priorityClassName }}
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile: {type: RuntimeDefault}
-      containers:
-        - name: nginx
-          # Fully qualified: this cluster's CRI-O resolves a bare name against quay.io.
-          # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
-          image: {{ $m.image }}
-          ports:
-            - {name: http, containerPort: 8080}
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities: {drop: ["ALL"]}
-          resources:
-            {{- toYaml $m.resources | nindent 12 }}
-          readinessProbe:
-            httpGet: {path: /healthz, port: 8080}
-            initialDelaySeconds: 3
-          volumeMounts:
-            - {name: conf, mountPath: /etc/nginx/conf.d}
-            - {name: cache, mountPath: /var/cache/nginx}
-            - {name: run, mountPath: /var/run}
-            - {name: tmp, mountPath: /tmp}
-      volumes:
-        - name: conf
-          configMap: {name: {{ $name }}}
-        - {name: cache, emptyDir: {}}
-        - {name: run, emptyDir: {}}
-        - {name: tmp, emptyDir: {}}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ $name }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- toYaml $labels | nindent 4 }}
-spec:
-  selector:
-    {{- toYaml $selector | nindent 4 }}
-  ports:
-    - {name: http, port: 8080, targetPort: 8080}
+{{- /*
+The `/media` route's backend — adr/0109 for why a running pod lives in the surround.
+
+La Suite authorises an attachment by SUBREQUEST: ask the backend "may this session read
+this key?", then replay the S3 authorization headers it answers with onto the bucket.
+Envoy Gateway's extAuth cannot express it — `extAuth.http.path` is a prefix and Envoy
+appends the original path, so the check 404s and denies everything.
+
+WHAT WOULD REMOVE THIS: media served through the application's own backend, or a fixed
+(non-prefixed) ext-auth path in Envoy Gateway.
+*/}}
+{{ include "platform.nginx" (dict "root" . "name" $name "confName" $name "w" $m
+     "conf" (include "platform.mediaProxy.conf" (dict "root" $ "m" $m "s3" $s3))) }}
 {{- end }}

@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 """End-to-end check of Drive: OIDC login, upload, download, and a real editing session.
 
-    E2E_USER=l.f.haaijer \
-    E2E_PASSWORD=$(kubectl -n office-identity get secret realm-user-passwords \
-                     -o jsonpath='{.data.l\.f\.haaijer}' | base64 -d) \
-    ./e2e.py
+    DOMAIN=example.org E2E_USER=someone E2E_PASSWORD=... ./e2e.py
 
 It drives the real authorization-code flow (the client has no password grant), uploads
 through the presigned URL the way a browser does, reads the file back through the media
@@ -24,7 +21,7 @@ import uuid
 import requests
 from urllib.parse import quote, unquote
 
-DOMAIN = os.environ.get("DOMAIN", "haaijer.dev")
+DOMAIN = os.environ.get("DOMAIN") or sys.exit("DOMAIN is required: the cluster's public DNS suffix")
 DRIVE = f"https://drive.{DOMAIN}"
 USER = os.environ["E2E_USER"]
 PASSWORD = os.environ["E2E_PASSWORD"]
@@ -121,6 +118,7 @@ if w.status_code == 200:
 
     # Collabora fetches this from outside the cluster with the token Drive minted.
     src = re.search(r"WOPISrc=([^&]+)", launch)
+    check("launch URL carries a WOPISrc", bool(src), launch[:100])
     if src:
         info = requests.get(f"{unquote(src.group(1))}?access_token={wj['access_token']}", timeout=30)
         check("CheckFileInfo answers Collabora", info.status_code == 200, info.status_code)
@@ -130,9 +128,10 @@ if w.status_code == 200:
             fc = requests.get(f"{unquote(src.group(1))}/contents?access_token={wj['access_token']}", timeout=60)
             check("editor can fetch the file contents", fc.status_code == 200 and fc.content == body, f"{fc.status_code}, {len(fc.content)} bytes")
 
-    # --- the editing session itself -----------------------------------------
-    # Collabora puts the WOPI source, percent-encoded, INSIDE the websocket path. Envoy
-    # must not normalise it; if it does, this 307s instead of upgrading.
+# --- the editing session itself ---------------------------------------------
+# Collabora puts the WOPI source, percent-encoded, INSIDE the websocket path. Envoy
+# must not normalise it; if it does, this 307s instead of upgrading.
+if w.status_code == 200 and src:
     import base64, socket, ssl, time
     inner = quote(unquote(src.group(1)) + "?access_token=" + wj["access_token"], safe="")
     host = f"collabora.{DOMAIN}"

@@ -1,4 +1,4 @@
-# Every rendered case in one list. `tests/render.sh <case>` renders one; the golden,
+# Every rendered case in one list. `tests/render.py <case>` renders one; the golden,
 # policy and kubeconform checks all iterate this file, so a case added here is picked up
 # by all of them without touching a workflow.
 #
@@ -36,7 +36,7 @@ cases:
     description: >-
       The smallest selection the platform accepts on an organisation's own S3: Docs and
       Find, nothing that needs Garage, LiveKit or Collabora. Both acceptance criteria of
-      docs/design/12, asserted on every build.
+      docs/platform-org-split.md, asserted on every build.
 
   # ---- the two shapes that are live today -------------------------------------------
   - name: docs-deps
@@ -81,8 +81,14 @@ cases:
       Drive's datastores with the object store external — no GarageBucket or GarageKey,
       one ExternalSecret with the same key set read from the hand-applied Secret.
 
+  - name: tenants
+    chart: platform-tenants
+    release: tenants
+    namespace: office-data
+    description: Every app's platform-side objects, on Garage. What platform/tenants.yaml installs.
+
   # ---- the minimal and maximal ends of each chart --------------------------------------
-  # 10-verification.md asks for a minimal and a full golden per chart. The minimal case is
+  # history/design/10-verification.md asks for a minimal and a full golden per chart. The minimal case is
   # the one that catches a helper starting to require a value it used to default.
   - name: minimal-deps
     chart: platform-deps
@@ -123,6 +129,6 @@ cases:
     namespace: office-single
     description: >-
       pdb.enabled false with components still declared. Asserts NO PDB is emitted — the
-      invariant 10-verification.md calls the one most likely to regress silently, because
+      invariant history/design/10-verification.md calls the one most likely to regress silently, because
       a minAvailable PDB on a single replica blocks every drain and nothing fails until
       someone drains a node.

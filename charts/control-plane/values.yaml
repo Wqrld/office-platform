@@ -10,6 +10,7 @@ storageClass: longhorn
 gateway:
   ip: ""                          # the shared Gateway's address — a MetalLB pool address
   tlsIssuer: letsencrypt-gateway  # ClusterIssuer for the one SAN certificate
+  acmeEmail: ""                   # Let's Encrypt's contact for the certificate
 # LiveKit's media address: WebRTC is UDP and ICE, which an L7 proxy cannot carry, so it is
 # the one LoadBalancer that is not the Gateway. `turn.<domain>` is a manual A record to it,
 # outside the wildcard on purpose. Required when apps.meet is on; unused otherwise.
@@ -42,10 +43,11 @@ objectStore:
 
 # ---------------------------------------------------------------- platform defaults
 # Where the platform's own artifacts are pulled from: the config artifact, the platform
-# charts and this chart — all at this chart's version. `pullSecret` is a Secret in flux-system, created at
-# bootstrap; empty for a registry that needs none.
+# charts and this chart — all at this chart's version, and the same registry `release.sh`
+# publishes to. `pullSecret` is a Secret in flux-system, created at bootstrap; empty for a
+# registry that needs none.
 registry:
-  url: oci://harbor.mijnbureau.haaijer.dev/office
+  url: ""
   pullSecret: harbor-auth
 reconcile:
   interval: 30m

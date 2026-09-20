@@ -28,7 +28,7 @@ patches:
             save ""
 
   # The broker stays `noeviction` at every size. Eviction here is not a memory saving, it is
-  # silently dropped Celery tasks (06-datastores.md) — the failure presents as "some uploads
+  # silently dropped Celery tasks (history/design/06-datastores.md) — the failure presents as "some uploads
   # never get processed", weeks later. Only the ceiling moves.
   - target: {kind: HelmRelease, name: valkey-broker, namespace: office-data}
     patch: |
@@ -63,7 +63,7 @@ patches:
   # container limit, so lowering the limit is what actually shrinks it.
   - target: {kind: Keycloak, name: keycloak, namespace: office-identity}
     patch: |
-      apiVersion: k8s.keycloak.org/v2alpha1
+      apiVersion: k8s.keycloak.org/v2beta1
       kind: Keycloak
       metadata: {name: keycloak, namespace: office-identity}
       spec:

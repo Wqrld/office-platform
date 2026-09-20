@@ -1,6 +1,6 @@
 # 0101 — Cluster singletons are manifests, not a chart
 
-**Status:** accepted · **Date:** 2026-09-02 · **Amends:** design set `04-platform-charts.md`
+**Status:** accepted · **Date:** 2026-09-02 · **Amends:** design set `history/design/04-platform-charts.md`
 
 ## Context
 The design set specifies four charts, one of them `platform-infra` (~150 lines) holding the

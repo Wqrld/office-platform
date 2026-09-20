@@ -4,7 +4,7 @@
 # ever been rendered against real load, and the replica counts are a shape, not a
 # measurement. It is written anyway because the invariant it carries is checkable without a
 # big cluster — `replicas > 1` must come with a PDB, in the same file, set by the same hand
-# (05-app-contract.md) — and because an unwritten profile is where the 5-to-5,000 claim
+# (history/design/05-app-contract.md) — and because an unwritten profile is where the 5-to-5,000 claim
 # quietly stops being true.
 #
 # Treat the numbers as a starting point to measure from. Treat the replica/PDB pairing as
@@ -215,7 +215,7 @@ patches:
             limits: {memory: 4Gi}
 
   # PDBs belong to the surround, not to the upstream chart: `platform-app` is the one
-  # release that owns routes, policy and disruption budgets (05-app-contract.md), and the
+  # release that owns routes, policy and disruption budgets (history/design/05-app-contract.md), and the
   # upstream charts each spell their own PDB differently. Enabling both would give every
   # component two budgets with two selectors.
   #

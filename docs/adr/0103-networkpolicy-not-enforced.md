@@ -1,6 +1,6 @@
 # 0103 — NetworkPolicy is emitted but NOT enforced on this cluster
 
-**Status:** accepted · **Date:** 2026-09-02 · **Corrects:** design set `02-architecture.md`
+**Status:** accepted · **Date:** 2026-09-02 · **Corrects:** design set `history/design/02-architecture.md`
 
 ## Context
 The design set treats default-deny NetworkPolicy with a declared egress graph as an

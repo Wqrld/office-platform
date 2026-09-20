@@ -1,0 +1,56 @@
+{{- range $app, $t := .Values.apps }}{{ if hasKey $t "postgres" }}
+---
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $app }}-db
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: "0"
+  target:
+    name: {{ $app }}-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: {{ $app }}
+        password: "{{ `{{ .password }}` }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: {{ $.Values.passwordGenerator }}}}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: {{ $app }}
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  cluster: {name: {{ $.Values.postgresCluster }}}
+  name: {{ $app }}
+  ensure: present
+  login: true
+  passwordSecret: {name: {{ $app }}-db}
+---
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ $app }}
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  cluster: {name: {{ $.Values.postgresCluster }}}
+  name: {{ $app }}
+  owner: {{ $app }}
+  ensure: present
+  databaseReclaimPolicy: retain
+  {{- with $t.postgres.extensions }}
+  extensions:
+    {{- range . }}
+    - {name: {{ . }}, ensure: present}
+    {{- end }}
+  {{- end }}
+{{- end }}{{ end }}

@@ -1,9 +1,9 @@
 # 0104 — La Suite charts are consumed from git refs, not a Helm repository
 
-**Status:** accepted · **Date:** 2026-09-02 · **Corrects:** design set `adr/0012`
+**Status:** accepted · **Date:** 2026-09-02 · **Corrects:** design set `adr/0104`
 
 ## Context
-`adr/0012` — the discovery the whole rebuild rests on — is that DINUM maintains Helm charts
+`adr/0104` — the discovery the whole rebuild rests on — is that DINUM maintains Helm charts
 for most La Suite applications, so we consume them and build only the surround. The design
 set's app contract accordingly uses `sourceRef: {kind: HelmRepository, name: suitenumerique-docs}`.
 
@@ -22,7 +22,7 @@ chart: src/helm/impress          # note: path is `impress`, chart name is `docs`
 ```
 
 ## Reasoning
-The *conclusion* of `adr/0012` survives intact — the charts exist, are maintained, and are
+The *conclusion* of `adr/0104` survives intact — the charts exist, are maintained, and are
 worth consuming; only the transport was wrong. A pinned git tag preserves P1 ("publish the
 base, don't copy it"): we reference an immutable upstream ref rather than vendoring files
 into our repo, and an upgrade remains a version bump plus a render-diff.
@@ -32,7 +32,7 @@ into our repo, and an upgrade remains a version bump plus a render-diff.
   `image.tag` must still be pinned separately, as the design already requires.
 - No `helm repo` semver ranges. Dev clusters track a branch; prod pins a tag.
 - Upstream can break a chart between tags with no version signal. The render-diff on bump and
-  the binding check (`10-verification.md`) are the compensating controls, and are now
+  the binding check (`history/design/10-verification.md`) are the compensating controls, and are now
   load-bearing rather than nice to have.
 - **One app has no tag to pin.** `suitenumerique/find` has never cut a release — zero git
   tags, and one floating `main` image — so it is pinned to a **commit** instead, with the

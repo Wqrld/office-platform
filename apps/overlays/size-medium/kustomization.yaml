@@ -1,19 +1,6 @@
-# Size profile `medium` — the applications. 50-500 people.
-#
-# DELIBERATELY EMPTY, AND THAT IS THE POINT. The numbers in `apps/*/release.yaml` were
-# measured against the running platform, and they are medium's numbers. Restating them here
-# would put every resource figure in two places, which is the failure this whole layout
-# exists to avoid.
-#
-# So `medium` is the identity profile: selecting it renders byte-for-byte what `path: ./apps`
-# rendered before profiles existed. `measure.py --compare` asserts exactly that, and
-# it is the check that makes switching prod onto the profile mechanism a no-op rather than a
-# migration.
-#
-# The consequence to know: a `small` entry is a DIFF against these files, so changing a
-# number in `apps/*/release.yaml` moves medium and large and leaves small where it was.
-# That is the right default — small is the exception being carved out — but it means the
-# small profile has to be re-read when a base number changes, not just when an app is added.
+# Size profile `medium` — the applications. 50-500 people. DELIBERATELY EMPTY: the numbers
+# in `apps/*/release.yaml` are medium's, measured on the running platform (README.md). A
+# `small` entry is a diff against those files, so re-read it when a base number changes.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 

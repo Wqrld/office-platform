@@ -1,0 +1,27 @@
+{{- $app := include "platform.app" . }}
+{{- range $name, $env := .Values.shared }}
+---
+# A value drawn once in the platform layer, read here under the name this app expects.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "platform.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: {{ $.Values.platform.stores.data }}}
+  target:
+    name: {{ $name }}
+    creationPolicy: Owner
+    template:
+      data:
+        {{- range $k, $v := $env }}
+        {{ $k }}: {{ if kindIs "string" $v }}{{ $v | quote }}{{ else }}"{{ printf "{{ .%s }}" $k }}"{{ end }}
+        {{- end }}
+  data:
+    {{- range $k, $v := $env }}{{ if not (kindIs "string" $v) }}
+    - {secretKey: {{ $k }}, remoteRef: {key: {{ $v.from }}, property: {{ $v.key }}}}
+    {{- end }}{{ end }}
+{{- end }}

@@ -1,7 +1,7 @@
 # 0107 — `platform-deps` stops at the namespace boundary
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `06-datastores.md`,
-`03-repo-layout.md`
+**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `history/design/06-datastores.md`,
+`history/design/03-repo-layout.md`
 
 ## Context
 The design set has `platform-deps` create "CNPG `Database` + `Role` + extensions" and the

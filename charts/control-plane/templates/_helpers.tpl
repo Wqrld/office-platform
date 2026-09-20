@@ -1,38 +1,10 @@
-{{/*
-The application table: every app the platform knows, what it needs running first, and the
-hostnames it serves. This is the one place the dependencies between applications are
-stated — the ordering comments the old flat apps/kustomization.yaml carried became these
-edges, which Flux enforces with `dependsOn` and health gating — and the one place the
-certificate's SAN list comes from, so an app that is off has no SAN and needs no record.
-
-`internal: true` marks an app an organisation does not choose: it is pulled in by whatever
-requires it and dropped with it. Adding an application is one entry here, one directory
-under apps/, and one stanza per size profile.
-*/}}
+{{/* The application table, charts/control-plane/apps.yaml. */}}
 {{- define "platform.apps" -}}
-collabora: {hosts: [collabora]}
-# Drive's `configure-wopi` Job calls Collabora's discovery endpoint at install.
-drive: {requires: [collabora], hosts: [drive]}
-# No browser reaches Find, but Docs does — over the public URL, because a pod-to-pod call
-# carries no X-Forwarded-Proto and Find 301s it (apps/find/README.md). Without its SAN
-# the handshake fails and search silently falls back to title-only.
-find: {hosts: [find]}
-# Docs' search-flags Job and its reindex both assume Find exists.
-docs: {requires: [find], hosts: [docs]}
-# Also the host CalDAV clients connect to, so its SAN is every client's handshake.
-calendars: {hosts: [calendars]}
-# WebRTC media; nothing but Meet uses it. `livekit.*` is the SIGNALLING host, a WebSocket
-# through the Gateway; media goes to livekit.ip directly. `turn.*` is deliberately no host
-# here: it points at livekit.ip, where no HTTP-01 solver can answer, and a SAN that cannot
-# be validated fails the whole certificate (adr/0105).
-livekit: {internal: true, hosts: [livekit]}
-# Meet's backend hands the browser LiveKit's address; transcripts are delivered as Docs
-# documents (apps/docs/meet-token.yaml).
-meet: {requires: [docs, livekit], hosts: [meet]}
+{{ .Files.Get "apps.yaml" }}
 {{- end }}
 
 {{/*
-The apps this cluster runs, as a list in table order: every app switched on, plus every
+The apps this cluster runs, sorted by name: every app switched on, plus every
 internal app something switched on requires. Refuses a selection whose dependencies are
 off, by name, so the failure is a message on the HelmRelease and not a Job that retries
 against a Service that does not exist.
@@ -58,13 +30,20 @@ against a Service that does not exist.
 {{/*
 One Flux Kustomization. Every layer is the same shape — pruned, health-gated, substituted
 from cluster-vars — so the shape is written once.
-  name, path, components (list), dependsOn (list of names), root (the chart context)
+  name, path, components (list), dependsOn (list of names), substitute (map), root,
+  keep (default true; see platform.metadata — false for what is emitted conditionally,
+  because Helm honours `keep` on upgrades too and would leave a switched-off app running)
 */}}
 {{- define "platform.kustomization" -}}
 {{- $r := .root.Values.reconcile }}
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
-{{ include "platform.metadata" .name }}
+metadata:
+  name: {{ .name }}
+  namespace: flux-system
+  {{- if ne .keep false }}
+  annotations: {helm.sh/resource-policy: keep}
+  {{- end }}
 spec:
   interval: {{ $r.interval }}
   retryInterval: {{ $r.retryInterval }}
@@ -83,6 +62,9 @@ spec:
     {{- end }}
   {{- end }}
   postBuild:
+    {{- with .substitute }}
+    substitute: {{ toJson . }}
+    {{- end }}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 {{- end }}
 
@@ -119,11 +101,12 @@ exists nowhere. release.sh sets both to the same number.
 {{- end }}
 
 {{/*
-metadata for everything this chart renders. `helm.sh/resource-policy: keep` on all of it:
-if this release is ever uninstalled — and a failed first install IS an uninstall, by
+metadata for everything this chart renders. `helm.sh/resource-policy: keep`: if this
+release is ever uninstalled — and a failed first install IS an uninstall, by
 helm-controller's remediation — Helm leaves these objects standing. Without it the
 Kustomizations go with the release, and a deleted Kustomization with prune on garbage-
 collects its whole inventory: every namespace it had adopted. That happened once.
+Not on the app Kustomizations: those must go when an app is switched off.
 */}}
 {{- define "platform.metadata" -}}
 metadata:

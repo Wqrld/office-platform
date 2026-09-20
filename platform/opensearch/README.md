@@ -2,7 +2,7 @@
 
 One single-node instance in `office-data`, serving Find's `find-*` indices. The security
 posture — plugin on, TLS on the REST layer, per-app internal user scoped to an index prefix
-— is recorded in `platform/docs/adr/0111`.
+— is recorded in `docs/adr/0111`.
 
 ## What isolates one app from another
 
@@ -61,4 +61,4 @@ that needs an upstream `OPENSEARCH_CA_CERTS` setting — see `adr/0111`.
 
 Mappings are `dynamic: strict` and `ensure_index_exists` is create-if-404 only: there is no
 alias scheme and no reindex-in-place. A mapping change means deleting the index and re-running
-`apps/docs/reindex.yaml`.
+`docs/reindex-docs.yaml`.

@@ -1,4 +1,4 @@
-# Release 3 of 3: the surround. Routes, the media proxy, and the egress graph.
+# Drive's surround: routes, the media proxy, the static-file server.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: drive-platform, namespace: office-drive}
@@ -60,10 +60,7 @@ spec:
       enabled: true
       filesConfigMap: drive-switcher
 
-    # Emitted, NOT enforced — Flannel has no policy controller (adr/0103). Do not cite it
-    # as segmentation.
     networkPolicy:
-      enabled: true
       egress:
         - {datastore: postgres}
         - {datastore: cache}
@@ -72,4 +69,3 @@ spec:
         - {app: collabora, port: 9980}    # /hosting/discovery, server to server
         - {external: true, port: 443}
 
-    pdb: {enabled: false}

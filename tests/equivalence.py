@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Assert a rendered chart reproduces a set of hand-written manifests.
+"""Assert a rendered chart reproduces the hand-written manifests it replaced.
 
-The design set mandates render-diff because one template change touches every application
-(adr/0002). This is the narrower, more valuable version while apps are being ported: prove
-the chart emits what the hand-written file emitted, so the port is provably a no-op.
-
+  ./tests/equivalence.py                                   the pre-port Docs manifests
   ./tests/equivalence.py [--allow-extra KIND,KIND] <rendered.yaml> <hand-written.yaml> [...]
+
+The no-arg form is the check that made adopting Docs' live objects a no-op (14 adopted,
+0 recreated), against the files frozen in tests/fixtures/pre-port/. When a chart change is
+MEANT to alter one of those objects, drop the comparison and say so — do not re-freeze the
+fixture from the new output (tests/fixtures/pre-port/README.md).
 
 `--allow-extra` names what the chart is expected to ADD — objects that did not exist in the
 hand-written form. An entry is either a whole KIND, or one KIND/name when only that single
@@ -13,12 +15,33 @@ object is expected: `NetworkPolicy` blesses every NetworkPolicy, `ExternalSecret
 blesses exactly one and still fails on the next unplanned Secret. Everything else the chart
 adds, or drops, is a failure.
 
+Per kind, the fields that carry the contract are compared (`norm`), not the whole object:
+an ExternalSecret's data/store/refresh, a route's hosts/paths/backends, a policy's buffer
+and timeout. Kinds `norm` does not know compare by name only. This is a port check, not a
+full diff — `render-diff.sh` is that.
+
 Two differences are normalised away because they are not differences:
   * ${BASE_DOMAIN} — Flux substitutes it before apply.
   * ESO placeholder names ({{ .secretkey }}) — internal to the ExternalSecret; they never
     appear in the Secret it produces.
 """
-import re, sys, yaml
+import pathlib
+import re
+import sys
+
+import yaml
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import render  # noqa: E402
+
+FIX = render.ROOT / "tests" / "fixtures" / "pre-port"
+# case -> (what the chart is expected to ADD, the frozen files). `docs-smtp`: the pre-port
+# cluster could not send mail. NetworkPolicy: the hand-written set never had one (adr/0103).
+PRE_PORT = {
+    "docs-deps": ({"ExternalSecret/docs-smtp"}, ["docs-datastores.yaml", "docs-secrets.yaml"]),
+    "docs-app": ({"NetworkPolicy"}, ["docs-routes.yaml"]),
+}
+
 
 def load(p):
     with open(p) as f:
@@ -58,18 +81,9 @@ def norm(o, domain):
                    "timeout": spec.get("timeout", {}).get("http")}
     return k, {}
 
-def main():
-    args = sys.argv[1:]
-    allow_extra = set()
-    if args and args[0] == "--allow-extra":
-        allow_extra = set(args[1].split(","))
-        args = args[2:]
-    if len(args) < 2:
-        sys.exit(__doc__)
-    domain = "haaijer.dev"
-    got = dict(norm(o, domain) for o in load(args[0]))
-    want = dict(norm(o, domain) for o in
-                [o for p in args[1:] for o in load(p)])
+def compare(got_docs, want_docs, allow_extra, domain="haaijer.dev") -> bool:
+    got = dict(norm(o, domain) for o in got_docs)
+    want = dict(norm(o, domain) for o in want_docs)
     failed = False
     for k in sorted(set(got) | set(want)):
         if k not in got:
@@ -87,8 +101,29 @@ def main():
             for f in sorted(set(got[k]) | set(want[k])):
                 if got[k].get(f) != want[k].get(f):
                     print(f"     {f}:\n       chart={got[k].get(f)!r}\n       hand ={want[k].get(f)!r}")
-    print("\nFAIL" if failed else f"\nOK — {len(want)} objects reproduced")
-    sys.exit(1 if failed else 0)
+    print("FAIL" if failed else f"OK — {len(want)} objects reproduced")
+    return not failed
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if args:
+        allow_extra = set()
+        if args[0] == "--allow-extra":
+            allow_extra, args = set(args[1].split(",")), args[2:]
+        if len(args) < 2:
+            sys.exit(__doc__)
+        return not compare(load(args[0]), [o for p in args[1:] for o in load(p)], allow_extra)
+    ok = True
+    for case_name, (allow, files) in PRE_PORT.items():
+        print(f"== {case_name} vs the hand-written {', '.join(files)}")
+        ok &= compare(render.docs_in(render.render_case(case_name)),
+                      [o for f in files for o in load(FIX / f)], allow)
+        print()
+    print("OK — the charts still reproduce the pre-port manifests" if ok
+          else "FAIL — the charts no longer reproduce what the cluster had before the port.")
+    return 0 if ok else 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

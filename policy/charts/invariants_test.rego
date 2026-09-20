@@ -1,6 +1,6 @@
 # Both directions for every rule in invariants.rego.
 #
-# 10-verification.md asks for this explicitly, about Kyverno: "a fixture per rule, both
+# history/design/10-verification.md asks for this explicitly, about Kyverno: "a fixture per rule, both
 # directions — a pod that should be mutated and one that should be skipped, a PDB that
 # should be denied and one that should pass". The reasoning carries over unchanged. A
 # policy suite that only ever runs against compliant input is indistinguishable from an
@@ -125,15 +125,40 @@ test_cpu_limit_denied if {
 
 # --- security context -----------------------------------------------------------------------
 
+# Every "denied" test names the rule it expects: `count(deny) > 0` alone is satisfied by ANY
+# rule in the package, and a fixture missing a label would pass for the wrong reason.
+denies(substr) if {
+	some msg in deny
+	contains(msg, substr)
+}
+
+# The pod securityContext replaced whole (object.union would merge into it, see above).
+with_pod_security(sc) := {
+	"kind": "Deployment",
+	"metadata": deployment([good_container]).metadata,
+	"spec": {"template": {"spec": {
+		"priorityClassName": "office-app",
+		"securityContext": sc,
+		"containers": [good_container],
+	}}},
+}
+
 test_privilege_escalation_denied if {
-	count(deny) > 0 with input as with_container({"securityContext": {
+	denies("allowPrivilegeEscalation") with input as with_container({"securityContext": {
 		"allowPrivilegeEscalation": true,
 		"capabilities": {"drop": ["ALL"]},
 	}})
 }
 
+test_missing_privilege_escalation_denied if {
+	denies("allowPrivilegeEscalation") with input as deployment([object.union(
+		object.remove(good_container, {"securityContext"}),
+		{"securityContext": {"capabilities": {"drop": ["ALL"]}}},
+	)])
+}
+
 test_missing_capability_drop_denied if {
-	count(deny) > 0 with input as deployment([object.union(
+	denies("drop ALL") with input as deployment([object.union(
 		object.remove(good_container, {"securityContext"}),
 		{"securityContext": {
 			"allowPrivilegeEscalation": false,
@@ -143,27 +168,11 @@ test_missing_capability_drop_denied if {
 }
 
 test_run_as_root_denied if {
-	count(deny) > 0 with input as {
-		"kind": "Deployment",
-		"metadata": {"name": "app-media-proxy"},
-		"spec": {"template": {"spec": {
-			"priorityClassName": "office-app",
-			"securityContext": {"seccompProfile": {"type": "RuntimeDefault"}},
-			"containers": [good_container],
-		}}},
-	}
+	denies("runAsNonRoot") with input as with_pod_security({"seccompProfile": {"type": "RuntimeDefault"}})
 }
 
 test_missing_seccomp_denied if {
-	count(deny) > 0 with input as {
-		"kind": "Deployment",
-		"metadata": {"name": "app-media-proxy"},
-		"spec": {"template": {"spec": {
-			"priorityClassName": "office-app",
-			"securityContext": {"runAsNonRoot": true},
-			"containers": [good_container],
-		}}},
-	}
+	denies("seccompProfile") with input as with_pod_security({"runAsNonRoot": true})
 }
 
 # --- network policy -------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 `office-livekit`: `livekit` (the server, chart `livekit-server`) and `livekit-egress` (the
 recorder, chart `egress`), both from `livekit/livekit-helm` at a pinned commit. Meet is the
-only consumer. Design context: 08-app-inventory.md "livekit — the Gateway API exception".
+only consumer. Design context: docs/app-inventory.md "livekit — the Gateway API exception".
 
 ## Where the traffic goes
 

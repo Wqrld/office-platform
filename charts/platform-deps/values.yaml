@@ -11,9 +11,13 @@ platform:
     identity: office-identity      # ClusterSecretStore holding OIDC client secrets
   passwordGenerator: office-password
 
+# Which spelling of env names this app expects, per kind — templates/_profiles.tpl. A
+# family name here sets every kind; a kind's own `env` overrides it.
+env: ""                            # lasuite | find | calendars
+
 postgres:
   enabled: false
-  env: canonical                   # key profile — adr/0106
+  env: ""
   database: ""                     # defaults to .Values.app
   host: office-pg-rw.office-data.svc.cluster.local
   port: 5432
@@ -23,7 +27,7 @@ postgres:
 
 cache:
   enabled: false
-  env: canonical
+  env: ""
   uses: [cache]                    # which instances this app needs
   instances:
     # `credentialSecret` is the ASSEMBLED Secret, not the generate-once one that feeds it —
@@ -41,10 +45,10 @@ cache:
       credentialSecret: valkey-broker-acl
   refreshInterval: 1h
 
-# One shared instance, an internal user and an index prefix per app (06-datastores.md).
+# One shared instance, an internal user and an index prefix per app (history/design/06-datastores.md).
 opensearch:
   enabled: false
-  env: canonical
+  env: ""
   host: opensearch-cluster-master.office-data.svc.cluster.local
   port: 9200
   username: ""                     # defaults to .Values.app
@@ -57,7 +61,7 @@ opensearch:
 
 objectstore:
   enabled: false
-  env: canonical
+  env: ""
   # `garage` provisions a bucket and a key on the platform's own store. `external` points
   # at any S3-compatible store the organisation already runs: like smtp, the endpoint,
   # region and credential are applied by hand into office-data once (docs/bootstrap.md) as
@@ -91,7 +95,7 @@ objectstore:
 # on 587 or 465.
 smtp:
   enabled: false
-  env: canonical
+  env: ""
   # The Django backend class. A constant rather than a credential, but it belongs in the same
   # Secret as the host it points at — see postgres.engine for the same reasoning.
   backend: django.core.mail.backends.smtp.EmailBackend
@@ -131,7 +135,7 @@ oidc:
   shortnameField: name
   extraEnv: {}
 
-# Secrets generated once, in-cluster, and never derived at render time (adr/0005).
+# Secrets generated once, in-cluster, and never derived at render time (history/design/adr/0005).
 #
 #   generated:
 #     docs-django:
@@ -154,3 +158,12 @@ oidc:
 # ESO still reports `secret synced`. Give a live application a second `generated` Secret
 # and a second `envFrom` instead.
 generated: {}
+
+# Values both ends of an app-to-app exchange must read: drawn once in office-data
+# (platform/secrets/service-tokens.yaml) and read here under this app's env names. A
+# plain string is a constant that belongs in the same Secret.
+#
+#   shared:
+#     docs-search:
+#       SEARCH_INDEXER_SECRET: {from: find-service-tokens, key: docs}
+shared: {}

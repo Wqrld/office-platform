@@ -1,0 +1,15 @@
+# Everything the platform provisions per application — charts/platform-tenants/values.yaml
+# is the list. In office-data because that is where the datastores are; the OIDC client
+# secrets it renders land in office-identity.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: tenants, namespace: office-data}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-tenants, namespace: flux-system}
+  install:
+    remediation: {retries: 3}
+  upgrade:
+    remediation: {retries: 3}
+  values:
+    objectStore: ${S3_MODE}

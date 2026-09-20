@@ -1,0 +1,66 @@
+# Backfill the Find index for documents that already exist. Indexing is driven by a
+# `post_save` signal and the restored documents have not been saved since, so without this
+# run search finds only documents edited after Find came up.
+#
+#   BASE_DOMAIN="$(kubectl -n flux-system get cm cluster-vars -o jsonpath='{.data.BASE_DOMAIN}')" \
+#     envsubst '$BASE_DOMAIN' < docs/reindex-docs.yaml | kubectl apply -f -
+#
+# The substitution is not optional: Flux would have done it, and a bare `kubectl apply`
+# leaves a literal ${BASE_DOMAIN} in INDEXING_URL, which fails DNS at run time.
+#
+# APPLIED BY HAND, never from apps/docs: Flux health-checks every object it applies, so
+# a failed backfill would stall Docs' whole Kustomization — it did, once.
+#
+# TO RE-RUN: bump the `-r1` suffix. A Job's spec is immutable, so re-applying this one does
+# nothing; a new name is what makes it run again.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: docs-reindex-r1
+  namespace: office-docs
+spec:
+  backoffLimit: 2
+  # NO ttlSecondsAfterFinished. The completed Job is what tells Flux there is nothing to do:
+  # let Kubernetes garbage-collect it and the next reconcile recreates it, reindexing the
+  # whole corpus on a loop. The finished object staying put is what makes the name-bump
+  # above the trigger.
+  template:
+    spec:
+      restartPolicy: Never
+      # office-docs enforces `baseline` and audits `restricted`; without these the apply
+      # succeeds but emits four restricted-policy warnings.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: reindex
+          image: lasuite/impress-backend:v5.5.0
+          command: ["python", "manage.py", "index"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+          envFrom:
+            - {secretRef: {name: docs-postgres}}
+            - {secretRef: {name: docs-cache}}
+            - {secretRef: {name: docs-s3}}
+            - {secretRef: {name: docs-oidc}}
+            - {secretRef: {name: docs-django}}
+            - {secretRef: {name: docs-collaboration}}
+            - {secretRef: {name: docs-search}}
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: impress.settings
+            - name: DJANGO_CONFIGURATION
+              value: Production
+            - name: DJANGO_ALLOWED_HOSTS
+              value: docs.${BASE_DOMAIN}
+            - name: SEARCH_INDEXER_CLASS
+              value: core.services.search_indexers.FindDocumentIndexer
+            - name: INDEXING_URL
+              value: https://find.${BASE_DOMAIN}/api/v1.0/documents/index/
+            - name: SEARCH_URL
+              value: https://find.${BASE_DOMAIN}/api/v1.0/documents/search/
+          resources:
+            requests: {cpu: 100m, memory: 512Mi}
+            limits: {memory: 2Gi}

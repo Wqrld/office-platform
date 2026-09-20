@@ -1,5 +1,5 @@
 {{- range $name, $vars := .Values.generated }}
-# Generated once, in the cluster, never derived at render time (adr/0005). Each variable
+# Generated once, in the cluster, never derived at render time (history/design/adr/0005). Each variable
 # gets its OWN generator draw — reusing one draw would make two variables equal, which is
 # the bug `derivePassword` shipped.
 #
@@ -13,7 +13,7 @@ metadata:
   name: {{ $name }}
   namespace: {{ $.Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list $) | nindent 4 }}
+    {{- include "platform.labels" $ | nindent 4 }}
 spec:
   # Zero: a generated secret must never be re-drawn on refresh, or every pod holding it
   # is suddenly wrong.

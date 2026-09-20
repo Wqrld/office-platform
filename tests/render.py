@@ -1,25 +1,32 @@
+#!/usr/bin/env python3
 """Render this repository the way the cluster does. Every check imports this.
+
+    ./tests/render.py <case>      one case from tests/cases/index.yaml, to stdout
+    ./tests/render.py --list      case names
 
 Two mechanisms, both real rather than approximated:
 
   * `flux_build(path, components)` — kustomize-build one layer with `flux build`, the same
-    code kustomize-controller runs. It matters that this is Flux's build and not
-    `kubectl kustomize`: Flux builds with no load restriction, which is what lets
-    `apps/drive` generate a ConfigMap from `../switcher.js`, and it is Flux that applies
-    `spec.components` — the size profile — on top of the path.
+    code kustomize-controller runs: no load restriction (so `apps/drive` can generate a
+    ConfigMap from `../switcher.js`), and `spec.components` — the size profile — applied.
 
-  * `control_plane(values)` — `helm template` the control-plane chart, which is the only
-    thing an organisation's cluster reads from this repo directly. Everything else is
-    reached through the Kustomizations it emits, so `cluster(values)` follows them: it
-    builds each one at the path and components it declares and substitutes the
-    `cluster-vars` ConfigMap the chart rendered, exactly as `postBuild.substituteFrom`
-    would. That is the whole cluster, from one values file, with nothing hardcoded here.
+  * `control_plane(values)` — `helm template` the control-plane chart with an
+    organisation's values, the only thing a cluster reads from this repo directly.
+    `cluster(values)` follows the Kustomizations it emits: builds each at the path and
+    components it declares, substituted from the rendered `cluster-vars` exactly as
+    `postBuild` would. That is the whole cluster from one values file, nothing hardcoded.
+
+Upstream charts (`fetch_upstream`) come from the pins the control plane renders, cached
+under .charts/ — the checks that need them (binding, profiles, measure) need network.
 """
 from __future__ import annotations
 
+import functools
+import os
 import pathlib
 import re
 import subprocess
+import sys
 import tempfile
 
 import yaml
@@ -27,10 +34,20 @@ import yaml
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHART = ROOT / "charts" / "control-plane"
 CASES = ROOT / "tests" / "cases"
+CACHE = ROOT / ".charts"
+PROD = CASES / "cluster-prod.yaml"
 SIZES = ("small", "medium", "large")
 # Every application directory. The control-plane chart carries the same list with each
 # app's dependencies and hosts; tests/build.py asserts the two agree.
 APPS = sorted(d.name for d in (ROOT / "apps").iterdir() if (d / "kustomization.yaml").is_file())
+
+# Pinned so a render never consults a live cluster: a golden that changes with whatever
+# cluster the operator points at is not a golden. Keep in step with production.
+KUBE_VERSION = os.environ.get("KUBE_VERSION", "1.34.2")
+# The CRD groups the cluster has. A chart that gates an object on
+# `.Capabilities.APIVersions.Has` must see here what it sees there.
+API_VERSIONS = ["gateway.networking.k8s.io/v1", "cert-manager.io/v1", "external-secrets.io/v1",
+                "postgresql.cnpg.io/v1", "gateway.envoyproxy.io/v1alpha1"]
 
 VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -45,6 +62,47 @@ def run(cmd: list[str], **kw) -> str:
         raise RuntimeError(f"{' '.join(cmd[:3])} failed:\n{out.stderr}")
     return out.stdout
 
+
+# ---------------------------------------------------------------- helm
+
+def helm_template_text(chart: str, release: str, ns: str, values: str | pathlib.Path,
+                       extra: list[str] = ()) -> str:
+    cmd = ["helm", "template", release, str(chart), "--namespace", ns,
+           "--kube-version", KUBE_VERSION, "--values", str(values), *extra]
+    cmd += [a for api in API_VERSIONS for a in ("--api-versions", api)]
+    return run(cmd)
+
+
+def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[str] = ()) -> list[dict]:
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+        yaml.safe_dump(values, f)
+    try:
+        return docs_in(helm_template_text(chart, release, ns, f.name, extra))
+    finally:
+        pathlib.Path(f.name).unlink()
+
+
+def cases() -> list[dict]:
+    return yaml.safe_load((CASES / "index.yaml").read_text())["cases"]
+
+
+def case(name: str) -> dict:
+    for c in cases():
+        if c["name"] == name:
+            return c
+    sys.exit(f"render: no case '{name}' in tests/cases/index.yaml")
+
+
+def render_case(name: str) -> str:
+    """One case as `helm template` prints it: chart, release and namespace from the index,
+    never defaulted — both land in the output, and a defaulted namespace is whatever the
+    operator's kubectl context happens to be."""
+    c = case(name)
+    return helm_template_text(ROOT / "charts" / c["chart"], c["release"], c["namespace"],
+                              CASES / f"{name}.yaml")
+
+
+# ---------------------------------------------------------------- flux
 
 def flux_build(path: str, components: list[str] = (), name: str = "build") -> list[dict]:
     """kustomize-build `path` (relative to the repo root) as Flux would, profile included."""
@@ -64,54 +122,63 @@ def flux_build(path: str, components: list[str] = (), name: str = "build") -> li
     return docs_in(out)
 
 
-def apps(size: str, names: list[str] = APPS) -> list[dict]:
-    """Every application at one size — the union of the per-app layers."""
-    return [d for a in names for d in flux_build(f"apps/{a}", [f"../overlays/size-{size}"], f"app-{a}")]
-
-
-def platform(size: str) -> list[dict]:
-    return (flux_build("platform", [f"./overlays/size-{size}"], "platform")
-            + flux_build("platform/objectstore", [f"../overlays/size-{size}"], "objectstore"))
-
-
 def substitute(node, variables: dict[str, str]):
-    """What postBuild.substituteFrom does, the way Flux does it: on the YAML text, so a
-    variable can stand in for a whole value (`dnsNames: ${TLS_HOSTS}` becomes a list).
-    Unknown variables are left alone, not blanked; `$${X}` is the escape for a literal
-    `${X}`, which is how Keycloak's own placeholders get through."""
+    """What postBuild does, the way Flux does it: on the YAML text, so a variable can stand
+    in for a whole value (`dnsNames: ${TLS_HOSTS}` becomes a list). Unknown variables are
+    left alone; `$${X}` escapes a literal `${X}`, which is how Keycloak's placeholders pass."""
     text = yaml.safe_dump(node).replace("$${", "\0")
     text = VAR.sub(lambda m: variables.get(m.group(1), m.group(0)), text)
     return yaml.safe_load(text.replace("\0", "${"))
 
 
 def clusters() -> list[pathlib.Path]:
-    """The values file of every control-plane case in tests/cases/index.yaml — the clusters."""
-    index = yaml.safe_load((CASES / "index.yaml").read_text())["cases"]
-    return [CASES / f"{c['name']}.yaml" for c in index if c["chart"] == "control-plane"]
+    """The values file of every control-plane case — the clusters."""
+    return [CASES / f"{c['name']}.yaml" for c in cases() if c["chart"] == "control-plane"]
 
 
-def control_plane(values: pathlib.Path, extra: list[str] = ()) -> list[dict]:
-    """`helm template` the control-plane chart with an organisation's values, exactly as
-    tests/render.sh renders its cases."""
-    return docs_in(run(["helm", "template", "platform", str(CHART), "--namespace", "flux-system",
-                        "--kube-version", "1.34.2", "--values", str(values), *extra]))
+@functools.lru_cache(maxsize=None)
+def control_plane(values: pathlib.Path, extra: tuple[str, ...] = ()) -> list[dict]:
+    """`helm template` the control-plane chart with an organisation's values."""
+    return docs_in(helm_template_text(CHART, "platform", "flux-system", values, list(extra)))
 
 
-def cluster(values: pathlib.Path) -> dict[str, list[dict]]:
-    """Everything a cluster with these values would apply, keyed by Flux Kustomization.
+def variables(values: pathlib.Path = PROD, extra: tuple[str, ...] = ()) -> dict[str, str]:
+    """The cluster's `cluster-vars`, as the control plane renders them."""
+    return next(d["data"] for d in control_plane(values, extra)
+                if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
 
-    The control plane itself is under the key `control-plane`; each Kustomization it emits
-    is built at its declared path and components and substituted from the rendered
-    `cluster-vars`, then keyed by its name.
-    """
-    cp = control_plane(values)
-    variables = next(d["data"] for d in cp if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
-    layers = {"control-plane": cp}
-    for ks in (d for d in cp if d["kind"] == "Kustomization"):
-        name, spec = ks["metadata"]["name"], ks["spec"]
-        built = flux_build(spec["path"].removeprefix("./"), spec.get("components", []), name)
-        layers[name] = substitute(built, variables)
-    return layers
+
+def sources(values: pathlib.Path = PROD) -> dict[str, dict]:
+    """name -> source object: the pins live in the control plane and nowhere else."""
+    return {d["metadata"]["name"]: d for d in control_plane(values)
+            if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
+
+
+def build(ks: dict, variables: dict[str, str]) -> list[dict]:
+    """One emitted Kustomization, built at its path and components and substituted."""
+    spec = ks["spec"]
+    built = flux_build(spec["path"].removeprefix("./"), spec.get("components", []), ks["metadata"]["name"])
+    return substitute(built, variables | spec.get("postBuild", {}).get("substitute", {}))
+
+
+def cluster(values: pathlib.Path, extra: tuple[str, ...] = ()) -> dict[str, list[dict]]:
+    """Everything a cluster with these values would apply, keyed by Flux Kustomization;
+    the control plane itself under `control-plane`."""
+    cp = control_plane(values, extra)
+    vars_ = variables(values, extra)
+    return {"control-plane": cp} | {ks["metadata"]["name"]: build(ks, vars_)
+                                    for ks in cp if ks["kind"] == "Kustomization"}
+
+
+def apps(size: str, names: list[str] = APPS, values: pathlib.Path = PROD) -> list[dict]:
+    """Every named application at one size, built the way the control plane says."""
+    layers = cluster(values, ("--set", f"size={size}"))
+    return [d for a in names for d in layers.get(f"app-{a}", [])]
+
+
+def platform(size: str, values: pathlib.Path = PROD) -> list[dict]:
+    layers = cluster(values, ("--set", f"size={size}"))
+    return layers["platform"] + layers.get("objectstore", [])
 
 
 def unresolved(objects: list[dict], allowed: set[str] = frozenset()) -> set[str]:
@@ -128,3 +195,70 @@ def keycloak_placeholders() -> set[str]:
         if d.get("kind") == "KeycloakRealmImport":
             names |= set(d["spec"].get("placeholders") or {})
     return names
+
+
+# ---------------------------------------------------------------- upstream charts
+
+def local_chart(rel: dict) -> str | None:
+    """Our own charts, rendered from charts/ rather than pulled from the registry."""
+    ref = rel["spec"].get("chartRef")
+    if not ref:
+        return None
+    p = ROOT / "charts" / ref["name"]
+    return str(p) if p.is_dir() else None
+
+
+def git_checkout(url: str, ref: dict, dest: pathlib.Path) -> None:
+    """Shallow-checkout a tag, or a bare commit (`--branch` rejects a SHA — Find's pin)."""
+    if tag := ref.get("tag"):
+        run(["git", "clone", "--depth", "1", "--branch", tag, "--quiet", url, str(dest)])
+        return
+    dest.mkdir(parents=True)
+    for cmd in (["git", "init", "--quiet"],
+                ["git", "remote", "add", "origin", url],
+                ["git", "fetch", "--depth", "1", "--quiet", "origin", ref["commit"]],
+                ["git", "checkout", "--quiet", "FETCH_HEAD"]):
+        run(cmd, cwd=dest)
+
+
+def fetch_upstream(rel: dict, srcs: dict) -> str | None:
+    """A local path for a HelmRelease's pinned chart, fetched into .charts/ once."""
+    spec = rel["spec"]
+    if "chart" not in spec:
+        return None                       # chartRef — one of ours
+    cs = spec["chart"]["spec"]
+    src = srcs.get(cs["sourceRef"]["name"])
+    if src is None:
+        raise RuntimeError(f"{rel['metadata']['name']}: no source {cs['sourceRef']['name']}")
+    kind, sspec = src["kind"], src["spec"]
+
+    if kind == "GitRepository":
+        dest = CACHE / src["metadata"]["name"] / (sspec["ref"].get("tag") or sspec["ref"]["commit"])
+        if not dest.exists():
+            git_checkout(sspec["url"], sspec["ref"], dest)
+        return str(dest / cs["chart"])
+
+    if kind == "HelmRepository":
+        dest = CACHE / src["metadata"]["name"] / cs["version"]
+        if not (dest / cs["chart"]).is_dir():
+            dest.mkdir(parents=True, exist_ok=True)
+            ref = [f"{sspec['url']}/{cs['chart']}"] if sspec.get("type") == "oci" \
+                else [cs["chart"], "--repo", sspec["url"]]
+            run(["helm", "pull", *ref, "--version", cs["version"], "--untar", "--untardir", str(dest)])
+        return str(dest / cs["chart"])
+
+    raise RuntimeError(f"unsupported source kind {kind}")
+
+
+def chart_for(rel: dict, srcs: dict) -> str | None:
+    """Local or upstream, whichever the HelmRelease names; None for a chartRef not in charts/."""
+    return local_chart(rel) if rel["spec"].get("chartRef") else fetch_upstream(rel, srcs)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--list"]:
+        print("\n".join(c["name"] for c in cases()))
+    elif len(sys.argv) == 2:
+        sys.stdout.write(render_case(sys.argv[1]))
+    else:
+        sys.exit(__doc__.split("\n\n")[1])

@@ -8,7 +8,7 @@ on the spare 45.136.141.168, fully verified.
 
 | | |
 |---|---|
-| **Preserved** | Harbor and the Longhorn UI — both already have HTTPRoutes on the Gateway, verified serving with a valid certificate |
+| **Preserved** | Harbor and the Longhorn UI — routes for them are the organisation's, not the platform's (ours: `/root/office/archive/gateway-deferred/`) |
 | **Preserved** | Flux's pulls from Harbor — in-cluster, over `10.244.0.0/16`, allowlisted |
 | **Lost** | Every legacy `flappie` app's ingress (docs, drive, meet, …). Accepted: the stack is being replaced and Docs' data is backed up |
 

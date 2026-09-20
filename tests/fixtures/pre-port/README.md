@@ -17,7 +17,7 @@ match what the cluster had before the port?"* — the question that made adoptin
 objects a no-op, with identical UIDs and nothing recreated.
 
 That guarantee has a shelf life. When a chart change is *meant* to alter one of these
-objects, the honest move is to delete the affected case from `tests/equivalence.sh` and say
+objects, the honest move is to delete the affected case from `PRE_PORT` in `tests/equivalence.py` and say
 so in the commit — not to re-freeze the fixture from the new output, which would assert
 only that the chart equals itself.
 

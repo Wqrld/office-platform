@@ -28,9 +28,7 @@ import render  # noqa: E402
 
 
 def app_table_agrees() -> list[str]:
-    tpl = (render.CHART / "templates" / "_helpers.tpl").read_text()
-    body = tpl.split('{{- define "platform.apps" -}}')[1].split("{{- end }}")[0]
-    table, dirs = set(yaml.safe_load(body)), set(render.APPS)
+    table, dirs = set(yaml.safe_load((render.CHART / "apps.yaml").read_text())), set(render.APPS)
     return [f"in the app table but not under apps/: {sorted(table - dirs)}"] * bool(table - dirs) + \
            [f"under apps/ but not in the app table: {sorted(dirs - table)}"] * bool(dirs - table)
 

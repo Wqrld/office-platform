@@ -1,20 +1,20 @@
 {{- if .Values.opensearch.enabled }}
-{{- $app := include "platform.deps.app" . }}
+{{- $app := include "platform.app" . }}
 {{- $o := .Values.opensearch }}
-{{- $keys := include "platform.profile" (list "opensearch" $o.env) | fromYaml }}
+{{- $keys := include "platform.profile" (list $ "opensearch" $o.env) | fromYaml }}
 {{- $user := $o.username | default $app }}
 {{- $prefix := $o.indexPrefix | default $app }}
 {{- $cred := $o.credentialSecret | default (printf "opensearch-user-%s" $app) }}
 # One shared instance; the index prefix is the tenant boundary, and the app's OpenSearch
 # role grants `<prefix>-*` and nothing else (adr/0111). The server, user and role belong to
-# the 30-platform layer (adr/0107) — this only reshapes the password it generated.
+# the platform layer (adr/0107) — this only reshapes the password it generated.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
   name: {{ $app }}-opensearch
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "platform.labels" (list .) | nindent 4 }}
+    {{- include "platform.labels" . | nindent 4 }}
 spec:
   refreshInterval: {{ $o.refreshInterval | quote }}
   secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}

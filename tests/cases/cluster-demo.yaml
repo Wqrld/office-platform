@@ -5,6 +5,8 @@
 domain: demo.haaijer.dev
 gateway:
   ip: 45.136.141.166
+  acmeEmail: wereld03@gmail.com
 livekit:
   ip: 45.136.141.156
 size: small
+registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}

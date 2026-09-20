@@ -111,9 +111,8 @@ spec:
 ---
 # Our own charts, at THIS chart's version: release.sh publishes the config artifact and all
 # four charts under one number, so nothing here is ever bumped by hand and a control plane
-# can only ever pair with the platform charts it was released with. platform-lib is
-# vendored into the two application charts at package time, so nothing references it
-# directly. The registry is the organisation's one knob in this file.
+# can only ever pair with the platform charts it was released with. The registry is the
+# organisation's one knob in this file.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 {{ include "platform.metadata" "platform-deps" }}
@@ -129,6 +128,15 @@ kind: OCIRepository
 spec:
   interval: 30m
   url: {{ .Values.registry.url }}/charts/platform-app
+  ref: {tag: {{ include "platform.version" . | quote }}}
+  {{- include "platform.pullSecret" . | nindent 2 }}
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+{{ include "platform.metadata" "platform-tenants" }}
+spec:
+  interval: 30m
+  url: {{ .Values.registry.url }}/charts/platform-tenants
   ref: {tag: {{ include "platform.version" . | quote }}}
   {{- include "platform.pullSecret" . | nindent 2 }}
 ---

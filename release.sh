@@ -16,13 +16,15 @@
 # recorded commit is the one it was built from, not the one that bumps the number.
 #
 # A version that already exists is never re-pushed, so published versions are immutable
-# and a rollback cannot rewrite the thing being rolled back to.
+# and a rollback cannot rewrite the thing being rolled back to. Everything is packaged
+# before anything is pushed, and the control plane — the one artifact a cluster pins — goes
+# last: a push that fails halfway burns the number, but leaves nothing a cluster can use.
 set -euo pipefail
 
 REGISTRY="harbor.mijnbureau.haaijer.dev/office"
 CREDS_FILE="${HARBOR_ROBOT_FILE:-/root/.harbor-robot}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHARTS=(platform-lib platform-deps platform-app control-plane)   # lib first: the others vendor it
+CHARTS=(platform-deps platform-app platform-tenants control-plane)
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -35,10 +37,12 @@ fi
 [[ -r "$CREDS_FILE" ]] || { echo "no harbor creds at $CREDS_FILE" >&2; exit 1; }
 USER="$(head -1 "$CREDS_FILE")"; PASS="$(sed -n 2p "$CREDS_FILE")"
 
-SHA="$(git -C "$HERE" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-if ! git -C "$HERE" diff --quiet HEAD 2>/dev/null; then
-  echo "WARNING: working tree is dirty — $VERSION will not match any commit" >&2
-  SHA="${SHA}-dirty"
+# Untracked files count: `flux push` ships them, and an artifact stamped with a commit
+# must be that commit.
+SHA="$(git -C "$HERE" rev-parse --short HEAD)"
+if [[ -n "$(git -C "$HERE" status --porcelain)" ]]; then
+  echo "working tree is dirty — commit or stash first, so $VERSION is traceable to $SHA" >&2
+  exit 1
 fi
 
 tags() {   # every tag of one repository under the registry
@@ -54,7 +58,7 @@ done
 
 for c in "${CHARTS[@]}"; do
   sed -i "s/^version: .*/version: $VERSION/; s/^appVersion: .*/appVersion: \"$VERSION\"/" "$HERE/charts/$c/Chart.yaml"
-  sed -i "s|^\(    version: \).*|\1\"$VERSION\"|" "$HERE/charts/$c/Chart.yaml"   # the platform-lib dependency
+  helm package "$HERE/charts/$c" --destination "$WORK" >/dev/null
 done
 
 # `.sourceignore` is what source-controller honours for git and bucket sources; `flux push`
@@ -69,8 +73,6 @@ flux push artifact "oci://${REGISTRY}/config:$VERSION" \
 echo "$PASS" | helm registry login "${REGISTRY%%/*}" --username "$USER" --password-stdin
 for c in "${CHARTS[@]}"; do
   echo "charts/$c:$VERSION"
-  grep -q '^dependencies:' "$HERE/charts/$c/Chart.yaml" && helm dependency update "$HERE/charts/$c" >/dev/null
-  helm package "$HERE/charts/$c" --destination "$WORK" >/dev/null
   helm push "$WORK/$c-$VERSION.tgz" "oci://$REGISTRY/charts"
 done
 

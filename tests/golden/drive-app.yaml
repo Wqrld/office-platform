@@ -74,15 +74,6 @@ spec:
       ports: [{protocol: TCP, port: 443}]
 ---
 # Source: platform-app/templates/mediaproxy.yaml
-# The `/media` route's backend — adr/0109 for why a running pod lives in the surround.
-#
-# La Suite authorises an attachment by SUBREQUEST: ask the backend "may this session read
-# this key?", then replay the S3 authorization headers it answers with onto the bucket.
-# Envoy Gateway's extAuth cannot express it — `extAuth.http.path` is a prefix and Envoy
-# appends the original path, so the check 404s and denies everything.
-#
-# WHAT WOULD REMOVE THIS: media served through the application's own backend, or a fixed
-# (non-prefixed) ext-auth path in Envoy Gateway.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -95,9 +86,7 @@ metadata:
     app.kubernetes.io/part-of: office
     helm.sh/chart: platform-app-<version>
   annotations:
-    # nginx configuration is full of $variables and Flux's postBuild substitution would
-    # expand every one of them to the empty string — $host, $request_uri and the
-    # auth_request_set values all vanish, and the proxy silently serves 403s.
+    # nginx config is full of $variables; Flux's substitution would blank every one.
     kustomize.toolkit.fluxcd.io/substitute: disabled
 data:
   default.conf: |
@@ -167,18 +156,8 @@ data:
     }
 ---
 # Source: platform-app/templates/static.yaml
-# A few files served from the application's own origin.
-#
-# It exists because some upstream frontends take a URL rather than content: Drive's
-# `FRONTEND_JS_URL` injects a <script> tag, and there is no other way to reach that page.
-# Serving it from our own host keeps the application free of a third-party CDN.
-#
-# The files come from a ConfigMap someone else made — `filesConfigMap` — rather than from
-# values, so they can stay real files in the config repo instead of block scalars inside a
-# HelmRelease. nginx reads from disk per request and a mounted ConfigMap updates in place,
-# so editing them does not need a restart.
-#
-# Not a general web server: everything here is public, cached and read-only.
+# The `/custom` route's backend, or wherever `staticFiles.path` points.
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -191,6 +170,7 @@ metadata:
     app.kubernetes.io/part-of: office
     helm.sh/chart: platform-app-<version>
   annotations:
+    # nginx config is full of $variables; Flux's substitution would blank every one.
     kustomize.toolkit.fluxcd.io/substitute: disabled
 data:
   default.conf: |
@@ -201,11 +181,9 @@ data:
       location = /healthz { access_log off; return 200 "ok\n"; }
       location /custom/ {
         alias /srv/;
-        # Everything here is ours and public, but it is still served from the application's
-        # origin, so it gets the same treatment as any other asset.
         add_header Cache-Control "public, max-age=300" always;
         add_header X-Content-Type-Options nosniff always;
-        types { application/javascript js; text/css css; image/svg+xml svg; }
+        types { application/javascript js; text/css css; image/svg+xml svg; application/json json; }
       }
     }
 ---
@@ -265,7 +243,6 @@ spec:
   template:
     metadata:
       annotations:
-        # nginx reads its config once at startup, so a ConfigMap change needs a restart.
         checksum/config: 80f094279669c661d2f189d239af85143a9bc7c157ce78db7d2df5ff3692ff98
       labels:
         app.kubernetes.io/name: drive-media-proxy
@@ -276,7 +253,6 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: nginx
-          # Fully qualified: this cluster's CRI-O resolves a bare name against quay.io.
           # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
           image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
           ports:
@@ -326,7 +302,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 3f44cac2d984fbfc09c2960eada6727cfc3a70f586bce443f5a68607494274f8
+        checksum/config: 227d2f873fdb24f813ecc27221fef5d7100abbe006c3a3d0e26db73249bc035e
       labels:
         app.kubernetes.io/name: drive-static
     spec:
@@ -336,6 +312,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: nginx
+          # The unprivileged image listens on 8080 as uid 101 — no root, no capabilities.
           image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
           ports:
             - {name: http, containerPort: 8080}
@@ -354,15 +331,17 @@ spec:
             initialDelaySeconds: 3
           volumeMounts:
             - {name: conf, mountPath: /etc/nginx/conf.d}
-            - {name: files, mountPath: /srv}
+            - mountPath: /srv
+              name: files
             - {name: cache, mountPath: /var/cache/nginx}
             - {name: run, mountPath: /var/run}
             - {name: tmp, mountPath: /tmp}
       volumes:
         - name: conf
           configMap: {name: drive-static-conf}
-        - name: files
-          configMap: {name: drive-switcher}
+        - configMap:
+            name: drive-switcher
+          name: files
         - {name: cache, emptyDir: {}}
         - {name: run, emptyDir: {}}
         - {name: tmp, emptyDir: {}}

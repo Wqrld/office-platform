@@ -1,6 +1,6 @@
 # 0109 — the media proxy belongs to the surround
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `04-platform-charts.md`
+**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `history/design/04-platform-charts.md`
 
 ## Context
 `platform-app` was defined as the chart that "creates nothing that runs". Docs broke that on

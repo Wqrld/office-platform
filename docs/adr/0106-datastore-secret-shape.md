@@ -1,9 +1,9 @@
 # 0106 — Canonical concepts, app-shaped keys, named profiles
 
-**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `06-datastores.md` (P4)
+**Status:** accepted · **Date:** 2026-09-03 · **Amends:** design set `history/design/06-datastores.md` (P4)
 
 ## Context
-`06-datastores.md` states P4: the app chart knows **only** that a Secret exists with a
+`history/design/06-datastores.md` states P4: the app chart knows **only** that a Secret exists with a
 canonical key set — `host`, `port`, `dbname`, `username`, `password`, `uri` for Postgres,
 and equivalents for cache, objectstore and opensearch.
 

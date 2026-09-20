@@ -26,10 +26,15 @@ Run both from the repository root — target paths are relative to the working d
 | Meet image tags ×7 | `apps/meet/release.yaml` | the same git tag |
 | LiveKit image tags ×2 | `apps/livekit/release.yaml` | Docker Hub tags; the chart commit is moved by hand |
 | whisperx image tag | `apps/meet/whisperx.yaml` | `suitenumerique/meet-whisperx` git tags |
+| Find chart commit + image | `charts/control-plane/templates/sources.yaml`, `apps/find/release.yaml` | `suitenumerique/find` main, image digest |
+| Calendars chart + image tags ×3 | `apps/calendars/release.yaml` | our Helm repo, the fork's git tags |
 
-Two git-tag pins now live in `charts/control-plane/templates/sources.yaml`, so both patterns are **anchored
-to the repository URL**. An unanchored `ref: {tag: vX.Y.Z}` matches both and rewrites
-Drive's tag to a Docs version — that is a real bug that was caught, not a hypothetical.
+Every git pin lives in `charts/control-plane/templates/sources.yaml`, so each pattern is
+**anchored to the repository URL**: an unanchored `ref: {tag: vX.Y.Z}` matches all of them
+and rewrites Drive's tag to a Docs version — a real bug that was caught, not a hypothetical.
+Image tags in a release file are anchored the same way where the file has a `repository:`
+line; the per-component `image: {tag: }` overrides in Docs, Drive and Meet have none, and
+are rewritten together on purpose — they must never hold different values.
 
 Collabora's chart bump does **not** move its image tag: `apps/collabora/release.yaml` pins
 `image.tag` explicitly so a chart bump cannot move the application by itself. Check the new
@@ -75,7 +80,7 @@ there would rewrite `platform-deps` and `platform-app`, our own charts, to a Doc
 There is no document selector. A pattern that cannot match them is the fix.
 
 **Autodiscovery is not used.** `crawlers: {flux: {}}` finds two of the six pins on this
-layout, and one of the two is `office/config` — our own release pointer, which `release.sh`
+layout, and one of the two is `office-config` — our own artifact, which `release.sh`
 owns and a bot must never touch. Explicit manifests cost a few lines and cannot surprise us.
 
 ## Deliberately not covered by updatecli
@@ -93,10 +98,10 @@ comment in the same commit — atomically, so the two can never disagree. The
 `upstream-updates` workflow runs it as its own step alongside `updatecli apply`, into the
 same weekly PR; it is also safe to run by hand.
 
-**Our own artifacts.** `platform-deps`, `platform-app` and `office-config` are released by
-`release.sh` and `release.sh`. They are pins, but they are ours.
+**Our own artifacts.** `platform-deps`, `platform-app`, `platform-tenants` and `office-config` are released by
+`release.sh`. They are pins, but they are ours.
 
 ## A bump is not live when it merges
 
 Merging changes the pins; the cluster reads a published artifact. After merge, run
-`./release.sh <next version>` and confirm all three layers report the new revision.
+`./release.sh <next version>`, set it in the cluster files, and confirm every layer reports it.

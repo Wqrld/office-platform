@@ -57,7 +57,7 @@ spec:
   values:
     domain: example.org
     storageClass: longhorn
-    gateway: {ip: 10.0.0.5, tlsIssuer: letsencrypt-gateway}
+    gateway: {ip: 10.0.0.5, tlsIssuer: letsencrypt-gateway, acmeEmail: ops@example.org}
     livekit: {ip: 10.0.0.6}            # only needed while apps.meet is on
     size: medium                       # small | medium | large
     apps:
@@ -69,3 +69,4 @@ spec:
       meet: true                       # brings LiveKit with it
     objectStore:
       mode: garage                     # or external: your S3, credentials in a Secret
+    registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}   # where release.sh published; the same as OCIRepository/platform's

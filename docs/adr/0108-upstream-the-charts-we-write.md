@@ -1,15 +1,16 @@
 # 0108 — Charts we write for La Suite apps should go upstream
 
-**Status:** accepted · **Date:** 2026-09-03 · **Relates to:** `0104`, design set `05-app-contract.md`
+**Status:** accepted · **Date:** 2026-09-03 · **Relates to:** `0104`, design set `history/design/05-app-contract.md`
 
 ## Context
 `0104` established that La Suite publishes no Helm repository and charts come from pinned
 git tags in each application's own repo, at `src/helm/<name>`. That works for Docs, Drive,
 Meet and People, which all ship one.
 
-**Messages and Calendars do not.** Checked at `messages` v0.9.0 and `calendars` v0.1.0:
-neither has a `src/helm` directory at any tag. They are the design set's Tier 4 — an app
-with no upstream chart, for which we write a small chart on `platform-lib`.
+**Messages and Calendars did not, at the time** (`messages` v0.9.0, `calendars` v0.1.0).
+Calendars' chart has since appeared on upstream's `main` and is served from our Helm repo
+until the tag lands (`apps/calendars/README.md`); no chart of ours was written. The
+decision below stands for the next app that has none.
 
 Three facts make "just keep it in our repo" the wrong default:
 

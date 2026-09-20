@@ -1,4 +1,5 @@
 # expect: apps.drive needs apps.collabora, which is off
 domain: example.org
-gateway: {ip: 10.0.0.5}
+gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
 apps: {collabora: false, meet: false}
+registry: {url: oci://registry.example.org/office}

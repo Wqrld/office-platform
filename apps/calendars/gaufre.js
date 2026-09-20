@@ -24,7 +24,7 @@
  * `showMoreLimit`, and the labels. Everything else it passes is French-government chrome —
  * `headerLogo` is la Suite's logo — and is deliberately ignored.
  *
- * NO DOLLAR SIGNS ANYWHERE IN THIS FILE. `apps/kustomization.yaml` puts it in a ConfigMap
+ * NO DOLLAR SIGNS ANYWHERE IN THIS FILE. `kustomization.yaml` puts it in a ConfigMap
  * WITHOUT the `substitute: disabled` annotation, because `services.json` in the same
  * ConfigMap needs BASE_DOMAIN resolved. Flux substitutes over both keys, so a template
  * literal or a dollar-prefixed name here would come out blanked — in a file no test parses

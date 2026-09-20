@@ -2,7 +2,7 @@
 
 Empty VM → the suite serving on your own domain.
 
-**This path has never been run end to end.** `docs/design/10-verification.md` reserves a
+**This path has never been run end to end.** `docs/history/design/10-verification.md` reserves a
 nightly bootstrap-from-scratch job precisely so that this document can be trusted; it is not
 written yet. Every individual piece below is in daily use, but the sequence has never been
 executed as a sequence on an empty cluster — the current one was built incrementally, and
@@ -30,9 +30,7 @@ late and indirectly — usually as a Kustomization that never reports Ready.
 | An OCI registry you can push to | Charts and config are delivered as OCI artifacts, not files | Harbor |
 | Sizing | The legacy stack alone held 3829m; plan ≥10 cores and fast disk | 1 node |
 
-Optional here: Prometheus operator CRDs (nothing in `apps/` enables a ServiceMonitor today),
-and anything under `platform/gateway/deferred/` — routes for services this platform did not
-create.
+Optional here: Prometheus operator CRDs (nothing in `apps/` enables a ServiceMonitor today).
 
 ## 1. DNS — Required, and first
 
@@ -61,12 +59,10 @@ mkdir -p ../office-clusters/prod && cp examples/cluster.yaml ../office-clusters/
 
 | Where | Change |
 |---|---|
-| `cluster.yaml` `spec.values` | `domain`, `gateway.ip`, `livekit.ip`, `storageClass`, `size`, which `apps`, the `objectStore` mode |
+| `cluster.yaml` `spec.values` | `domain`, `gateway.ip`, `gateway.acmeEmail`, `livekit.ip`, `storageClass`, `size`, which `apps`, the `objectStore` mode |
 | `cluster.yaml` `FluxInstance.spec.sync` | where this file is read from — your git repository, or an OCI artifact (`../office-clusters/push.sh`) |
 | `cluster.yaml` `OCIRepository/platform` | the registry the platform is published to, and the version to run |
-| `platform/gateway/clusterissuer.yaml` | the ACME contact address |
 | `release.sh`, `charts/control-plane/values.yaml` `registry:` | your registry, if you publish the platform yourself |
-| `platform/identity/realm.yaml` | the five users are ours. Replace them, or delete the block and create users in Keycloak later |
 | `platform/identity/realm.yaml` | `smtpServer.fromDisplayName` is the name recipients see on password-reset mail. Everything else about the relay comes from the Secret in step 4b |
 | `~/.harbor-robot` | line 1 username, line 2 password (`HARBOR_ROBOT_FILE` overrides the path) |
 
@@ -74,10 +70,10 @@ Then, offline and without a cluster — with your values as one of the clusters 
 
 ```sh
 cp <your values> tests/cases/cluster-mine.yaml   # the HelmRelease's `values:` block; add it to cases/index.yaml
-./tests/schema.sh && ./tests/golden.py --update && ./tests/build.py && ./tests/kubeconform.sh
+./tests/schema.py && ./tests/golden.py --update && ./tests/build.py && ./tests/kubeconform.sh
 ```
 
-`schema.sh` proves a misspelt key or an app whose dependency is off is refused; `build.py` is
+`schema.py` proves a misspelt key or an app whose dependency is off is refused; `build.py` is
 the one that catches a typo'd `${BASE_DOMIAN}` — Flux would leave it in place and the app
 would serve a hostname that resolves for nobody.
 
@@ -136,7 +132,7 @@ The order: `office-data` is created by `platform`, and no app will settle withou
 Secret, so apply it while `platform` is coming up. `kubectl create namespace
 office-data` first is fine — Flux adopts the namespace and adds its own labels.
 
-Four ExternalSecrets read it back: one per application namespace through `platform-deps`
+One ExternalSecret per application namespace reads it back through `platform-deps`
 (`smtp: {enabled: true}` in each app's `deps.yaml`), and `platform/identity/smtp.yaml` for
 Keycloak. Nothing else ever sees the office-data copy.
 
@@ -144,10 +140,11 @@ Keycloak. Nothing else ever sees the office-data copy.
 changes nothing, because `envFrom` is read once, at pod start:
 
 ```sh
-for ns in office-docs office-drive office-calendars office-identity; do
+# every app with `smtp: {enabled: true}` in its deps.yaml, plus Keycloak
+for ns in office-docs office-drive office-calendars office-meet office-identity; do
   kubectl -n $ns annotate externalsecret --all force-sync=$(date +%s) --overwrite
 done
-kubectl -n office-docs rollout restart deploy      # and drive, calendars — backends only
+kubectl -n office-docs rollout restart deploy      # and every other namespace in that loop
 platform/identity/set-smtp.sh                      # Keycloak keeps its own copy of the realm
 ```
 
@@ -204,8 +201,10 @@ reach the app either way, so nothing in `apps/` knows which mode it is running i
 
 ## 5. After the layers are green — Required
 
-- **Realm clients**: on a *fresh* cluster the import creates the realm, its five clients and
-  the users from `realm.yaml`, so there is nothing to do. `platform/identity/add-client.sh`
+- **Users**: the realm ships none. Create them in the admin console (`https://id.<domain>`,
+  the `keycloak-bootstrap-admin` Secret) — users made there get the realm's default roles.
+- **Realm clients**: on a *fresh* cluster the import creates the realm and its five clients,
+  so there is nothing to do. `platform/identity/add-client.sh`
   is for adding a client to a realm that is **already** imported — the import is import-once
   and editing `realm.yaml` afterwards does nothing. Read `platform/identity/README.md`.
 - **Realm SMTP**: `platform/identity/set-smtp.sh`. On a *fresh* cluster the import already
@@ -224,14 +223,13 @@ kubectl -n office-system get certificate office-tls    # Ready=True; one SAN fai
 apps/drive/check-secrets.sh    # the post-renderer attached all ten workloads
 apps/meet/check-secrets.sh     # same for Meet's thirteen
 
-E2E_USER=<user> E2E_PASSWORD=$(kubectl -n office-identity get secret realm-user-passwords \
-  -o jsonpath='{.data.<user>}' | base64 -d) apps/drive/e2e.py
+DOMAIN=<domain> E2E_USER=<user> E2E_PASSWORD=<password> apps/drive/e2e.py
                                # login, presigned upload, media proxy, WOPI, editing websocket
 ```
 
 A real login through Keycloak is the test that matters. The failure this platform is most
 likely to have is internal/external OIDC URL divergence, which looks exactly like a wrong
-client secret (`KC_HOSTNAME_BACKCHANNEL_DYNAMIC`, `07-identity-and-secrets.md`).
+client secret (`KC_HOSTNAME_BACKCHANNEL_DYNAMIC`, `history/design/07-identity-and-secrets.md`).
 
 ## 6. Optional
 
@@ -239,8 +237,7 @@ client secret (`KC_HOSTNAME_BACKCHANNEL_DYNAMIC`, `07-identity-and-secrets.md`).
 |---|---|
 | `gateway.tlsIssuer: letsencrypt-gateway-staging` for the first run | Proves the chain without spending rate limit on a hostname that has never validated. Switch to the real issuer and delete the `office-tls` Secret to reissue |
 | Restore legacy data | Only if migrating. `backups/<stamp>/MANIFEST.md` — the PG dump **and** the objects; neither is useful alone |
-| `apps/docs/reindex.yaml` | Only after a restore, or after an OpenSearch rebuild. Indexing is driven by `post_save`, so restored documents are invisible to search until this backfills them. Applied by hand on purpose — it depends on Find being up, and a failed Job inside `app-docs` stalls that app |
-| `platform/gateway/deferred/` | Only when retiring an existing ingress controller that still holds the public IP — see `gateway-cutover.md` |
+| `docs/reindex-docs.yaml` | Only after a restore, or after an OpenSearch rebuild. Indexing is driven by `post_save`, so restored documents are invisible to search until this backfills them. Applied by hand on purpose — it depends on Find being up, and a failed Job inside `app-docs` stalls that app |
 | A second cluster | Its own `cluster.yaml` on its own domain and addresses — `../office-clusters/demo/` is ours. Same four commands |
 | Prometheus operator | Nothing enables a ServiceMonitor yet |
 
@@ -272,5 +269,3 @@ symptom is recognisable, not so you can act on them.
 - **A generate-once ExternalSecret cannot gain a key later.** `refreshInterval: "0"` means
   written once, not "re-draw when the spec changes". Adding a key to a live one silently
   never appears; forcing it rotates every other consumer's password.
-- **Imported users get no roles unless `realmRoles` says so.** Login works everywhere and
-  the account console 401s with no server-side error event.

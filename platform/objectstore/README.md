@@ -1,7 +1,8 @@
 # Object storage — Garage
 
-S3 for Docs media today; Drive and Grist later. One cluster, a bucket and a scoped key per
-application, emitted by `platform-deps`.
+S3 for Docs, Drive and Meet. One cluster; the bucket and scoped key are emitted by
+`platform-deps` in the app's namespace, the grant that lets them reach the cluster by
+`platform-tenants`.
 
 ## Why an operator for one bucket
 
@@ -14,7 +15,7 @@ That bounded blast radius is the whole reason this is acceptable under P6.
 
 ## The credentials contract, without an extra hop
 
-`GarageKey.secretTemplate` writes the canonical `objectstore` key set from `06-datastores.md`
+`GarageKey.secretTemplate` writes the canonical `objectstore` key set from `history/design/06-datastores.md`
 directly — `endpoint`, `region`, `bucket`, `accessKeyId`, `secretAccessKey` — so no ESO
 `ExternalSecret` is needed to reshape it. Applications still only ever see a Secret with
 those keys and never learn what Garage is (P4).
@@ -27,11 +28,9 @@ those keys and never learn what Garage is (P4).
   contradicts the security baseline. PVC-backed only.
 - **No multi-cluster federation.** It needs externally routable per-node RPC addresses and we
   have no requirement for it (P6).
-- **Checksum compatibility is unverified.** AWS SDKs since 2025 send checksum algorithms that
-  non-AWS S3 implementations may reject. If Docs' uploads fail in a way that mentions
-  checksums, set `AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED` and
-  `AWS_RESPONSE_CHECKSUM_VALIDATION=WHEN_REQUIRED` on the app. **Verify during the Docs
-  build rather than assuming it works.**
+- **Checksums.** AWS SDKs since 2025 send checksum algorithms Garage rejects; verified, and
+  `platform-deps` sets `AWS_*_CHECKSUM_*=WHEN_REQUIRED` in every S3 Secret
+  (`objectstore.awsChecksumWorkaround`, on by default).
 
 ## Delete order matters — verified the hard way
 

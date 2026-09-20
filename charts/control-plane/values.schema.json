@@ -10,7 +10,8 @@
       "additionalProperties": false,
       "properties": {
         "ip": {"type": "string", "format": "ipv4"},
-        "tlsIssuer": {"type": "string", "minLength": 1}
+        "tlsIssuer": {"type": "string", "minLength": 1},
+        "acmeEmail": {"type": "string", "format": "email"}
       }
     },
     "livekit": {
@@ -40,7 +41,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "url": {"type": "string", "pattern": "^oci://"},
+        "url": {"type": "string", "pattern": "^oci://.+"},
         "pullSecret": {"type": "string"}
       }
     },

@@ -16,12 +16,14 @@
 #    only the Services and Deployments — a green tick over almost nothing.
 #
 # `-strict` rejects unknown fields, which is the half that catches a typo'd key in a CR.
-# Kinds still skipped are printed at the end rather than hidden: an unvalidated kind is a
-# gap, not a pass.
+# `-ignore-missing-schemas` is needed for the one kind no schema set carries, so a kind
+# that loses its schema — a catalog rename, an apiVersion bump the catalog lacks — would
+# silently move from "validated" to "skipped". The catalog is pinned to a commit and any
+# skipped kind other than the expected one fails the check.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-KUBE_VERSION="${KUBE_VERSION:-1.34.2}"
+KUBE_VERSION="$(cd "$HERE/tests" && python3 -c 'import render; print(render.KUBE_VERSION)')"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -44,7 +46,8 @@ for d in "${DIRS[@]}"; do
   done
 done
 
-CATALOG="https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+CATALOG_REV=ad3b08c5045129d7bb1eeffd8e61719b2c8dd1e2   # datreeio/CRDs-catalog, 2026-09-20
+CATALOG="https://raw.githubusercontent.com/datreeio/CRDs-catalog/$CATALOG_REV/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
 # Kinds the catalog does not carry, vendored from the cluster's own CRDs — tests/schemas.
 LOCAL="$HERE/tests/schemas/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
 
@@ -65,14 +68,13 @@ kubeconform \
 
 echo
 echo "== kinds with no schema (validated by nothing above)"
-if grep -q " skipped$" "$WORK/out.txt"; then
-  grep " skipped$" "$WORK/out.txt" | awk '{print $(NF-1)}' | sort | uniq -c | sed 's/^/  /'
-  echo
-  # CustomResourceDefinition is expected and is not worth chasing: the standalone schema set
-  # carries every sub-definition of a CRD and not the object itself, so there is nothing to
-  # point kubeconform at. The CRDs here are vendored upstream files anyway — we do not write
-  # them, and `platform/identity/vendor/` records where each came from.
-  echo "  CustomResourceDefinition has no schema upstream; anything else in this list is a gap."
-else
-  echo "   none"
+# CustomResourceDefinition is expected: the standalone schema set carries every
+# sub-definition of a CRD and not the object itself. The CRDs here are vendored upstream
+# files anyway (platform/identity/vendor/ records where each came from).
+skipped="$(grep " skipped$" "$WORK/out.txt" | awk '{print $(NF-1)}' | sort -u | grep -vx CustomResourceDefinition || true)"
+if [[ -n "$skipped" ]]; then
+  echo "$skipped" | sed 's/^/  /'
+  echo "FAIL — these kinds were validated by nothing; pin a schema in tests/schemas or bump CATALOG_REV" >&2
+  exit 1
 fi
+echo "   none (CustomResourceDefinition excepted)"

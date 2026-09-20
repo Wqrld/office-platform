@@ -3,7 +3,3 @@ name: platform-app
 description: The surround — routes, traffic policies, disruption budgets and policy objects around a workload another chart created.
 type: application
 version: 2.0.1
-dependencies:
-  - name: platform-lib
-    version: "2.0.1"
-    repository: "file://../platform-lib"

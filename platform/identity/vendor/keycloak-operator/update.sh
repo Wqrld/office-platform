@@ -53,20 +53,14 @@ fi
 
 echo "keycloak operator: $CURRENT -> $LATEST"
 
+# Everything is fetched before anything in the tree is touched, so a download that fails
+# halfway leaves the vendored set at one version, not two.
+STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
 for f in "${FILES[@]}"; do
-  curl -fsSL "https://raw.githubusercontent.com/$REPO/$LATEST/kubernetes/$f" -o "$HERE/$f"
+  curl -fsSL "https://raw.githubusercontent.com/$REPO/$LATEST/kubernetes/$f" -o "$STAGE/$f"
 done
+mv "$STAGE"/* "$HERE/"
 
-# All three places the version is written down, changed together. Plain string
-# replacement is safe: each occurrence of $CURRENT in these three files is this pin, not
-# some unrelated number — verified when this script was written.
-REPO_ROOT="$HERE/../../../.."
-for f in \
-  "$HERE/kustomization.yaml" \
-  "$REPO_ROOT/platform/identity/README.md" \
-  "$REPO_ROOT/platform/kustomization.yaml"
-do
-  sed -i "s/$CURRENT/$LATEST/g" "$f"
-done
+sed -i "s/${CURRENT//./\\.}/$LATEST/g" "$HERE/kustomization.yaml"   # the one place the pin is written
 
 echo "re-downloaded ${#FILES[@]} files and bumped the pin to $LATEST — diff before committing"

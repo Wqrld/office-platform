@@ -1,5 +1,5 @@
 {{- /* Escape hatch. Used once it is an escape hatch; used three times it should have
-       become a feature (P5). Every use is logged in known-limitations.md. */}}
+       become a feature (P5). Every use is a line in the README of the app that needs it. */}}
 {{- range $o := .Values.extraObjects }}
 ---
 {{ tpl (toYaml $o) $ }}
