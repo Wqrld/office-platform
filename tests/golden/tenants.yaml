@@ -8,7 +8,7 @@ metadata:
   name: calendars
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -29,7 +29,7 @@ metadata:
   name: docs
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -53,7 +53,7 @@ metadata:
   name: drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -78,7 +78,7 @@ metadata:
   name: find
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -99,7 +99,7 @@ metadata:
   name: keycloak
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -120,7 +120,7 @@ metadata:
   name: meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -143,7 +143,7 @@ metadata:
   name: projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -162,7 +162,7 @@ metadata:
   name: calendars
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -181,7 +181,7 @@ metadata:
   name: docs
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -200,7 +200,7 @@ metadata:
   name: drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -219,7 +219,7 @@ metadata:
   name: find
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -238,7 +238,7 @@ metadata:
   name: keycloak
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -257,7 +257,7 @@ metadata:
   name: meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -276,7 +276,7 @@ metadata:
   name: projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -297,7 +297,7 @@ metadata:
   name: oidc-client-calendars
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -322,7 +322,7 @@ metadata:
   name: oidc-client-docs
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -347,7 +347,7 @@ metadata:
   name: oidc-client-drive
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -372,7 +372,7 @@ metadata:
   name: oidc-client-find
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -397,7 +397,7 @@ metadata:
   name: oidc-client-meet
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -422,7 +422,7 @@ metadata:
   name: oidc-client-projects
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -446,7 +446,7 @@ metadata:
   name: calendars-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -472,7 +472,7 @@ metadata:
   name: docs-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -498,7 +498,7 @@ metadata:
   name: drive-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -524,7 +524,7 @@ metadata:
   name: find-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -550,7 +550,7 @@ metadata:
   name: keycloak-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -576,7 +576,7 @@ metadata:
   name: meet-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -602,7 +602,7 @@ metadata:
   name: projects-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -627,7 +627,7 @@ metadata:
   name: valkey-cache-users
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -648,7 +648,7 @@ metadata:
   name: valkey-broker-users
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -669,7 +669,7 @@ metadata:
   name: valkey-user-calendars
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -690,7 +690,7 @@ metadata:
   name: valkey-user-drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -711,7 +711,7 @@ metadata:
   name: valkey-user-find
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -730,7 +730,7 @@ metadata:
   name: valkey-user-livekit
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -749,7 +749,7 @@ metadata:
   name: valkey-user-meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -770,7 +770,7 @@ metadata:
   name: valkey-user-projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -789,7 +789,7 @@ metadata:
   name: valkey-cache-acl
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -825,7 +825,7 @@ metadata:
   name: valkey-broker-acl
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -862,7 +862,7 @@ metadata:
   name: office-docs
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -884,7 +884,7 @@ metadata:
   name: office-drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -906,7 +906,7 @@ metadata:
   name: office-meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -928,7 +928,7 @@ metadata:
   name: office-projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.0.1
+    helm.sh/chart: platform-tenants-2.1.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants

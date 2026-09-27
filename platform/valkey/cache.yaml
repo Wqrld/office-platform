@@ -35,4 +35,6 @@ spec:
         find:      {permissions: "~* &* +@all -@dangerous +flushdb"}
         calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}
         meet:      {permissions: "~* &* +@all -@dangerous +flushdb"}
-        projects:  {permissions: "~* &* +@all -@dangerous +flushdb"}
+        # +info: node_redis (Sails' sessions and socket.io adapter) sends INFO as its ready
+        # check, and INFO is @dangerous — without it the client never becomes ready.
+        projects:  {permissions: "~* &* +@all -@dangerous +flushdb +info"}
