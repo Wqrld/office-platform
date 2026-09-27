@@ -1,6 +1,5 @@
 # expect: value must be one of 'small', 'medium', 'large'
 domain: example.org
 gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
-livekit: {ip: 10.0.0.6}
 size: xl
 registry: {url: oci://registry.example.org/office}

@@ -1,0 +1,6 @@
+# The SFU at `large`. Not validated: a shape to measure from. Still one process — a
+# second replica needs a second address and LiveKit's multi-node routing, which is a
+# design change, not a size (release.yaml).
+resources:
+  requests: {cpu: "2", memory: 1Gi}
+  limits: {memory: 4Gi}

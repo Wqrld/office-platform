@@ -29,7 +29,7 @@ spec:
     oidc: {enabled: true, createUser: false, storeRefreshToken: true}
 
     # The relay account itself is applied by hand into office-data once and is not in git —
-    # docs/bootstrap.md. This only reshapes it into the DJANGO_EMAIL_* names Docs reads.
+    # docs/install.md. This only reshapes it into the DJANGO_EMAIL_* names Docs reads.
     smtp: {enabled: true}
 
     # A LIST, not a map: `dataFrom` is ordered and its order is part of the spec, so a

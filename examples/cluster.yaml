@@ -1,33 +1,22 @@
 # One cluster of the office platform: the whole of what an organisation keeps.
 #
-# Copy this file into a source of your own — a git repository, or an OCI artifact — that
-# nothing but your cluster reads. It never lives inside the platform's repository: your
-# domain, your addresses and which applications you run are yours, and keeping the pin to
-# the platform version OUTSIDE the tree it points at is what lets it be pinned at all.
-#
-# Three objects. The first two are the frame; the third is every choice you make.
+# Three objects: Flux managing itself, the platform version, and every choice you make.
+# install.sh writes this from your variables; docs/install.md walks it.
 ---
-# 1. Flux manages itself. Applied once by hand at bootstrap (docs/bootstrap.md) and
-#    reconciled from this source ever after, so changing anything here — the Flux version,
-#    where this file is read from — is an edit, not a re-bootstrap.
+# 1. Flux. Applied once by hand; reconciled from `sync` ever after if you set it. Without
+#    `sync` this file is the state: re-applying it is the upgrade, which is fine to start.
 apiVersion: fluxcd.controlplane.io/v1
 kind: FluxInstance
 metadata: {name: flux, namespace: flux-system}
 spec:
   distribution: {version: "2.x", registry: ghcr.io/fluxcd}
-  # No image automation: image tags are pinned deliberately and upgrades are reviewed, so
-  # a controller that rewrites tags has nothing to do here.
   components: [source-controller, kustomize-controller, helm-controller, notification-controller]
   cluster:
     type: kubernetes
-    # Set to true only if your CNI enforces NetworkPolicy; a policy that cannot take
-    # effect only implies protection that is not there.
-    networkPolicy: false
-  sync:
-    kind: GitRepository
-    url: https://github.com/example-org/office-cluster
-    ref: refs/heads/main
-    path: .
+    networkPolicy: false             # true only if your CNI enforces NetworkPolicy
+  # Later, when this file lives in a source of its own — one of:
+  # sync: {kind: GitRepository, url: https://github.com/example-org/office-cluster, ref: refs/heads/main, path: .}
+  # sync: {kind: OCIRepository, url: oci://registry.example.org/office/clusters, ref: latest, path: prod, pullSecret: harbor-auth}
 ---
 # 2. The platform version. THIS LINE IS THE UPGRADE, and editing it back is the rollback.
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -37,28 +26,22 @@ spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/control-plane
   ref: {tag: "2.0.1"}
-  secretRef: {name: harbor-auth}       # created at bootstrap; omit for a public registry
+  secretRef: {name: harbor-auth}       # omit for a public registry
 ---
-# 3. Everything this organisation chooses. charts/control-plane/values.yaml documents each key
-#    and values.schema.json rejects anything else, so a typo is a refused release with a
-#    message rather than a hostname that resolves for nobody.
+# 3. Your choices. charts/control-plane/values.yaml documents each key; the schema rejects
+#    anything else, so a typo is a refused release with a message.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
   chartRef: {kind: OCIRepository, name: platform}
-  # The control plane is Flux objects; their readiness is watched on them, not through
-  # Helm. Waiting here once timed out on a bad pin, and a first install that fails is
-  # uninstalled by helm-controller — the chart's objects are marked `keep` so that can no
-  # longer take anything with it, and this makes sure it cannot happen at all.
-  install: {disableWait: true}
+  install: {disableWait: true}         # readiness is watched on the Flux objects, not through Helm
   upgrade: {disableWait: true}
   values:
     domain: example.org
     storageClass: longhorn
     gateway: {ip: 10.0.0.5, tlsIssuer: letsencrypt-gateway, acmeEmail: ops@example.org}
-    livekit: {ip: 10.0.0.6}            # only needed while apps.meet is on
     size: medium                       # small | medium | large
     apps:
       docs: true
@@ -66,7 +49,13 @@ spec:
       collabora: true                  # Drive needs it
       find: true                       # Docs needs it
       calendars: true
+      projects: true
       meet: true                       # brings LiveKit with it
     objectStore:
       mode: garage                     # or external: your S3, credentials in a Secret
-    registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}   # where release.sh published; the same as OCIRepository/platform's
+    cluster:                           # what the platform installs because the cluster lacks it
+      gateway: {install: true, className: eg}
+      certManager: {install: true}
+      loadBalancer: {kind: metallb, install: true, pool: ["10.0.0.5/32", "10.0.0.6/32"]}
+    smtp: {configured: false}          # true once the smtp-credentials Secret exists
+    registry: {url: oci://harbor.mijnbureau.haaijer.dev/office, pullSecret: harbor-auth}

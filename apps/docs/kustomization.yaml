@@ -2,7 +2,29 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../namespace.yaml
+  - ../services.yaml
   - deps.yaml
   - oidc-refresh-key.yaml
   - release.yaml
   - surround.yaml
+
+configMapGenerator:
+  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
+  - name: docs-sizes
+    namespace: office-docs
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true
+
+  # The switcher panel `LaGaufreV2` loads by URL (surround.yaml), shared with every app.
+  - name: docs-gaufre
+    namespace: office-docs
+    files: [../gaufre.js]
+    options:
+      disableNameSuffixHash: true

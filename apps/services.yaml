@@ -1,0 +1,12 @@
+# The suite's service list, one ConfigMap per app, served from the app's own origin as
+# /custom/services.json for its switcher. SERVICES_JSON is the control plane's, built from
+# the enabled apps (charts/control-plane/apps.yaml), so an app that is off is listed nowhere.
+# The "\n" is load-bearing: Flux substitutes on the YAML text, and a one-line value that
+# starts with `{` would be read back as a map; with a newline it is a block scalar, a string.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: office-services
+  namespace: office-${APP}
+data:
+  services.json: "${SERVICES_JSON}\n"

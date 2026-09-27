@@ -6,11 +6,11 @@ The 5-to-5,000 claim, and the narrower "a demo fits on a spare node" claim, both
 numbers nobody has ever added up. This adds them up.
 
     ./measure.py render --size small          # per-namespace request totals, apps + platform
-    ./measure.py compare                      # assert medium renders what no profile renders
 
 What it does, in order: build every app and the platform layer the way the cluster does
-(tests/render.py: profile as a component, cluster-vars substituted), `helm template` every
-HelmRelease against its pinned chart (fetched into .charts/ on first use), and sum
+(tests/render.py: cluster-vars substituted, each HelmRelease's `valuesFrom` sizes merged
+in), `helm template` every HelmRelease against its pinned chart (fetched into .charts/ on
+first use), and sum
 `resources.requests` over every container of every pod-bearing object, multiplied by its
 replica count.
 
@@ -129,7 +129,7 @@ def render(layer, size, cluster):
         if kind == "HelmRelease":
             try:
                 chart = flux.chart_for(doc, srcs)
-                out = flux.helm_template(chart, name, ns, doc["spec"].get("values", {}), ["--include-crds"])
+                out = flux.helm_template(chart, name, ns, flux.values_of(doc, docs), ["--include-crds"])
             except RuntimeError as exc:
                 rows.append((ns, f"{name} (render FAILED)", 0.0, 0.0, str(exc).strip().splitlines()[-1][:80]))
                 continue
@@ -198,26 +198,7 @@ def main():
     r.add_argument("--size", default="medium", choices=flux.SIZES)
     r.add_argument("--cluster", default="prod")
 
-    c = sub.add_parser("compare", help="medium is the identity profile: it must render what no profile renders")
-    c.add_argument("layers", nargs="*", choices=list(LAYERS))
     args = ap.parse_args()
-
-    if args.cmd == "compare":
-        # A profile is a component; every Kustomization built with `size-medium` must equal
-        # itself built with no components at all.
-        rc = 0
-        medium = ("--set", "size=medium")
-        vars_ = flux.variables(flux.PROD, medium)
-        for ks in (d for d in flux.control_plane(flux.PROD, medium) if d["kind"] == "Kustomization"):
-            name = ks["metadata"]["name"]
-            layer = "apps" if name.startswith("app-") else "platform"
-            if layer not in (args.layers or list(LAYERS)) or name == "infra":
-                continue
-            bare = {**ks, "spec": {k: v for k, v in ks["spec"].items() if k != "components"}}
-            same = flux.build(ks, vars_) == flux.build(bare, vars_)
-            print(f"{'IDENTICAL' if same else 'DIFFERS  '}  {name} at medium {'==' if same else '!='} {name} with no profile")
-            rc |= not same
-        return rc
 
     totals = {}
     for layer in args.layers or list(LAYERS):

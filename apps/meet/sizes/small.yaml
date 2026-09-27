@@ -1,0 +1,26 @@
+# Meet at `small`. Memory is the whole story (medium.yaml).
+backend:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 384Mi}
+    limits: {memory: 1Gi}
+frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 10m, memory: 64Mi}
+    limits: {memory: 128Mi}
+summary:
+  replicas: 1
+  resources:
+    requests: {cpu: 10m, memory: 128Mi}
+    limits: {memory: 384Mi}
+celeryTranscribe:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 192Mi}
+    limits: {memory: 768Mi}
+celerySummaryBackend:
+  replicas: 1
+  resources:
+    requests: {cpu: 10m, memory: 96Mi}
+    limits: {memory: 256Mi}

@@ -1,0 +1,7 @@
+# Egress at `large`. Not validated: a shape to measure from. Egress scales out cleanly —
+# each takes jobs off the shared Redis queue — so two here is two simultaneous
+# transcripts; its budget is in platform-large.yaml.
+replicaCount: 2
+resources:
+  requests: {cpu: 500m, memory: 1Gi}
+  limits: {memory: 4Gi}

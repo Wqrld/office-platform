@@ -137,6 +137,27 @@ spec:
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
+metadata: {name: projects, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: projects
+  ensure: present
+  login: true
+  passwordSecret: {name: projects-db}
+---
+# No extensions. knex migrates it on every pod start (`start.sh`), under knex's own lock.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata: {name: projects, namespace: office-data}
+spec:
+  cluster: {name: office-pg}
+  name: projects
+  owner: projects
+  ensure: present
+  databaseReclaimPolicy: retain
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
 metadata: {name: meet, namespace: office-data}
 spec:
   cluster: {name: office-pg}

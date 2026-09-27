@@ -1,0 +1,7 @@
+# Find at `large`. Not validated against a running cluster: a shape to measure from.
+# Above one replica, so platform-large.yaml carries its budget.
+backend:
+  replicas: 3
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {memory: 1536Mi}

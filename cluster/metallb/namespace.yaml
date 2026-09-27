@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb-system
+  labels:
+    # The speaker binds host ports and reads the node's interfaces: privileged by design.
+    pod-security.kubernetes.io/enforce: privileged

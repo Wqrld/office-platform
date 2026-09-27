@@ -1,0 +1,41 @@
+# Projects' prerequisites. Every spelling here is Projects' own — a Node app that takes one
+# connection string per store and an OIDC issuer — so `env: projects` is a family of its own
+# (charts/platform-deps/templates/_profiles.tpl).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: projects-deps, namespace: office-projects}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  values:
+    app: projects
+    env: projects
+    baseDomain: ${BASE_DOMAIN}
+
+    # DATABASE_URL, assembled inside the ExternalSecret so the password never passes
+    # through Helm. knex migrates on every pod start (`start.sh`), under its own lock.
+    postgres: {enabled: true}
+
+    # REDIS_URL: sessions and socket.io's pub/sub. Only NEEDED with two replicas, but on at
+    # every size — sessions then survive a restart, and `large` is not a different wiring.
+    cache: {enabled: true}
+
+    # Avatars, background images and attachments. Private: the server streams all three
+    # (S3_PROXY_PUBLIC_FILES in release.yaml), so nothing presigns and no publicEndpoint.
+    # S3_FORCE_PATH_STYLE rides in this Secret — it is Garage's constant, not the app's.
+    objectstore: {enabled: true}
+
+    # OIDC_ISSUER + client only; openid-client discovers the rest over the PUBLIC issuer,
+    # which is why surround.yaml opens egress 443. Users are created on first login by the
+    # app itself — there is no `createUser` switch to set here.
+    oidc: {enabled: true, env: discovery}
+
+    # SMTP_*: nodemailer's names. SMTP_SECURE is the relay's useSSL; on 587 nodemailer does
+    # STARTTLS on its own, so the relay's useTLS has nowhere to go.
+    smtp: {enabled: true}
+
+    # An ORDERED LIST that can never gain an entry (`refreshInterval: "0"`, see Calendars'
+    # deps.yaml). SECRET_KEY signs the session cookies, and every replica must share it.
+    generated:
+      projects-app:
+        - {env: SECRET_KEY, draw: secretkey, generator: office-token-50}

@@ -27,10 +27,24 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
 
 
+# Apps no user opens by hand, so no switcher entry: Collabora is an iframe inside Drive, Find
+# an API Docs calls, LiveKit media. Every other app is in the switcher, or it is unreachable
+# from the others.
+NO_SWITCHER = {"collabora", "find", "livekit"}
+
+
 def app_table_agrees() -> list[str]:
-    table, dirs = set(yaml.safe_load((render.CHART / "apps.yaml").read_text())), set(render.APPS)
-    return [f"in the app table but not under apps/: {sorted(table - dirs)}"] * bool(table - dirs) + \
-           [f"under apps/ but not in the app table: {sorted(dirs - table)}"] * bool(dirs - table)
+    apps = yaml.safe_load((render.CHART / "apps.yaml").read_text())
+    table, dirs = set(apps), set(render.APPS)
+    problems = [f"in the app table but not under apps/: {sorted(table - dirs)}"] * bool(table - dirs) + \
+               [f"under apps/ but not in the app table: {sorted(dirs - table)}"] * bool(dirs - table)
+    for name, app in sorted(apps.items()):
+        entry = app.get("switcher")
+        if (name in NO_SWITCHER) != (entry is None):
+            problems.append(f"{name}: a switcher entry is {'not ' if entry else ''}expected (tests/build.py NO_SWITCHER)")
+        elif entry and (set(entry) != {"name", "logo", "maturity"} or not app.get("hosts")):
+            problems.append(f"{name}: switcher needs exactly name, logo, maturity, and a host to serve the logo from")
+    return problems
 
 
 def main() -> int:

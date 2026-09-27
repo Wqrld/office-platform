@@ -5,3 +5,4 @@ __pycache__/
 built/
 *.tgz
 .DS_Store
+/cluster.yaml

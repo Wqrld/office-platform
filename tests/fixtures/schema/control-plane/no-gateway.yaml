@@ -1,5 +1,4 @@
 # expect: '' is not valid ipv4
 # values.yaml defaults it to empty, so "missing" is refused as "not an address".
 domain: example.org
-livekit: {ip: 10.0.0.6}
 registry: {url: oci://registry.example.org/office}

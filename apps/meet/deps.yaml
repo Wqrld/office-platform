@@ -54,4 +54,4 @@ spec:
         SUMMARY_SERVICE_WEBHOOK_API_TOKEN: {from: meet-service-tokens, key: webhook}
       meet-whisperx:
         API_KEY: {from: meet-service-tokens, key: whisperx}
-        HF_TOKEN: {from: huggingface, key: token}   # hand-applied, gated pyannote model (docs/bootstrap.md)
+        HF_TOKEN: {from: huggingface, key: token}   # hand-applied, gated pyannote model (docs/install.md)

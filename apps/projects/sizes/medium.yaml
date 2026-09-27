@@ -1,0 +1,7 @@
+# Projects at `medium`. Unmeasured — a starting point, not `measure.py` output (README.md).
+# One process holds every socket; image resizing (sharp) on upload is the memory spike.
+backend:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}

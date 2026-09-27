@@ -37,6 +37,7 @@ mediaProxy:
 staticFiles:
   enabled: true
   filesConfigMap: full-switcher
+  servicesConfigMap: office-services
   path: /custom/
   maxAge: 600
 

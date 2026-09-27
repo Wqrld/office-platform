@@ -339,9 +339,11 @@ spec:
       volumes:
         - name: conf
           configMap: {name: drive-static-conf}
-        - configMap:
-            name: drive-switcher
-          name: files
+        - name: files
+          projected:
+            sources:
+            - configMap:
+                name: drive-switcher
         - {name: cache, emptyDir: {}}
         - {name: run, emptyDir: {}}
         - {name: tmp, emptyDir: {}}

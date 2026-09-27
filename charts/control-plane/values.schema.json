@@ -3,55 +3,164 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "domain": {"type": "string", "format": "hostname", "minLength": 1},
-    "storageClass": {"type": "string", "minLength": 1},
+    "domain": {
+      "type": "string",
+      "format": "hostname",
+      "minLength": 1
+    },
+    "storageClass": {
+      "type": "string",
+      "minLength": 1
+    },
     "gateway": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "ip": {"type": "string", "format": "ipv4"},
-        "tlsIssuer": {"type": "string", "minLength": 1},
-        "acmeEmail": {"type": "string", "format": "email"}
+        "ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "tlsIssuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acmeEmail": {
+          "type": "string",
+          "format": "email"
+        }
       }
     },
-    "livekit": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {"ip": {"type": "string", "anyOf": [{"format": "ipv4"}, {"maxLength": 0}]}}
+    "size": {
+      "enum": [
+        "small",
+        "medium",
+        "large"
+      ]
     },
-    "size": {"enum": ["small", "medium", "large"]},
     "apps": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "docs": {"type": "boolean"},
-        "drive": {"type": "boolean"},
-        "collabora": {"type": "boolean"},
-        "find": {"type": "boolean"},
-        "calendars": {"type": "boolean"},
-        "meet": {"type": "boolean"}
+        "docs": {
+          "type": "boolean"
+        },
+        "drive": {
+          "type": "boolean"
+        },
+        "collabora": {
+          "type": "boolean"
+        },
+        "find": {
+          "type": "boolean"
+        },
+        "calendars": {
+          "type": "boolean"
+        },
+        "projects": {
+          "type": "boolean"
+        },
+        "meet": {
+          "type": "boolean"
+        }
       }
     },
     "objectStore": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"mode": {"enum": ["garage", "external"]}}
+      "properties": {
+        "mode": {
+          "enum": [
+            "garage",
+            "external"
+          ]
+        }
+      }
+    },
+    "cluster": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install": {
+              "type": "boolean"
+            },
+            "className": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "certManager": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "install": {
+              "type": "boolean"
+            }
+          }
+        },
+        "loadBalancer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "metallb",
+                "none"
+              ]
+            },
+            "install": {
+              "type": "boolean"
+            },
+            "pool": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "smtp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "configured": {
+          "type": "boolean"
+        }
+      }
     },
     "registry": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "url": {"type": "string", "pattern": "^oci://.+"},
-        "pullSecret": {"type": "string"}
+        "url": {
+          "type": "string",
+          "pattern": "^oci://.+"
+        },
+        "pullSecret": {
+          "type": "string"
+        }
       }
     },
     "reconcile": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "interval": {"type": "string"},
-        "retryInterval": {"type": "string"},
-        "timeout": {"type": "string"}
+        "interval": {
+          "type": "string"
+        },
+        "retryInterval": {
+          "type": "string"
+        },
+        "timeout": {
+          "type": "string"
+        }
       }
     }
   }

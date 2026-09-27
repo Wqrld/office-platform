@@ -1,0 +1,4 @@
+# Collabora at `small`. `replicaCount` is never here (medium.yaml).
+resources:
+  requests: {cpu: 50m, memory: 384Mi}
+  limits: {memory: 1Gi}

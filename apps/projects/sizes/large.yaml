@@ -1,0 +1,8 @@
+# Projects at `large`. Not validated against a running cluster: a shape to measure from.
+# Two replicas is what REDIS_URL and the bucket make possible — sessions and socket.io
+# broadcasts are shared through Valkey, files through S3. Budget in platform-large.yaml.
+backend:
+  replicas: 2
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {memory: 1Gi}

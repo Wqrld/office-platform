@@ -91,6 +91,51 @@ follow the selection when a Kustomization cannot drop a list item.
 {{- end }}
 
 {{/*
+The service list every app switcher shows, as one line of JSON in the lagaufre widget's
+schema — `{services: [{name, url, logo, maturity}]}`: each enabled app's `switcher` entry
+from the table, by name, then the account page. Substituted into `apps/services.yaml`
+(see its note on the newline) and served by every app as /custom/services.json.
+Account has no logo on purpose: the widget renders a first letter, and a data: URI is the
+one thing this value must not carry through YAML quoting twice.
+*/}}
+{{- define "platform.servicesJson" -}}
+{{- $table := include "platform.apps" . | fromYaml }}
+{{- $services := list }}
+{{- range include "platform.enabledApps" . | fromYamlArray }}
+  {{- $app := index $table . }}
+  {{- with $app.switcher }}
+    {{- $url := printf "https://%s.%s" (first $app.hosts) $.Values.domain }}
+    {{- $services = append $services (dict "name" .name "url" $url "logo" (printf "%s%s" $url .logo) "maturity" .maturity) }}
+  {{- end }}
+{{- end }}
+{{- $services = append $services (dict "name" "Account" "url" (printf "https://id.%s/realms/office/account" .Values.domain) "maturity" "stable") }}
+{{- dict "services" $services | toJson }}
+{{- end }}
+
+{{/*
+The annotations that pin a LoadBalancer Service to an address, as a JSON map substituted
+whole (like TLS_HOSTS): MetalLB's, or none when the cluster's own provider allocates.
+*/}}
+{{- define "platform.lbAnnotations" -}}
+{{- $root := index . 0 }}{{ $ip := index . 1 }}
+{{- if eq $root.Values.cluster.loadBalancer.kind "metallb" }}{{ dict "metallb.universe.tf/loadBalancerIPs" $ip | toJson }}{{ else }}{}{{ end }}
+{{- end }}
+
+{{/*
+The cluster services this cluster installs itself — directories under cluster/; empty
+when the cluster brings its own.
+*/}}
+{{- define "platform.clusterServices" -}}
+{{- $c := .Values.cluster }}
+{{- if and $c.loadBalancer.install (ne $c.loadBalancer.kind "metallb") }}{{ fail "cluster.loadBalancer.install is on, but only kind: metallb can be installed" }}{{ end }}
+{{- if and $c.loadBalancer.install (not $c.loadBalancer.pool) }}{{ fail "cluster.loadBalancer.install is on, so cluster.loadBalancer.pool needs at least one address" }}{{ end }}
+{{- if $c.gateway.install }}- gateway
+{{ end }}
+{{- if $c.loadBalancer.install }}- metallb
+{{ end }}
+{{- end }}
+
+{{/*
 The platform version this control plane reconciles: the config artifact and the platform
 charts are pinned to it. appVersion, NOT .Chart.Version: helm-controller installs an OCI
 chart as `2.0.0+<digest>` and .Chart.Version carries that suffix into every tag, which

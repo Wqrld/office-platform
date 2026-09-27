@@ -7,6 +7,8 @@ spec:
   interval: 30m
   dependsOn: [{name: docs}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: docs
     baseDomain: ${BASE_DOMAIN}
@@ -39,6 +41,19 @@ spec:
         paths: [/collaboration/ws, /collaboration/api]
         websocket: true             # setting requestBuffer here is a render-time error
 
+      - name: static
+        host: docs
+        backend: {name: docs-static, port: 8080}
+        paths: [/custom]
+
+    # THE GAUFRE's two files, from Docs' own origin: the widget script `LaGaufreV2` loads
+    # (`waffle.widgetPath`, release.yaml — by default the French government's CDN) and the
+    # service list it fetches (`waffle.apiUrl`).
+    staticFiles:
+      enabled: true
+      filesConfigMap: docs-gaufre
+      servicesConfigMap: office-services
+
     mediaProxy:
       enabled: true
       auth: {service: docs-backend, port: 80, path: /api/v1.0/documents/media-auth/}
@@ -53,5 +68,3 @@ spec:
         - {identity: true}
         # Covers Find, which Docs reaches at its PUBLIC url rather than pod-to-pod.
         - {external: true, port: 443}
-
-    # One replica at this size, so no PDB: it could only block drains.

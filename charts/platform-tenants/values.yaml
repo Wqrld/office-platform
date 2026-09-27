@@ -12,6 +12,7 @@ apps:
   drive:     {postgres: {extensions: [ltree, pg_trgm, unaccent]}, cache: [cache, broker], oidc: true, bucket: true}
   find:      {postgres: {}, cache: [cache], oidc: true}
   calendars: {postgres: {}, cache: [cache, broker], oidc: true}
+  projects:  {postgres: {}, cache: [cache], oidc: true, bucket: true}
   meet:      {postgres: {extensions: [pg_trgm]}, cache: [cache, broker], oidc: true, bucket: true}
   livekit:   {cache: [broker]}
 

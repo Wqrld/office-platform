@@ -1,0 +1,29 @@
+# Meet at `medium` — measured (apps/README.md, Sizing). Five sized workloads; four more
+# run at zero replicas at every size (release.yaml says which and why). The summary
+# workers are `--pool=solo` upstream, so there is no concurrency to lower — memory is the
+# whole story, and the transcribe worker's is ffmpeg on a meeting's worth of audio.
+backend:
+  replicas: 1                    # the chart defaults to 3
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 64Mi}
+    limits: {memory: 128Mi}
+summary:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 192Mi}
+    limits: {memory: 512Mi}
+celeryTranscribe:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {memory: 1Gi}
+celerySummaryBackend:
+  replicas: 1
+  resources:
+    requests: {cpu: 10m, memory: 128Mi}
+    limits: {memory: 384Mi}

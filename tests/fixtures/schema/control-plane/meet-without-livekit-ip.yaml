@@ -1,4 +1,0 @@
-# expect: apps.meet is on, so livekit.ip is required
-domain: example.org
-gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
-registry: {url: oci://registry.example.org/office}

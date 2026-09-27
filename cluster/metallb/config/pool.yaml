@@ -1,0 +1,12 @@
+# `cluster.loadBalancer.pool`; gateway.ip must be in it.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata: {name: office, namespace: metallb-system}
+spec:
+  addresses: ${LB_POOL}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata: {name: office, namespace: metallb-system}
+spec:
+  ipAddressPools: [office]

@@ -66,18 +66,14 @@ whose `theme_customization` key is what the frontend actually renders.
 
 ## The waffle
 
-`waffle` is the gaufre. Three states, and the default is not the one the design set warns
-about:
-
-- **absent** — the switcher does not render at all. This is v5.5.0's shipped default.
-- **`waffle.apiUrl`** — fetches the service list from `lasuite.numerique.gouv.fr`. This is
-  the state to avoid.
-- **`waffle.data.services`** — our own list, served from our own domains, no external call.
-  This is what is configured.
-
-Add an entry per application as it lands. This is one of three lists of the same services,
-one per switcher: `apps/switcher.js` and `apps/calendars/services.json` are the others.
-An application added to one and not the rest is missing from a switcher.
+`waffle` is the gaufre. Without the key the switcher does not render at all (v5.5.0's
+shipped default). With it, `LaGaufreV2` draws the button and loads two things by URL, both
+of which default to the French government's: the widget script (`widgetPath`, from
+`static.suite.anct.gouv.fr` — without it there is no switcher) and the service list
+(`apiUrl`, `{services: [{name, url, logo, maturity}]}`, from `lasuite.numerique.gouv.fr`;
+`data.services` is the same list inline). Both point at Docs' own origin here:
+`/custom/gaufre.js` and `/custom/services.json`, served by the surround's `staticFiles`
+(`apps/README.md`, The switcher). The list is the control plane's, from the enabled apps.
 
 ## Restoring the legacy data
 

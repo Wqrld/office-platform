@@ -35,3 +35,4 @@ spec:
         find:      {permissions: "~* &* +@all -@dangerous +flushdb"}
         calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}
         meet:      {permissions: "~* &* +@all -@dangerous +flushdb"}
+        projects:  {permissions: "~* &* +@all -@dangerous +flushdb"}

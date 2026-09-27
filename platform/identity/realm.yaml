@@ -23,6 +23,7 @@ spec:
     CLIENT_SECRET_DRIVE: {secret: {name: oidc-client-drive, key: secret}}
     CLIENT_SECRET_FIND:  {secret: {name: oidc-client-find, key: secret}}
     CLIENT_SECRET_CALENDARS: {secret: {name: oidc-client-calendars, key: secret}}
+    CLIENT_SECRET_PROJECTS: {secret: {name: oidc-client-projects, key: secret}}
     CLIENT_SECRET_MEET:  {secret: {name: oidc-client-meet, key: secret}}
     # The relay account, read into this namespace by smtp.yaml. Placeholders are the only
     # way a secret reaches the realm, and smtpServer is a map of STRINGS in the CRD — hence
@@ -196,6 +197,31 @@ spec:
           frontchannel.logout.url: https://calendars.${BASE_DOMAIN}/api/v1.0/logout/
           frontchannel.logout.session.required: "false"
           post.logout.redirect.uris: https://calendars.${BASE_DOMAIN}/*
+      # No back- or front-channel logout URL: Projects has no endpoint for either. Its
+      # logout sends the browser to Keycloak's end_session endpoint (`endSessionUrl`), so a
+      # logout started here ends both; one started in another app leaves this session alive
+      # until its token expires.
+      - clientId: projects
+        name: Projects
+        description: Projects — borden, lijsten en kaarten voor projectbeheer
+        enabled: true
+        alwaysDisplayInConsole: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "$${CLIENT_SECRET_PROJECTS}"
+        rootUrl: https://projects.${BASE_DOMAIN}
+        baseUrl: https://projects.${BASE_DOMAIN}
+        adminUrl: https://projects.${BASE_DOMAIN}
+        redirectUris: ["https://projects.${BASE_DOMAIN}/oidc-callback"]
+        webOrigins: ["https://projects.${BASE_DOMAIN}"]
+        standardFlowEnabled: true
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        frontchannelLogout: false
+        attributes:
+          post.logout.redirect.uris: https://projects.${BASE_DOMAIN}/*
       - clientId: meet
         name: Meet
         description: Meet — videovergaderen

@@ -1,0 +1,19 @@
+# The surround owns the disruption budgets; `components` is name -> selector, read off
+# the render. The transcribe worker's pods also carry `instance: default`; the three
+# labels below are enough to select them.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:
+      {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+       app.kubernetes.io/component: backend}
+    frontend:
+      {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+       app.kubernetes.io/component: frontend}
+    summary:
+      {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+       app.kubernetes.io/component: summary}
+    celery-transcribe:
+      {app.kubernetes.io/name: meet, app.kubernetes.io/instance: meet,
+       app.kubernetes.io/component: celery-transcribe}

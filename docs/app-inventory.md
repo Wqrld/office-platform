@@ -15,6 +15,7 @@ platform provisions for it (`charts/platform-tenants/values.yaml`).
 | **docs** | 5 — backend, frontend, celery, yprovider, docspec | ● | ● | ● | ● | ● | upstream, git tag | `docs` |
 | **drive** | 4 — backend, frontend, celery, celery-beat | ● | ● | ● | | ● | upstream, git tag | `drive` |
 | **calendars** | 4 — backend, frontend, caldav, worker | ● | ● | | | ● | upstream PR, from our Helm repo | `calendars` |
+| **projects** | 1 — backend (Sails: SPA, API, socket.io, files) | ● | ● | ● | | ● | ours in the app's repo, from our Helm repo | `projects` |
 | **find** | 1 — backend | ● | ● | | ● | ● | upstream, commit pin | `find` |
 | **meet** | 5 live (+4 at 0 replicas) + our whisperx | ● | ● | ● | | ● | upstream, git tag | `meet` |
 | **livekit** | 2 — server, egress | | ● | | | | vendor, commit pin | `livekit`; `turn` → its own IP |
@@ -48,6 +49,7 @@ These are why `dependsOn` and the egress graph matter. Read as "row depends on c
 | bureaublad | ● | | | ● | | |
 | grist | ● | | | ● | | |
 | calendars | ● | | | | | |
+| projects | ● | | | | | |
 | find | ● | | | | ● | |
 | element | ● | | | | | |
 
@@ -91,6 +93,16 @@ and needs a relaxed security context (`runAsUser: 33`, writable root filesystem)
 place in the platform where the platform default doesn't hold. Also the **only app never
 migrated to Gateway API**: it still has `ingress.yaml` and no HTTPRoute. Routing for it is
 net-new work, not a port.
+
+### projects
+
+Not Django, and it shows in every spelling: `DATABASE_URL`, `REDIS_URL`, `S3_*`, `SMTP_*`
+and an `OIDC_ISSUER` it discovers everything from — five new profiles, one family
+(`apps/projects/README.md`). One process serves the SPA, the API and socket.io, and most of
+the UI's writes go over the socket, so `/socket.io` is a websocket route or the UI stops
+saving. Upstream links avatars straight to the bucket; the fork's `S3_PROXY_PUBLIC_FILES`
+streams them through the server instead, so the bucket stays private. No chart upstream —
+ours is Docs' cut down to one workload.
 
 ### element / synapse — stays, on ESS Community
 
@@ -169,11 +181,10 @@ chart is replaceable.
 ### livekit — the Gateway API exception
 
 Built as planned, with two narrowings. Signaling goes through the Gateway like any app
-(`wss://livekit.<domain>`); media goes to a dedicated `Service type=LoadBalancer` on
-`${LIVEKIT_IP}` with ONE multiplexed UDP port rather than a range, plus ICE/TCP and
-TURN/UDP. TURN over TLS is not offered: its certificate would be for a name on an address
-the Gateway does not hold (adr/0105). Config lives in a Secret, not the chart's ConfigMap,
-and the chart's hostPorts are stripped for PSA baseline. `apps/livekit/README.md`.
+(`wss://livekit.<domain>`); media goes through the Gateway too, as L4 listeners (adr/0113)
+with ONE multiplexed UDP port rather than a range, plus ICE/TCP and TURN/UDP. TURN over
+TLS is not offered. Config lives in a Secret, not the chart's ConfigMap, and the chart's
+hostPorts are stripped for PSA baseline. `apps/livekit/README.md`.
 
 ### collabora
 

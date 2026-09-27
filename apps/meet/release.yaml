@@ -41,6 +41,10 @@ spec:
       # migrate job.
       retries: 0
 
+  # Sizing — replicas, resources — comes from sizes/<size>.yaml, one key of the
+  # `meet-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here;
+  # the `replicas: 0` below are not sizes, they are workloads not deployed.
+  valuesFrom: [{kind: ConfigMap, name: meet-sizes, valuesKey: "${SIZE}"}]
   postRenderers:
     - kustomize:
         patches:
@@ -110,11 +114,7 @@ spec:
 
     # ---------------------------------------------------------------- backend
     backend:
-      replicas: 1                    # the chart defaults to 3
-      pdb: {enabled: false}          # one replica: a PDB here can only block a drain
-      resources:
-        requests: {cpu: 100m, memory: 512Mi}
-        limits: {memory: 1Gi}
+      pdb: {enabled: false}          # the surround owns budgets, at every size
       envVars:
         DJANGO_SETTINGS_MODULE: meet.settings
         DJANGO_CONFIGURATION: Production
@@ -207,27 +207,27 @@ spec:
     # ---------------------------------------------------------------- frontend
     frontend:
       image: {tag: v1.31.0}
-      replicas: 1
       pdb: {enabled: false}
-      resources:
-        requests: {cpu: 25m, memory: 64Mi}
-        limits: {memory: 128Mi}
       # THE GAUFRE. Meet's frontend has no switcher and no hook for one — the only
       # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
       # to add one <script> tag to every HTML response (`sub_filter`, in default.conf)
-      # and to serve the script itself from /custom/. Both files come from the
-      # `meet-frontend` ConfigMap (kustomization.yaml). No fork, no init container, and a
-      # chart bump that changes default.conf shows up as a diff against ours in git.
+      # and to serve /custom/ itself: the two scripts from the `meet-frontend` ConfigMap
+      # (kustomization.yaml) and the service list from `office-services`
+      # (apps/services.yaml), projected into one directory. No fork, no init container,
+      # and a chart bump that changes default.conf shows up as a diff against ours in git.
       #
       # default.conf is a `subPath` mount because it replaces one file in a directory the
       # image owns; nginx reads it at start, so a change to it needs a restart anyway.
-      # The script is a DIRECTORY mount: a subPath is a copy the kubelet never refreshes,
-      # and Drive serves the same file live, so Meet must too.
+      # /custom is a DIRECTORY mount: a subPath is a copy the kubelet never refreshes,
+      # and the other apps serve the same files live, so Meet must too.
       extraVolumes:
         - name: conf
           configMap: {name: meet-frontend, items: [{key: default.conf, path: default.conf}]}
         - name: custom
-          configMap: {name: meet-frontend, items: [{key: switcher.js, path: switcher.js}]}
+          projected:
+            sources:
+              - configMap: {name: meet-frontend, items: [{key: switcher.js, path: switcher.js}, {key: gaufre.js, path: gaufre.js}]}
+              - configMap: {name: office-services}
       extraVolumeMounts:
         - {name: conf, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf, readOnly: true}
         - {name: custom, mountPath: /srv/custom, readOnly: true}
@@ -239,11 +239,7 @@ spec:
     # anchored once because the chart has no shared env for them.
     summary:
       image: {tag: v1.31.0}
-      replicas: 1
       pdb: {enabled: false}
-      resources:
-        requests: {cpu: 25m, memory: 192Mi}
-        limits: {memory: 512Mi}
       envVars: &summaryEnv
         # The ONE deliberate env-over-envFrom override. `meet-s3` carries
         # AWS_S3_ENDPOINT_URL as the full URL Django's storage wants; the summary service
@@ -271,11 +267,7 @@ spec:
     # ffmpeg on an hour of audio is the memory peak of the whole pipeline bar whisperx.
     celeryTranscribe:
       image: {tag: v1.31.0}
-      replicas: 1
       pdb: {enabled: false}
-      resources:
-        requests: {cpu: 50m, memory: 256Mi}
-        limits: {memory: 1Gi}
       envVars:
         <<: *summaryEnv
         # The worker's call to whisperx has a hard-coded ten-minute read timeout; on CPU
@@ -294,11 +286,7 @@ spec:
     # `call-webhook-queue`: tells the backend the job finished. Tiny.
     celerySummaryBackend:
       image: {tag: v1.31.0}
-      replicas: 1
       pdb: {enabled: false}
-      resources:
-        requests: {cpu: 10m, memory: 128Mi}
-        limits: {memory: 384Mi}
       envVars: *summaryEnv
 
     # `summarize-queue`: the LLM step. Off (IS_SUMMARY_ENABLED=false), so no worker — a

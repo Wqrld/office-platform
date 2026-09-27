@@ -15,7 +15,7 @@
 cases:
   # ---- the control plane: one case per cluster ----------------------------------------
   # These double as the clusters the build, kubeconform and dns checks run against: the
-  # values ARE the cluster (docs/bootstrap.md), so a case here is a cluster CI builds end
+  # values ARE the cluster (docs/install.md), so a case here is a cluster CI builds end
   # to end, not just a render.
   - name: cluster-prod
     chart: control-plane
@@ -37,6 +37,14 @@ cases:
       The smallest selection the platform accepts on an organisation's own S3: Docs and
       Find, nothing that needs Garage, LiveKit or Collabora. Both acceptance criteria of
       docs/platform-org-split.md, asserted on every build.
+
+  - name: cluster-vps
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: >-
+      A fresh VPS as install.sh writes it — the platform installs Gateway, cert-manager and
+      MetalLB itself, the SMTP placeholder is in, Meet is off.
 
   # ---- the two shapes that are live today -------------------------------------------
   - name: docs-deps
@@ -72,6 +80,14 @@ cases:
     description: >-
       Calendars' datastores — the only consumer of the `dramatiq` cache profile, and the
       only case where one app draws three URLs across two Valkey instances.
+
+  - name: projects-deps
+    chart: platform-deps
+    release: projects-deps
+    namespace: office-projects
+    description: >-
+      Projects' datastores — the only consumer of the `url`, `s3` and `nodemailer`
+      profiles and of `oidc.env: discovery`: one connection string, one issuer.
 
   - name: external-deps
     chart: platform-deps

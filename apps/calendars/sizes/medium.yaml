@@ -1,0 +1,27 @@
+# Calendars at `medium` — measured (apps/README.md, Sizing).
+# Four workloads, and the worker is the one that matters: `WORKER_CONCURRENCY` is a sizing
+# decision, not a tuning knob — worker.py's argparse default is 4 processes, each a full
+# Django. The three install Jobs inherit `backend.resources` and run alongside the
+# workloads, so the install PEAK is these numbers plus another backend's worth.
+backend:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+  envVars:
+    WORKER_CONCURRENCY: "2"
+  worker:
+    replicas: 1
+    resources:
+      requests: {cpu: 50m, memory: 384Mi}
+      limits: {memory: 1Gi}
+frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 64Mi}
+    limits: {memory: 128Mi}
+caldav:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}

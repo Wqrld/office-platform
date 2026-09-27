@@ -17,6 +17,8 @@ this implements). Each names what it amends.
 | [0109](0109-media-proxy-belongs-to-the-surround.md) | accepted | The `/media` auth-subrequest proxy is a route implementation, so it lives in `platform-app` |
 | [0110](0110-object-store-is-published-for-drive.md) | accepted | **The object store is internet-reachable for one bucket** — Drive presigns uploads to the browser |
 | [0111](0111-opensearch-security-posture.md) | accepted | **OpenSearch runs with the security plugin on** — the index prefix is the tenant boundary |
+| [0112](0112-cluster-services-are-optional-layers.md) | accepted | Gateway, cert-manager and MetalLB are optional Flux layers chosen in `cluster.yaml`; GatewayClass and the address pin are values |
+| [0113](0113-media-through-the-gateway.md) | accepted | LiveKit's media goes through the Gateway's L4 listeners; one address per cluster, `livekit.ip` gone |
 
 Superseded from the design set: `0002` (library chart per component) → `0104` and the
 three charts in `charts/`; `0012` (upstream La Suite charts) → `0104`; `0013` (Kyverno

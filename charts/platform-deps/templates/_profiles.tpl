@@ -18,6 +18,10 @@ postgres:
     dbname: DB_NAME
     username: DB_USER
     password: DB_PASSWORD
+  # One connection string, for apps that take nothing else (Projects: knex, DATABASE_URL).
+  # Safe to assemble unescaped: the platform's passwords carry no symbols (generator.yaml).
+  url:
+    url: DATABASE_URL
 
 objectstore:
   # `publicEndpoint` is where a BROWSER reaches the bucket; `endpoint` is the in-cluster
@@ -29,6 +33,14 @@ objectstore:
     accessKeyId: AWS_S3_ACCESS_KEY_ID
     secretAccessKey: AWS_S3_SECRET_ACCESS_KEY
     publicEndpoint: AWS_S3_DOMAIN_REPLACE
+  # Projects. Path-style is a constant of Garage, not of the app, so it rides in the Secret.
+  s3:
+    endpoint: S3_ENDPOINT
+    region: S3_REGION
+    bucket: S3_BUCKET
+    accessKeyId: S3_ACCESS_KEY_ID
+    secretAccessKey: S3_SECRET_ACCESS_KEY
+    forcePathStyle: S3_FORCE_PATH_STYLE
 
 # Cache is addressed as a URL, not as parts: every consumer we have takes a connection
 # string. The profile therefore names the env var per USE (cache, broker), not per concept.
@@ -86,6 +98,15 @@ smtp:
     useTLS: DJANGO_EMAIL_USE_TLS
     useSSL: DJANGO_EMAIL_USE_SSL
     from: DJANGO_EMAIL_FROM
+  # Projects (nodemailer). No backend class and no STARTTLS flag: `SMTP_SECURE` is implicit
+  # TLS, i.e. the relay's useSSL, and on 587 nodemailer upgrades with STARTTLS by itself.
+  nodemailer:
+    host: SMTP_HOST
+    port: SMTP_PORT
+    username: SMTP_USER
+    password: SMTP_PASSWORD
+    useSSL: SMTP_SECURE
+    from: SMTP_FROM
 {{- end -}}
 
 {{/* An app family's spelling per kind, so a deps file says `env: lasuite` once. */}}
@@ -93,6 +114,7 @@ smtp:
 lasuite:   {postgres: django, cache: django, objectstore: django-s3, smtp: django-prefixed}
 find:      {postgres: django, cache: django, opensearch: find}
 calendars: {postgres: django, cache: dramatiq, smtp: django}
+projects:  {postgres: url, cache: django, objectstore: s3, smtp: nodemailer}
 {{- end -}}
 
 {{/*

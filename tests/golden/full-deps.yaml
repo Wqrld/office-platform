@@ -258,7 +258,7 @@ spec:
 # Source: platform-deps/templates/smtp.yaml
 # The one credential on this platform that is neither generated in-cluster nor minted by an
 # operator: an SMTP relay account is issued by somebody else, so it is applied by hand into
-# office-data once (docs/bootstrap.md) and read back from here. Nothing about the relay is in
+# office-data once (docs/install.md) and read back from here. Nothing about the relay is in
 # git — not even the host — and this reshapes the whole of it into the key names django
 # applications expect, so the app consumes it with one `envFrom`.
 #

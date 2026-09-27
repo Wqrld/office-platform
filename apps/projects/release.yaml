@@ -1,0 +1,98 @@
+# Release 2 of 3: Projects, from the chart written in the application's own repo
+# (`src/helm/projects`, copied from Docs' `src/helm/impress` so upstream reads it as theirs).
+# It is not in an upstream tag yet, so it comes from the fork's git tag until the upstreaming
+# PR lands; see charts/control-plane/templates/sources.yaml and README.md.
+#
+# ONE workload: a Sails server that serves the SPA, the API, socket.io, attachments and —
+# with S3_PROXY_PUBLIC_FILES — avatars and background images. The chart calls it `backend`,
+# as Docs' does, so the Service is `projects-backend`. No Jobs: migrations run in `start.sh`.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: projects
+  namespace: office-projects
+spec:
+  interval: 30m
+  # Every Secret this release consumes with `envFrom` is created by projects-deps.
+  dependsOn: [{name: projects-deps}]
+  chart:
+    spec:
+      chart: src/helm/projects
+      sourceRef: {kind: GitRepository, name: wqrld-projects, namespace: flux-system}
+      reconcileStrategy: Revision
+  upgrade:
+    remediation:
+      # A rollback reverts the code and leaves the schema migrated. Fail forward, loudly.
+      retries: 0
+  # Sizing — replicas, resources — comes from sizes/<size>.yaml, one key of the
+  # `projects-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.
+  valuesFrom: [{kind: ConfigMap, name: projects-sizes, valuesKey: "${SIZE}"}]
+
+  values:
+    # THE FORK'S IMAGE, until upstream merges and tags both patches (README.md, Pins):
+    # S3_PROXY_PUBLIC_FILES, without which every avatar is a link to a private bucket, and
+    # the numeric `USER 1000:1000`. The chart's default is `latest`, which pins nothing.
+    image:
+      repository: ghcr.io/wqrld/projects
+      tag: "1.3.1"
+
+    # Routing is ours — surround.yaml. Already false in the chart; stated so a default flip
+    # upstream cannot quietly publish a second path in.
+    ingress: {enabled: false}
+
+    backend:
+      # The surround owns budgets at every size (tests/binding.py fails an upstream PDB).
+      pdb: {enabled: false}
+
+      # Upstream's image says `USER node`, a NAME, and the kubelet cannot check a name
+      # against the chart's `runAsNonRoot: true` — every pod would be a
+      # CreateContainerConfigError. 1000 is `node` in node:alpine. Redundant once the fork's
+      # `USER 1000:1000` is upstream; harmless until then. A map merge: the rest of the
+      # chart's securityContext stands.
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+
+      envFrom:
+        - {secretRef: {name: projects-postgres}}
+        - {secretRef: {name: projects-cache}}
+        - {secretRef: {name: projects-s3}}
+        - {secretRef: {name: projects-oidc}}
+        - {secretRef: {name: projects-smtp}}
+        - {secretRef: {name: projects-app}}
+
+      envVars:
+        BASE_URL: https://projects.${BASE_DOMAIN}
+        # Behind the Gateway: without it every client IP is Envoy's and rate limiting, the
+        # audit trail and `secure` cookies all see the wrong thing.
+        TRUST_PROXY: "1"
+        TZ: Europe/Amsterdam
+        DEFAULT_LANGUAGE: nl-NL
+        SERVICE_NAME: Projects
+        DISABLE_INDEXING: "true"
+
+        # See deps.yaml: the bucket is private, the server streams everything out of it.
+        S3_PROXY_PUBLIC_FILES: "true"
+
+        # SSO only. `OIDC_ENFORCED` hides the password form; without it a local account can
+        # exist beside the realm and outlive a user the realm has disabled.
+        OIDC_ENFORCED: "true"
+        OIDC_USE_DEFAULT_RESPONSE_MODE: "true"
+        OIDC_FULLNAME_ATTRIBUTES: name
+        OIDC_IGNORE_USERNAME: "true"
+        # No realm role maps to Projects' admin, so nobody is one through SSO. The first
+        # admin is made by hand — README.md, Install order.
+        OIDC_IGNORE_ROLES: "true"
+        # FREE MODE, on purpose: `ORGANIZATION_ID_CLAIM` is unset, so every user creates and
+        # manages their own projects. Org mode keys projects on a claim this realm does not
+        # issue; like Calendars' organizations, a decision for before the tables fill up.
+        ALLOW_ALL_TO_CREATE_PROJECTS: "true"
+
+        # THE GAUFRE. Projects' own LaGaufreButton, pointed at our two files on its own
+        # origin (`staticFiles` in surround.yaml). `widgetPath` is a DIRECTORY — the
+        # component appends `lagaufre.js` — hence the trailing slash and the ConfigMap key.
+        # The only field it reads besides the two URLs is `variant`, which picks an icon.
+        # THEME REPLACES the built-in theme rather than merging into it, and that is the
+        # point too: the default is a French-government footer (legifrance, etalab) and a
+        # feedback menu whose three links are all `#`. Neither is ours; both go.
+        THEME: '{"gaufre":{"variant":"anct","apiUrl":"https://projects.${BASE_DOMAIN}/custom/services.json","widgetPath":"https://projects.${BASE_DOMAIN}/custom/"}}'

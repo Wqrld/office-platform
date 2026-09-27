@@ -1,0 +1,18 @@
+# The surround owns the disruption budgets; `components` is name -> selector, read off
+# the render, not guessed. The worker's component label is `worker` even though its
+# values key is `backend.worker`, and its Deployment is `calendars-worker`, not
+# `calendars-backend-worker`. `caldav` is absent on purpose: still one replica in
+# large.yaml, and tests/profiles.py fails a PDB that selects a single-replica workload.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:
+      {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
+       app.kubernetes.io/component: backend}
+    frontend:
+      {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
+       app.kubernetes.io/component: frontend}
+    worker:
+      {app.kubernetes.io/name: calendars, app.kubernetes.io/instance: calendars,
+       app.kubernetes.io/component: worker}

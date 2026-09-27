@@ -1,0 +1,3 @@
+# The SMTP placeholder Secret: base64 of the word 'placeholder', not a credential.
+9cbd07ccf5191194a25ff26e873594af664bd143:platform/overlays/smtp-placeholder/secret.yaml:generic-api-key:15
+platform/overlays/smtp-placeholder/secret.yaml:generic-api-key:15

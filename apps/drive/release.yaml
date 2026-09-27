@@ -27,6 +27,10 @@ spec:
       # A Helm rollback reverts the code and leaves the database schema migrated. Fail
       # forward, loudly, rather than silently running old code against a new schema.
       retries: 0
+  # Sizing — replicas, resources, the worker list — comes from sizes/<size>.yaml, one key
+  # of the `drive-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live
+  # here.
+  valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "${SIZE}"}]
   values:
     image:
       # The chart declares appVersion: latest, which is useless as a pin.
@@ -49,8 +53,7 @@ spec:
       port: 3900
 
     backend:
-      replicas: 1
-      pdb: {enabled: false}          # one replica: a PDB here can only block a drain
+      pdb: {enabled: false}          # the surround owns budgets, at every size
       # Chart default is `securityContext: null` — every backend-derived workload (this
       # Deployment, both celery workloads, both Jobs) reuses this one value verbatim.
       securityContext:
@@ -58,9 +61,6 @@ spec:
         capabilities: {drop: ["ALL"]}
         runAsNonRoot: true
         seccompProfile: {type: RuntimeDefault}
-      resources:
-        requests: {cpu: 100m, memory: 640Mi}
-        limits: {memory: 2Gi}
 
       envVars:
         DJANGO_SETTINGS_MODULE: drive.settings
@@ -150,58 +150,22 @@ spec:
             print("superuser ready:", email)
             PY
 
-      # One worker. Upstream's dev values split work across `mirror` and
-      # `malware_detection` queues, but that only applies if DJANGO_CELERY_TASK_ROUTES
-      # sends tasks there, and it is not set.
-      #
-      # `probes` is not optional: the template dereferences `$worker.probes.liveness` with
-      # no nil guard, and overriding this list drops upstream's defaults. Restated below.
-      celeryWorkers:
-        - name: default
-          replicas: 1
-          command: []
-          args: ["celery", "-A", "drive.celery_app", "worker", "-l", "INFO",
-                 "-n", "drive@%h", "--concurrency", "2"]
-          resources:
-            requests: {cpu: 50m, memory: 384Mi}
-            limits: {memory: 1Gi}
-          probes:
-            liveness:
-              exec:
-                command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
-              initialDelaySeconds: 30
-              periodSeconds: 60
-              timeoutSeconds: 15
-              failureThreshold: 3
-            readiness:
-              exec:
-                command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
-              initialDelaySeconds: 20
-              periodSeconds: 30
-              timeoutSeconds: 15
-              failureThreshold: 3
+      # `celeryWorkers` — the one worker, with its probes — is in sizes/: a list, so the
+      # whole entry belongs with the numbers that change per size.
 
       # Beat re-runs the WOPI configuration on its crontab, so a Collabora upgrade is
       # picked up without a Drive deploy.
       celeryBeat:
         enabled: true
-        replicas: 1
-        resources:
-          requests: {cpu: 25m, memory: 192Mi}
-          limits: {memory: 512Mi}
 
     frontend:
       image: {tag: v0.21.2}
-      replicas: 1
       pdb: {enabled: false}
       securityContext:
         allowPrivilegeEscalation: false
         capabilities: {drop: ["ALL"]}
         runAsNonRoot: true
         seccompProfile: {type: RuntimeDefault}
-      resources:
-        requests: {cpu: 50m, memory: 128Mi}
-        limits: {memory: 512Mi}
       envVars:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://drive.${BASE_DOMAIN}

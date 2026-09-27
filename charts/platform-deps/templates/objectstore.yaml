@@ -7,7 +7,7 @@
 {{- if eq $o.mode "external" }}
 {{- $cred := $o.credentialSecret }}
 # External mode: any S3-compatible store the organisation already runs. Like the SMTP relay,
-# the endpoint and the credential are applied by hand into office-data once (docs/bootstrap.md)
+# the endpoint and the credential are applied by hand into office-data once (docs/install.md)
 # and read back from here, so nothing about the provider is in git. The bucket is still the
 # platform's name for it — the organisation creates `{{ $bucket }}` there, and owns its CORS rule
 # for a browser upload, which adr/0110 puts at the edge only when Garage is behind it.
@@ -34,6 +34,9 @@ spec:
         {{ index $keys "bucket" }}: {{ $bucket | quote }}
         {{ index $keys "accessKeyId" }}: "{{ `{{ .accessKeyId }}` }}"
         {{ index $keys "secretAccessKey" }}: "{{ `{{ .secretAccessKey }}` }}"
+        {{- if hasKey $keys "forcePathStyle" }}
+        {{ index $keys "forcePathStyle" }}: "true"
+        {{- end }}
         {{- if $o.awsChecksumWorkaround }}
         AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
         AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
@@ -97,8 +100,11 @@ spec:
     regionKey: {{ index $keys "region" }}
     includeBucketName: true
     bucketNameKey: {{ index $keys "bucket" }}
-    {{- if or $o.awsChecksumWorkaround $o.publicEndpoint }}
+    {{- if or $o.awsChecksumWorkaround $o.publicEndpoint (hasKey $keys "forcePathStyle") }}
     additionalData:
+      {{- if hasKey $keys "forcePathStyle" }}
+      {{ index $keys "forcePathStyle" }}: "true"
+      {{- end }}
       {{- if $o.awsChecksumWorkaround }}
       AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
       AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED

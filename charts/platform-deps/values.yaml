@@ -13,7 +13,7 @@ platform:
 
 # Which spelling of env names this app expects, per kind — templates/_profiles.tpl. A
 # family name here sets every kind; a kind's own `env` overrides it.
-env: ""                            # lasuite | find | calendars
+env: ""                            # lasuite | find | calendars | projects
 
 postgres:
   enabled: false
@@ -64,7 +64,7 @@ objectstore:
   env: ""
   # `garage` provisions a bucket and a key on the platform's own store. `external` points
   # at any S3-compatible store the organisation already runs: like smtp, the endpoint,
-  # region and credential are applied by hand into office-data once (docs/bootstrap.md) as
+  # region and credential are applied by hand into office-data once (docs/install.md) as
   # a Secret with keys endpoint, region, accessKeyId, secretAccessKey. Bucket names stay
   # the platform's (<app>); the organisation creates them, and CORS for Drive's browser
   # upload is theirs to configure there. The Secret the app reads is identical either way.
@@ -87,7 +87,7 @@ objectstore:
 
 # Outbound mail. The relay credential is the one secret on this platform that cannot be
 # generated: it is issued by a mail provider, applied by hand into office-data once
-# (docs/bootstrap.md), and read from there by every app that sends. HOST, PORT, TLS FLAGS AND
+# (docs/install.md), and read from there by every app that sends. HOST, PORT, TLS FLAGS AND
 # THE FROM-ADDRESS ALL LIVE IN THAT SECRET TOO, not here — switching provider is then one
 # `kubectl` and nothing about mail is in git.
 #
@@ -108,6 +108,9 @@ baseDomain: ""
 
 oidc:
   enabled: false
+  # `django`: the mozilla-django-oidc endpoint set, browser and back-channel split
+  # (_oidc.tpl). `discovery`: issuer + client only, for apps that discover the rest.
+  env: django
   client: ""                       # defaults to .Values.app; also names the Keycloak client
   realm: office
   idHost: id                       # <idHost>.<baseDomain> is the browser-facing issuer

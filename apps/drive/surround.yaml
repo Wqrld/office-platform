@@ -6,6 +6,8 @@ spec:
   interval: 30m
   dependsOn: [{name: drive}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: drive
     baseDomain: ${BASE_DOMAIN}
@@ -53,12 +55,12 @@ spec:
 
     # Drive's own app switcher loads a widget script from static.suite.anct.gouv.fr and the
     # French government's service list, both compiled into the frontend bundle. It is hidden
-    # (release.yaml) and replaced with this one, served from Drive's own origin through the
-    # only hook the page offers, FRONTEND_JS_URL.
-    # apps/switcher.js stays a real file; kustomize turns it into this ConfigMap.
+    # (release.yaml) and replaced with ours, served from Drive's own origin through the only
+    # hook the page offers, FRONTEND_JS_URL (apps/README.md, The switcher).
     staticFiles:
       enabled: true
       filesConfigMap: drive-switcher
+      servicesConfigMap: office-services
 
     networkPolicy:
       egress:

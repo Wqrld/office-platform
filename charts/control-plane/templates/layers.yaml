@@ -1,22 +1,42 @@
 {{- $size := .Values.size }}
 {{- $profile := printf "size-%s" $size }}
+{{- $services := include "platform.clusterServices" . | fromYamlArray }}
+{{- $infraDeps := list }}
+{{- range $services }}{{ $infraDeps = append $infraDeps (printf "cluster-%s-config" .) }}{{ end }}
+{{- $infraComponents := ternary (list "./cert-manager") (list) .Values.cluster.certManager.install }}
+{{- $platformComponents := list (printf "./overlays/%s" $profile) }}
+{{- if not .Values.smtp.configured }}{{ $platformComponents = append $platformComponents "./overlays/smtp-placeholder" }}{{ end }}
 # The layers, in reconcile order. Each waits for the previous one to be healthy.
 #
-# infra       operators — CNPG, External Secrets, the Garage operator. Not sized by
-#             profile: one cert-manager is one cert-manager whether it serves 5 people or
-#             5,000, and an operator that is too small fails as "nothing reconciles".
+# cluster-*   what the cluster lacks and the platform was asked to install — Envoy Gateway,
+#             MetalLB — as `cluster.*.install` chooses (adr/0112). Two Kustomizations each:
+#             the chart, then its configuration (GatewayClass, IPAddressPool), because a
+#             CR cannot be applied before the chart that brings its CRD. Not emitted when
+#             the cluster brings its own.
+# infra       operators — CNPG, External Secrets, the Garage operator, and cert-manager
+#             when asked. Not sized by profile: one cert-manager is one cert-manager
+#             whether it serves 5 people or 5,000, and an operator that is too small fails
+#             as "nothing reconciles".
 # platform    the shared stateful layer — gateway, postgres, cache, search, identity, and
 #             the datastores and credentials of EVERY application, enabled or not, which
 #             is what lets a disabled app come back with its data.
 # objectstore Garage, only when the platform runs the object store itself.
 #
 # There is deliberately no `crds` layer yet. Every CRD relied on is either pre-existing in
-# the cluster (Gateway API, cert-manager) or installed by an operator chart on first
-# install; the layer arrives the first time a CRD upgrade needs managing separately.
-{{ include "platform.kustomization" (dict "root" . "name" "infra" "path" "./infra") }}
+# the cluster or installed by an operator chart on first install; the layer arrives the
+# first time a CRD upgrade needs managing separately.
+{{- range $services }}
+{{ include "platform.kustomization" (dict "root" $ "name" (printf "cluster-%s" .) "path" (printf "./cluster/%s" .)) }}
+---
+{{ include "platform.kustomization" (dict "root" $ "name" (printf "cluster-%s-config" .) "path" (printf "./cluster/%s/config" .)
+     "dependsOn" (list (printf "cluster-%s" .))) }}
+---
+{{- end }}
+{{ include "platform.kustomization" (dict "root" . "name" "infra" "path" "./infra"
+     "components" $infraComponents "dependsOn" $infraDeps) }}
 ---
 {{ include "platform.kustomization" (dict "root" . "name" "platform" "path" "./platform"
-     "components" (list (printf "./overlays/%s" $profile)) "dependsOn" (list "infra")) }}
+     "components" $platformComponents "dependsOn" (list "infra")) }}
 {{- if eq .Values.objectStore.mode "garage" }}
 ---
 {{ include "platform.kustomization" (dict "root" . "name" "objectstore" "path" "./platform/objectstore"

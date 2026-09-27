@@ -1,0 +1,9 @@
+# Find scales above one replica in large.yaml, so it needs a budget — the pairing
+# tests/profiles.py asserts. One component, so one entry.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:
+      {app.kubernetes.io/name: find, app.kubernetes.io/instance: find,
+       app.kubernetes.io/component: backend}

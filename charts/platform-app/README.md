@@ -15,6 +15,7 @@ application; `docs/adr/0109` argues that case.
 | `NetworkPolicy` | **Emitted, NOT enforced.** Flannel ships no policy controller — `docs/adr/0103`. |
 | `HTTPRouteFilter` | **Real.** A 403 at the edge for `routes[].deny`. |
 | media proxy | **Real, and it runs.** Off unless `mediaProxy.enabled` — `docs/adr/0109`. |
+| static files | **Real.** Off unless `staticFiles.enabled`: an nginx serving `filesConfigMap` (the switcher scripts) and `servicesConfigMap` (the service list, `apps/services.yaml`) under `/custom/`. |
 
 > Do not cite this chart's `NetworkPolicy` as network segmentation in a security review.
 > It has been verified to have no effect on this cluster. It is emitted because the egress

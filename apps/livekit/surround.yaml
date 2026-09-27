@@ -1,17 +1,12 @@
-# LiveKit's surround: one HTTPRoute for signaling, one LoadBalancer for media.
+# LiveKit's surround: one HTTPRoute for signaling, three L4 routes for media.
 #
-# THE ONE LOADBALANCER THAT IS NOT THE GATEWAY. Everything else on this platform enters
-# through Envoy on ${GATEWAY_IP}; WebRTC cannot — media is UDP, ICE needs the address it
-# advertises to be the address packets arrive at, and an L7 proxy has neither. So LiveKit
-# gets its own MetalLB address, ${LIVEKIT_IP}, with exactly three ports on it. The
-# signaling WebSocket still goes through the Gateway like any other route: that is where
-# the certificate is, and `wss://livekit.${BASE_DOMAIN}` is what Meet hands the browser.
-#
-# This Service is written by hand rather than by the chart because the chart's own
-# LoadBalancer modes are cloud-specific (aws/gke/do) and put the http port on it too;
-# `loadBalancer.type: disable` in release.yaml leaves a ClusterIP Service for the route
-# and this file adds the media one. `extraObjects` is the escape hatch (history/design/05-app-contract.md
-# tier 3); what would remove it is a `loadBalancer.type: generic` upstream.
+# Everything enters through the Gateway on ${GATEWAY_IP}, media included (adr/0113): a
+# TCPRoute and two UDPRoutes attach to the Gateway's media listeners and Envoy proxies
+# the packets to the pod. The signaling WebSocket is an ordinary route like any app's —
+# that is where the certificate is, and `wss://livekit.${BASE_DOMAIN}` is what Meet hands
+# the browser. The chart's ClusterIP Service already carries 7880/7881/7882; TURN's 3478
+# gets a Service of its own here. `extraObjects` because platform-app knows only HTTP
+# routes (history/design/05-app-contract.md tier 3).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: livekit-platform, namespace: office-livekit}
@@ -19,6 +14,8 @@ spec:
   interval: 30m
   dependsOn: [{name: livekit}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  # The disruption budget comes with the size (sizes/platform-<size>.yaml).
+  valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: livekit
     baseDomain: ${BASE_DOMAIN}
@@ -33,32 +30,34 @@ spec:
         websocket: true
 
     extraObjects:
+      # Port numbers duplicated from secrets.yaml's config on purpose: a route cannot read
+      # a Secret, and a mismatch is "media never connects" with no error anywhere.
       - apiVersion: v1
         kind: Service
-        metadata:
-          name: livekit-media
-          namespace: office-livekit
-          annotations:
-            metallb.universe.tf/loadBalancerIPs: "${LIVEKIT_IP}"
+        metadata: {name: livekit-turn, namespace: office-livekit}
         spec:
-          type: LoadBalancer
-          # The pod is on this node, and the client's source address must survive to the
-          # SFU: ICE binds candidates to what it sees. `Local` does that; `Cluster` would
-          # SNAT it away. On one node the two are otherwise equivalent.
-          externalTrafficPolicy: Local
-          # No NodePorts: nothing reaches these ports on the node address, and a NodePort
-          # per port is a second, unrequested way in.
-          allocateLoadBalancerNodePorts: false
           selector:
             app.kubernetes.io/name: livekit-server
             app.kubernetes.io/instance: livekit
-          ports:
-            # Numbers duplicated from secrets.yaml's config on purpose: a Service cannot
-            # read a Secret, and a mismatch here is "media never connects" with no error
-            # anywhere — check both when changing either.
-            - {name: rtc-tcp, port: 7881, targetPort: 7881, protocol: TCP}
-            - {name: rtc-udp, port: 7882, targetPort: 7882, protocol: UDP}
-            - {name: turn-udp, port: 3478, targetPort: 3478, protocol: UDP}
+          ports: [{name: turn-udp, port: 3478, targetPort: 3478, protocol: UDP}]
+      - apiVersion: gateway.networking.k8s.io/v1alpha2
+        kind: TCPRoute
+        metadata: {name: livekit-rtc-tcp, namespace: office-livekit}
+        spec:
+          parentRefs: [{name: office, namespace: office-system, sectionName: rtc-tcp}]
+          rules: [{backendRefs: [{name: livekit, port: 7881}]}]
+      - apiVersion: gateway.networking.k8s.io/v1alpha2
+        kind: UDPRoute
+        metadata: {name: livekit-rtc-udp, namespace: office-livekit}
+        spec:
+          parentRefs: [{name: office, namespace: office-system, sectionName: rtc-udp}]
+          rules: [{backendRefs: [{name: livekit, port: 7882}]}]
+      - apiVersion: gateway.networking.k8s.io/v1alpha2
+        kind: UDPRoute
+        metadata: {name: livekit-turn-udp, namespace: office-livekit}
+        spec:
+          parentRefs: [{name: office, namespace: office-system, sectionName: turn-udp}]
+          rules: [{backendRefs: [{name: livekit-turn, port: 3478}]}]
 
     # `cache` is the Valkey broker; `external: 443` is the webhook to Meet's backend, which
     # goes out through the Gateway (secrets.yaml says why).

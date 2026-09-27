@@ -147,6 +147,5 @@ Then, in order: reconcile the platform layer, confirm `calendars-db`,
 apps, and **watch `calendars-caldav-initdb` first** — it is the one Job that can fail on a
 privilege this integration assumed rather than verified.
 
-Last: the waffle entry in `apps/docs/release.yaml` is already there, but the rendered theme
-JSON is cached in Redis for 24h, so Calendars does not appear in the app switcher until that
-key is deleted. See `apps/docs/README.md`.
+Last: every switcher lists Calendars once `apps.calendars` is on — the list is the control
+plane's (`apps/README.md`, The switcher), served fresh, so nothing to flush.

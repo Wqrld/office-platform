@@ -13,6 +13,9 @@ spec:
       chart: collabora-online
       version: "1.3.2"
       sourceRef: {kind: HelmRepository, name: collabora, namespace: flux-system}
+  # Resources come from sizes/<size>.yaml, one key of the `collabora-sizes` ConfigMap.
+  # `spec.values` would beat it, so no sizing key may live here.
+  valuesFrom: [{kind: ConfigMap, name: collabora-sizes, valuesKey: "${SIZE}"}]
   values:
     image: {tag: "26.04.3.2.1"}   # pinned so a chart bump cannot move the application
 
@@ -75,12 +78,6 @@ spec:
     prometheus: {servicemonitor: {enabled: false}}
 
     priorityClassName: office-app
-
-    # Measured, not a preset: coolwsd forks a LibreOffice kit per document and idles near
-    # 400Mi with one spare kit warm.
-    resources:
-      requests: {cpu: 100m, memory: 512Mi}
-      limits: {memory: 2Gi}
 
     # THE CAPABILITY SET IS LOAD-BEARING. `coolforkit-caps` carries file capabilities, and
     # a file capability only grants what is already in the container's BOUNDING set —

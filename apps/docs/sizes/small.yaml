@@ -1,0 +1,29 @@
+# Docs at `small`. `celery.args` is a list, so the whole command is restated with this
+# size's concurrency.
+backend:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 512Mi}
+    limits: {memory: 1Gi}
+  celery:
+    replicas: 1
+    args: ["celery", "-A", "impress.celery_app", "worker", "-l", "INFO",
+           "-n", "impress@%h", "--concurrency", "1"]
+    resources:
+      requests: {cpu: 25m, memory: 256Mi}
+      limits: {memory: 768Mi}
+frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 96Mi}
+    limits: {memory: 384Mi}
+yProvider:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 160Mi}
+    limits: {memory: 384Mi}
+docSpec:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 192Mi}
+    limits: {memory: 512Mi}

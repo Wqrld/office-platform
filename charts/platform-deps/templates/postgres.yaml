@@ -22,6 +22,9 @@ spec:
     creationPolicy: Owner
     template:
       data:
+        {{- if hasKey $keys "url" }}
+        {{ index $keys "url" }}: "postgresql://{{ `{{ .username }}` }}:{{ `{{ .password }}` }}@{{ $p.host }}:{{ $p.port }}/{{ $db }}"
+        {{- else }}
         {{- if hasKey $keys "engine" }}
         {{ index $keys "engine" }}: {{ $p.engine | quote }}
         {{- end }}
@@ -30,6 +33,7 @@ spec:
         {{ index $keys "dbname" }}: {{ $db | quote }}
         {{ index $keys "username" }}: "{{ `{{ .username }}` }}"
         {{ index $keys "password" }}: "{{ `{{ .password }}` }}"
+        {{- end }}
   data:
     - {secretKey: username, remoteRef: {key: {{ $cred }}, property: username}}
     - {secretKey: password, remoteRef: {key: {{ $cred }}, property: password}}

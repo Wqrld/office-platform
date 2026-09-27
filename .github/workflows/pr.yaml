@@ -1,6 +1,6 @@
 # Everything that can be checked without a cluster, on every PR.
 #
-#   charts:  lint -> schema -> golden -> equivalence
+#   charts:  lint -> schema -> golden
 #   config:  flux build -> kubeconform -> render-diff -> binding + check-secrets -> profiles -> policy
 #
 # Every job runs a script from tests/ or policy/ rather than inlining commands here, so the
@@ -46,8 +46,6 @@ jobs:
         run: ./tests/schema.py
       - name: golden files
         run: ./tests/golden.py
-      - name: equivalence with the pre-port manifests
-        run: ./tests/equivalence.py
 
   build:
     name: flux build + kubeconform

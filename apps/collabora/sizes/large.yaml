@@ -1,0 +1,6 @@
+# Collabora at `large` is medium's numbers: one replica, so more people is more kits in
+# the same pod. Scaling it out needs the chart's `reverseProxy` sidecar and a WOPI proof
+# key — a design change, not a size (release.yaml).
+resources:
+  requests: {cpu: 100m, memory: 512Mi}
+  limits: {memory: 2Gi}

@@ -29,7 +29,7 @@ spec:
     oidc: {enabled: true, createUser: true}
 
     # Same spelling as Docs — the two settings modules are identical in the EMAIL_* block.
-    # The relay account is applied by hand into office-data once; docs/bootstrap.md.
+    # The relay account is applied by hand into office-data once; docs/install.md.
     smtp: {enabled: true}
 
     # A list, not a map: `dataFrom` is ordered and Helm sorts map keys, so a map would let

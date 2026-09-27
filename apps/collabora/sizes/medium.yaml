@@ -1,0 +1,6 @@
+# Collabora at `medium`. Measured, not a preset: coolwsd forks a LibreOffice kit per
+# document and idles near 400Mi with one spare kit warm. `replicaCount` is never here, at
+# any size: one replica is correctness, not sizing (release.yaml).
+resources:
+  requests: {cpu: 100m, memory: 512Mi}
+  limits: {memory: 2Gi}

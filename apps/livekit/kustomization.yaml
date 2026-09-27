@@ -5,3 +5,21 @@ resources:
   - secrets.yaml
   - release.yaml
   - surround.yaml
+
+# The size files, one ConfigMap key each — the SFU's, egress's and the surround's; each
+# HelmRelease picks its key with `${SIZE}`.
+configMapGenerator:
+  - name: livekit-sizes
+    namespace: office-livekit
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - egress-small=sizes/egress-small.yaml
+      - egress-medium=sizes/egress-medium.yaml
+      - egress-large=sizes/egress-large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true

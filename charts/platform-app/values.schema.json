@@ -206,6 +206,7 @@
         "replicas": {"type": "integer", "minimum": 1},
         "path": {"type": "string", "pattern": "^/"},
         "filesConfigMap": {"type": "string"},
+        "servicesConfigMap": {"type": "string"},
         "maxAge": {"type": "integer", "minimum": 0},
         "image": {"type": "string"},
         "priorityClassName": {"type": "string"},

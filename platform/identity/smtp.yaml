@@ -1,6 +1,6 @@
 # The relay account, read into Keycloak's namespace.
 #
-# It is applied by hand into office-data exactly once (docs/bootstrap.md) — an SMTP account
+# It is applied by hand into office-data exactly once (docs/install.md) — an SMTP account
 # is issued by a mail provider, so it is one of the two credentials on this platform that
 # cannot be generated in-cluster. This is the same office-data bridge the applications use
 # through platform-deps; the difference is only that Keycloak wants a realm placeholder

@@ -1,0 +1,33 @@
+# Docs at `medium` — measured on the running platform (apps/README.md, Sizing).
+backend:
+  replicas: 1
+  resources:
+    # Measured, not guessed: the backend sits at ~960Mi resident when idle, so a 1Gi
+    # limit is an OOMKill waiting for the first heavy request.
+    requests: {cpu: 100m, memory: 768Mi}
+    limits: {memory: 2Gi}
+  celery:
+    replicas: 1
+    # The chart's default args carry no --concurrency, so Celery preforks one process
+    # per CPU — ten on this node, each a full Django — and the container is OOMKilled
+    # within seconds of a clean startup. The logs look perfect right up to exit 137.
+    args: ["celery", "-A", "impress.celery_app", "worker", "-l", "INFO",
+           "-n", "impress@%h", "--concurrency", "2"]
+    resources:
+      requests: {cpu: 50m, memory: 384Mi}
+      limits: {memory: 1Gi}
+frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+yProvider:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {memory: 512Mi}
+docSpec:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {memory: 1Gi}

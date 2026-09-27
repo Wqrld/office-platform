@@ -1,0 +1,5 @@
+# Egress at `small`.
+replicaCount: 1
+resources:
+  requests: {cpu: 100m, memory: 768Mi}
+  limits: {memory: 2Gi}

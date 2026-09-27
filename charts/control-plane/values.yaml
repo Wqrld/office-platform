@@ -11,13 +11,9 @@ gateway:
   ip: ""                          # the shared Gateway's address — a MetalLB pool address
   tlsIssuer: letsencrypt-gateway  # ClusterIssuer for the one SAN certificate
   acmeEmail: ""                   # Let's Encrypt's contact for the certificate
-# LiveKit's media address: WebRTC is UDP and ICE, which an L7 proxy cannot carry, so it is
-# the one LoadBalancer that is not the Gateway. `turn.<domain>` is a manual A record to it,
-# outside the wildcard on purpose. Required when apps.meet is on; unused otherwise.
-livekit:
-  ip: ""
-# Size profile: small (5-50 people, one node), medium (50-500), large (500-5,000, HA).
-# apps/overlays/README.md is what each one means. medium is the identity profile.
+# Size: small (5-50 people, one node), medium (50-500, the measured one), large
+# (500-5,000, HA — a shape, not a measurement). apps/README.md (Sizing) is what each one
+# means; every app carries its three sizes in apps/<app>/sizes/.
 size: medium
 # Disabling an app removes it from the cluster and keeps its data: its database, role,
 # passwords and bucket contents all live in the platform layer, which provisions for every
@@ -29,17 +25,34 @@ apps:
   collabora: true
   find: true
   calendars: true
+  projects: true
   meet: true
 objectStore:
   # garage: the platform runs its own S3 (Garage) and publishes s3.<domain> for Drive's
   #         browser uploads.
   # external: an S3 provider of the organisation's. Endpoint, region and credentials come
   #         from a Secret named `object-store` in office-data, applied by hand once like
-  #         the SMTP relay account — docs/bootstrap.md. Buckets are named after the apps
+  #         the SMTP relay account — docs/install.md. Buckets are named after the apps
   #         (docs, drive, meet) and exist before the first release; Drive's bucket needs
   #         CORS for https://drive.<domain>, which the platform cannot set on a store it
   #         does not run.
   mode: garage
+# What the platform installs because the cluster lacks it (adr/0112). Off means the
+# cluster brings its own, and preflight.py checks that it does.
+cluster:
+  gateway:
+    install: false                # Envoy Gateway, with the Gateway API CRDs
+    className: eg                 # the GatewayClass the Gateway attaches to
+  certManager:
+    install: false                # cert-manager, with enableGatewayAPI
+  loadBalancer:
+    kind: metallb                 # metallb: the Gateway pinned to gateway.ip; none: the cluster allocates
+    install: false
+    pool: []                      # for MetalLB: "10.0.0.5/32", "10.0.0.5-10.0.0.6"
+# false ships a placeholder relay so every app starts; sends fail until the real Secret
+# exists and this is true (docs/install.md, "Mail").
+smtp:
+  configured: false
 
 # ---------------------------------------------------------------- platform defaults
 # Where the platform's own artifacts are pulled from: the config artifact, the platform

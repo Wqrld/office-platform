@@ -91,7 +91,7 @@ console's **Realm settings → Email → Test connection** is the check, followe
 "Forgot password?" from the login page.
 
 The relay account itself is applied by hand into `office-data` once and read into this
-namespace by `smtp.yaml` — see `docs/bootstrap.md` step 4b. Nothing about it is in git, not
+namespace by `smtp.yaml` — see `docs/install.md` step 4b. Nothing about it is in git, not
 even the host.
 
 ## Placeholder syntax

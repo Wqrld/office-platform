@@ -10,8 +10,8 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyService:
-        annotations:
-          metallb.universe.tf/loadBalancerIPs: "${GATEWAY_IP}"
+        # MetalLB's pin to ${GATEWAY_IP}, or nothing when the cluster's own provider allocates.
+        annotations: ${LB_ANNOTATIONS}
       envoyDeployment:
         replicas: 1
         pod:

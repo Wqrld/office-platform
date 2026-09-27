@@ -1,0 +1,29 @@
+# Meet at `large`. Not validated against a running cluster: a shape to measure from.
+# Budgets for what scales out are in platform-large.yaml.
+backend:
+  replicas: 3
+  resources:
+    requests: {cpu: 250m, memory: 768Mi}
+    limits: {memory: 2Gi}
+frontend:
+  replicas: 3
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 256Mi}
+summary:
+  replicas: 2
+  resources:
+    requests: {cpu: 50m, memory: 256Mi}
+    limits: {memory: 768Mi}
+# `replicas` here reaches the one instance in `instances` (the chart merges the instance
+# over these values).
+celeryTranscribe:
+  replicas: 2
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 2Gi}
+celerySummaryBackend:
+  replicas: 1
+  resources:
+    requests: {cpu: 10m, memory: 128Mi}
+    limits: {memory: 384Mi}

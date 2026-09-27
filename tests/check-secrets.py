@@ -28,18 +28,17 @@ def workloads(objects):
             yield d, tmpl["spec"]["containers"][0].get("envFrom", [])
 
 
-def check(app: str, srcs: dict, variables: dict) -> bool:
+def check(app: str, srcs: dict) -> bool:
     ok = True
-    for rel in render.docs_in((render.ROOT / "apps" / app / "release.yaml").read_text()):
-        if rel.get("kind") != "HelmRelease":
-            continue
+    docs = render.apps("medium", [app])
+    for rel in (d for d in docs if d.get("kind") == "HelmRelease"):
         name = rel["metadata"]["name"]
         patches = [p for r in rel["spec"].get("postRenderers", []) for p in r["kustomize"].get("patches", [])
                    if "/envFrom" in p["patch"]]
         if not patches:
             continue
         rendered = render.helm_template(render.chart_for(rel, srcs), name, rel["metadata"]["namespace"],
-                                        render.substitute(rel["spec"].get("values") or {}, variables))
+                                        render.values_of(rel, docs))
         with tempfile.TemporaryDirectory() as work:
             pathlib.Path(work, "all.yaml").write_text(yaml.safe_dump_all(rendered))
             pathlib.Path(work, "kustomization.yaml").write_text(yaml.safe_dump({"resources": ["all.yaml"], "patches": patches}))
@@ -66,8 +65,8 @@ def check(app: str, srcs: dict, variables: dict) -> bool:
 
 def main() -> int:
     apps = sys.argv[1:] or [a for a in render.APPS if "/envFrom" in (render.ROOT / "apps" / a / "release.yaml").read_text()]
-    srcs, variables = render.sources(), render.variables()
-    ok = all([check(a, srcs, variables) for a in apps])
+    srcs = render.sources()
+    ok = all([check(a, srcs) for a in apps])
     print("\nOK" if ok else "\nFAIL")
     return 0 if ok else 1
 

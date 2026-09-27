@@ -1,0 +1,46 @@
+# Drive at `small`.
+backend:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 448Mi}
+    limits: {memory: 1Gi}
+  # THE WHOLE LIST ENTRY, in every size file: `celeryWorkers` is a list, and Helm merges
+  # lists by replacement, so a file that set only `resources` would drop `probes` — which
+  # the template dereferences with no nil guard — and fail the render. One worker: the
+  # dev values split `mirror` and `malware_detection` queues, but only if
+  # DJANGO_CELERY_TASK_ROUTES sends tasks there, and it is not set.
+  celeryWorkers:
+    - name: default
+      replicas: 1
+      command: []
+      args: ["celery", "-A", "drive.celery_app", "worker", "-l", "INFO",
+             "-n", "drive@%h", "--concurrency", "1"]
+      resources:
+        requests: {cpu: 25m, memory: 256Mi}
+        limits: {memory: 768Mi}
+      probes:
+        liveness:
+          exec:
+            command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 15
+          failureThreshold: 3
+        readiness:
+          exec:
+            command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+  # Beat is a clock, not a worker: one replica at any size (medium.yaml says why).
+  celeryBeat:
+    replicas: 1
+    resources:
+      requests: {cpu: 10m, memory: 128Mi}
+      limits: {memory: 384Mi}
+frontend:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 96Mi}
+    limits: {memory: 384Mi}

@@ -1,0 +1,17 @@
+# The surround owns the disruption budgets; `components` is name -> selector, read off
+# the render. Beat is absent on purpose: one replica at every size.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:
+      {app.kubernetes.io/name: drive, app.kubernetes.io/instance: drive,
+       app.kubernetes.io/component: backend}
+    frontend:
+      {app.kubernetes.io/name: drive, app.kubernetes.io/instance: drive,
+       app.kubernetes.io/component: frontend}
+    # Drive names its default Celery worker after the list entry it came from, so the
+    # component label is `backend-celery-worker-default` and not `celery`.
+    celery-default:
+      {app.kubernetes.io/name: drive, app.kubernetes.io/instance: drive,
+       app.kubernetes.io/component: backend-celery-worker-default}

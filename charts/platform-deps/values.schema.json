@@ -131,6 +131,7 @@
       "additionalProperties": false,
       "properties": {
         "enabled": {"type": "boolean"},
+        "env": {"description": "`django` (endpoint set, browser/back-channel split) or `discovery` (issuer only).", "enum": ["django", "discovery"]},
         "client": {"description": "Defaults to `app`; also names the Keycloak client.", "type": "string"},
         "realm": {"type": "string"},
         "idHost": {"type": "string"},

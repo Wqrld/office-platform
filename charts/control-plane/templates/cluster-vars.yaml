@@ -5,13 +5,18 @@ kind: ConfigMap
 {{ include "platform.metadata" "cluster-vars" }}
 data:
   BASE_DOMAIN: {{ .Values.domain | quote }}
+  # Each app's HelmReleases pick their sizing from `<app>-sizes` by this key
+  # (apps/README.md, Sizing); a size the ConfigMap lacks is a HelmRelease that says so.
+  SIZE: {{ .Values.size | quote }}
   STORAGE_CLASS: {{ .Values.storageClass | quote }}
   GATEWAY_IP: {{ .Values.gateway.ip | quote }}
+  GATEWAY_CLASS: {{ .Values.cluster.gateway.className | quote }}
+  LB_ANNOTATIONS: {{ include "platform.lbAnnotations" (list . .Values.gateway.ip) | quote }}
+  {{- with .Values.cluster.loadBalancer }}{{ if .install }}
+  LB_POOL: {{ .pool | toJson | quote }}
+  {{- end }}{{ end }}
   TLS_ISSUER: {{ .Values.gateway.tlsIssuer | quote }}
   ACME_EMAIL: {{ .Values.gateway.acmeEmail | quote }}
   S3_MODE: {{ .Values.objectStore.mode | quote }}
   TLS_HOSTS: {{ include "platform.tlsHosts" . | quote }}
-  {{- if .Values.apps.meet }}
-  {{- if not .Values.livekit.ip }}{{ fail "apps.meet is on, so livekit.ip is required — the media address that is not the Gateway" }}{{ end }}
-  LIVEKIT_IP: {{ .Values.livekit.ip | quote }}
-  {{- end }}
+  SERVICES_JSON: {{ include "platform.servicesJson" . | quote }}

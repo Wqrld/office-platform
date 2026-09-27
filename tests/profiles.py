@@ -3,14 +3,14 @@
 
     ./tests/profiles.py [size ...]      default: small, medium and large
 
-The 5-to-5,000 claim rests on three overlays that nothing else checks, and an overlay is the
-easiest thing in this repo to get silently wrong: a patch whose target path a chart does not
-have is a no-op, not an error, and a PDB selector that matches nothing is an object that
-protects zero pods while looking exactly like protection.
+The 5-to-5,000 claim rests on three sizes per app (apps/<app>/sizes/) that nothing else
+checks, and a PDB selector that matches nothing is an object that protects zero pods while
+looking exactly like protection.
 
-So this renders each profile the way the cluster would — Flux builds each app and the
-platform layer with the profile as a component, then `helm template` every HelmRelease
-against its pinned chart — and asserts the four invariants from history/design/10-verification.md:
+So this renders each size the way the cluster would — Flux builds each app with `SIZE`
+substituted and the platform layer with its profile component, then `helm template` every
+HelmRelease against its pinned chart with its `valuesFrom` sizes merged in — and asserts
+the four invariants from history/design/10-verification.md:
 
   * `replicas > 1` implies a PodDisruptionBudget that actually selects those pods;
   * `replicas == 1` implies NO PodDisruptionBudget selects them (the small profile is the
@@ -23,11 +23,13 @@ is HA at `large` and single elsewhere, and Garage's `replication.factor` is IDEN
 all three — it cannot be changed in place, so a profile that appears to raise it is a promise
 of redundancy nothing delivers.
 
-And two set differences. Every HelmRelease that sizes itself must appear in the `small`
-profile: a missing stanza is not an error anywhere — the app just runs at production size
-in a demo. And every patch target in every profile must match an object that exists: since
-the profile is applied per app, a typo'd target is a silent no-op in every one of them,
-and nothing but this notices.
+And two set differences on the sized releases. Every `valuesFrom` key must exist at every
+size — what `values_of` fails on for one size, checked for all three at once. And no sizing
+key may sit under `spec.values`: `spec.values` beats `valuesFrom`, so a `resources`, a
+`pdb` block or a replica count a size file also sets would silently override it. A replica
+count of 0 or 1 that NO size file sets is not a size — Collabora's and the SFU's one
+replica are correctness, and Meet's zeros are workloads not deployed — and `pdb: {enabled:
+false}` in an upstream release is the surround owning budgets, at every size.
 
 Needs network, like the binding check: the pinned upstream charts are rendered.
 """
@@ -59,7 +61,7 @@ def render_releases(docs: list[dict], srcs: dict, problems: list[str]) -> list[d
             chart = render.chart_for(rel, srcs)
             if chart is None:
                 raise RuntimeError("chartRef did not resolve under charts/")
-            out = render.helm_template(chart, name, ns, rel["spec"].get("values") or {})
+            out = render.helm_template(chart, name, ns, render.values_of(rel, docs))
         except RuntimeError as e:
             problems.append(f"{ns}/{name}: {e}")
             continue
@@ -85,58 +87,49 @@ def selects(selector: dict, labels: dict) -> bool:
             and all(ops[e["operator"]](e["key"], e.get("values", [])) for e in exprs))
 
 
-def sets_resources(node) -> bool:
+def sizing_keys(node, path: str = "") -> dict[str, object]:
+    """Every `resources`, `replicas`/`replicaCount` and `pdb` under a values tree, as
+    dotted path -> value. `pdb: {enabled: false}` is not one (see the docstring)."""
+    found = {}
     if isinstance(node, dict):
-        return "resources" in node or any(sets_resources(v) for v in node.values())
-    if isinstance(node, list):
-        return any(sets_resources(v) for v in node)
-    return False
+        for k, v in node.items():
+            here = f"{path}.{k}" if path else k
+            if k in ("resources", "replicas", "replicaCount") or (k == "pdb" and v != {"enabled": False}):
+                found[here] = v
+            else:
+                found |= sizing_keys(v, here)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            found |= sizing_keys(v, f"{path}[{i}]")
+    return found
 
 
-def small_profile_covers_every_app() -> list[str]:
-    """Every HelmRelease that sizes itself must be sized by the `small` profile.
-
-    This is the failure this layout can actually have, and it is a set difference rather
-    than a judgement call: a missing stanza is not an error anywhere — the app simply runs
-    at production size in a demo, and the first symptom is a node that will not schedule.
-    apps/overlays/README.md names this as the check worth having; this is it.
-    """
-    profile = yaml.safe_load((HERE / "apps" / "overlays" / "size-small" / "kustomization.yaml").read_text())
-    targets = {(t.get("kind"), t.get("name"), t.get("namespace"))
-               for t in ((p or {}).get("target") or {} for p in profile.get("patches", []))}
-
+def sized_releases() -> list[str]:
+    """The two set differences on every HelmRelease that carries a `valuesFrom` size key.
+    `spec.values` beating `valuesFrom` is the one failure this layout can have that nothing
+    on the cluster reports, so it is asserted here rather than judged."""
     problems = []
-    for f in sorted((HERE / "apps").glob("*/*.yaml")):
-        for d in yaml.safe_load_all(f.read_text()):
-            if not d or d.get("kind") != "HelmRelease":
-                continue
-            if not sets_resources(d["spec"].get("values") or {}):
-                continue
-            key = ("HelmRelease", d["metadata"]["name"], d["metadata"]["namespace"])
-            if key not in targets:
-                problems.append(
-                    f"small: {key[2]}/{key[1]} sets resources but the small profile does not "
-                    f"patch it — it would run at production size in a demo, which fails as a "
-                    f"pod that never schedules rather than as anything that mentions sizing")
-    return problems
-
-
-def every_target_matches(size: str, objects: list[dict]) -> list[str]:
-    """Every patch in a profile must target something in the whole-set render.
-
-    Kustomize no-ops a patch whose target matches nothing, and the profile is applied to one
-    app at a time — so a typo'd name is not "invisible in the whole-set build", it is a
-    no-op in every per-app build too, with no output anywhere that says so.
-    """
-    present = {(d["kind"], d["metadata"]["name"], d["metadata"].get("namespace")) for d in objects}
-    problems = []
-    for layer in ("apps", "platform"):
-        profile = yaml.safe_load((HERE / layer / "overlays" / f"size-{size}" / "kustomization.yaml").read_text())
-        for t in ((p or {}).get("target") or {} for p in profile.get("patches") or []):
-            key = (t.get("kind"), t.get("name"), t.get("namespace"))
-            if key not in present:
-                problems.append(f"{size}: {layer}/overlays targets {key[0]} {key[2]}/{key[1]}, which nothing "
-                                f"renders — the patch is a silent no-op")
+    for app in render.APPS:
+        docs = render.flux_build(f"apps/{app}")
+        cms = {d["metadata"]["name"]: d for d in docs if d.get("kind") == "ConfigMap"}
+        for rel in (d for d in docs if d.get("kind") == "HelmRelease"):
+            name, sized = rel["metadata"]["name"], {}
+            for ref in rel["spec"].get("valuesFrom") or []:
+                keys = (cms.get(ref["name"]) or {}).get("data") or {}
+                for size in render.SIZES:
+                    want = ref.get("valuesKey", "values.yaml").replace("${SIZE}", size)
+                    if want not in keys:
+                        problems.append(f"{app}: {name} reads {ref['name']}[{want}], which is not in "
+                                        f"the build (has {sorted(keys)})")
+                        continue
+                    sized |= sizing_keys(yaml.safe_load(keys[want]) or {})
+            for key, value in sizing_keys(rel["spec"].get("values") or {}).items():
+                if key in sized:
+                    problems.append(f"{app}: {name} sets `{key}` under spec.values, which beats the "
+                                    f"sizes/ files that also set it")
+                elif rel["spec"].get("valuesFrom") and not (key.split(".")[-1] != "resources" and value in (0, 1)):
+                    problems.append(f"{app}: {name} sets `{key}` under spec.values and no size file "
+                                    f"sizes it — it is the same at every size, which sizes/ should say")
     return problems
 
 
@@ -144,7 +137,6 @@ def check(size: str, srcs: dict) -> tuple[list[str], dict]:
     problems: list[str] = []
 
     raw_apps, raw_platform = render.apps(size), render.platform(size)
-    problems += every_target_matches(size, raw_apps + raw_platform)
     apps = render_releases(raw_apps, srcs, problems)
     platform = render_releases(raw_platform, srcs, problems)
 
@@ -231,7 +223,7 @@ def main() -> int:
         found, garage = check(size, srcs)
         problems += found
         garages[size] = garage
-    problems += small_profile_covers_every_app()
+    problems += sized_releases()
 
     # Garage's replication factor cannot be changed in place: raising it is a rebuild of the
     # cluster, not a profile patch. A profile that appears to raise it promises a redundancy
@@ -251,8 +243,8 @@ def main() -> int:
             print(f"   {p}")
         print(f"\nFAIL — {len(problems)} profile problem(s)")
         return 1
-    print(f"OK — {len(sizes)} profiles render, every replica count agrees with its budget, "
-          f"and the small profile sizes every app that sizes itself")
+    print(f"OK — {len(sizes)} sizes render, every replica count agrees with its budget, "
+          f"every sized release has every size, and no release file overrides one")
     return 0
 
 

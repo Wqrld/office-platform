@@ -1,0 +1,2 @@
+# One replica at this size, so no budget: on one replica a PDB can only block a drain.
+pdb: {enabled: false}

@@ -1,0 +1,5 @@
+# The SFU at `medium` — measured (apps/README.md, Sizing). One process at every size: its
+# media ports are per node and its one address fronts one pod (release.yaml).
+resources:
+  requests: {cpu: 250m, memory: 256Mi}
+  limits: {memory: 1Gi}

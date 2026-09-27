@@ -34,6 +34,9 @@ spec:
       # A Helm rollback reverts the code and leaves the database schema migrated. Fail
       # forward, loudly, rather than silently running old code against a new schema.
       retries: 0
+  # Sizing — replicas, resources, concurrency — comes from sizes/<size>.yaml, one key of
+  # the `docs-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.
+  valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
   values:
     image:
       # The chart declares appVersion: latest, which is useless as a pin. Every image tag
@@ -61,13 +64,7 @@ spec:
       port: 3900
 
     backend:
-      replicas: 1
-      pdb: {enabled: false}          # one replica: a PDB here can only block a drain
-      resources:
-        # Measured, not guessed: the backend sits at ~960Mi resident when idle, so a 1Gi
-        # limit is an OOMKill waiting for the first heavy request.
-        requests: {cpu: 100m, memory: 768Mi}
-        limits: {memory: 2Gi}
+      pdb: {enabled: false}          # the surround owns budgets, at every size
       envFrom:
         - {secretRef: {name: docs-postgres}}
         - {secretRef: {name: docs-cache}}
@@ -181,16 +178,6 @@ spec:
             print("flag ready:", flag.name, flag.everyone)
             PY
 
-      celery:
-        replicas: 1
-        # The chart's default args carry no --concurrency, so Celery preforks one process
-        # per CPU — ten on this node, each a full Django — and the container is OOMKilled
-        # within seconds of a clean startup. The logs look perfect right up to exit 137.
-        args: ["celery", "-A", "impress.celery_app", "worker", "-l", "INFO",
-               "-n", "impress@%h", "--concurrency", "2"]
-        resources:
-          requests: {cpu: 50m, memory: 384Mi}
-          limits: {memory: 1Gi}
       themeCustomization:
         enabled: true
         # Our ConfigMap is mounted over the whole theme directory, so it REPLACES
@@ -229,42 +216,16 @@ spec:
             support_mailto: ""
             legal_links:
               {personal_data: "", terms_of_use: "", accessibility_statement: "", legal_notice: ""}
-          # THE GAUFRE. Without a `waffle` key the switcher does not render at all; with
-          # `waffle.apiUrl` it renders the French government's service list. This is the
-          # third option: our own services, served from our own domains, no call out to
-          # lasuite.numerique.gouv.fr at any point.
-          # Add an entry here as each application lands. This is one of THREE lists of the
-          # same services — `apps/switcher.js` and `apps/calendars/services.json` are
-          # the others, one per switcher — and an application added to one and not the rest
-          # is missing from a switcher.
+          # THE GAUFRE. Without a `waffle` key the switcher does not render at all. Both
+          # of what `LaGaufreV2` loads by URL are served from Docs' own origin (surround.yaml,
+          # `staticFiles`): the widget script — `widgetPath`, whose default is the French
+          # government's CDN, and without which there is no switcher — and the service list,
+          # which the control plane derives from the enabled apps (apps/services.yaml).
           waffle:
             label: Office
             showMoreLimit: 9
-            data:
-              services:
-                - name: Docs
-                  url: https://docs.${BASE_DOMAIN}
-                  maturity: stable
-                  logo: https://docs.${BASE_DOMAIN}/assets/icon-docs.svg
-                - name: Drive
-                  url: https://drive.${BASE_DOMAIN}
-                  maturity: stable
-                  # Drive ships no `icon-docs.svg` equivalent; `logo-icon_beta.svg` is the mark its own
-                  # header renders (cunningham-tokens.ts), served from the frontend at /assets.
-                  logo: https://drive.${BASE_DOMAIN}/assets/logo-icon_beta.svg
-                - name: Calendars
-                  url: https://calendars.${BASE_DOMAIN}
-                  maturity: beta
-                  # Calendars' own favicon, served by its frontend from /favicon.png.
-                  logo: https://calendars.${BASE_DOMAIN}/favicon.png
-                - name: Meet
-                  url: https://meet.${BASE_DOMAIN}
-                  maturity: beta
-                  logo: https://meet.${BASE_DOMAIN}/favicon-32x32.png
-                - name: Account
-                  url: https://id.${BASE_DOMAIN}/realms/office/account
-                  maturity: stable
-                  logo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232323ff' d='M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5 0-9 2.5-9 5.5V22h18v-2.5c0-3-4-5.5-9-5.5Z'/%3E%3C/svg%3E"
+            widgetPath: https://docs.${BASE_DOMAIN}/custom/gaufre.js
+            apiUrl: https://docs.${BASE_DOMAIN}/custom/services.json
           footer:
             default:
               logo:
@@ -280,11 +241,7 @@ spec:
 
     frontend:
       image: {tag: v5.5.0}
-      replicas: 1
       pdb: {enabled: false}
-      resources:
-        requests: {cpu: 50m, memory: 128Mi}
-        limits: {memory: 512Mi}
       envVars:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://docs.${BASE_DOMAIN}
@@ -293,11 +250,7 @@ spec:
 
     yProvider:
       image: {tag: v5.5.0}
-      replicas: 1
       pdb: {enabled: false}
-      resources:
-        requests: {cpu: 50m, memory: 256Mi}
-        limits: {memory: 512Mi}
       envFrom:
         - {secretRef: {name: docs-collaboration}}
       envVars:
@@ -307,7 +260,3 @@ spec:
 
     docSpec:
       enabled: true
-      replicas: 1
-      resources:
-        requests: {cpu: 50m, memory: 256Mi}
-        limits: {memory: 1Gi}

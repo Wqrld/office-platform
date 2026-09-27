@@ -1,0 +1,10 @@
+# Envoy Gateway. Its chart carries the Gateway API CRDs, so nothing else installs them.
+# The chart creates no GatewayClass; config/ does, named ${GATEWAY_CLASS}.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: envoy-gateway, namespace: envoy-gateway-system}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: envoy-gateway, namespace: flux-system}
+  install: {crds: Create, disableWaitForJobs: true}
+  upgrade: {crds: CreateReplace, disableWaitForJobs: true}

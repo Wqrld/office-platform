@@ -112,6 +112,11 @@ def served(docs, base_domain):
                     add(route["hostname"], owner)
                 elif route.get("host") and base:
                     add(f"{route['host']}.{base}", owner)
+            # TURN's hostname is on no HTTPRoute and no certificate: a UDPRoute on the same
+            # Gateway (adr/0113), inside platform-app's `extraObjects`.
+            if base and any(o.get("kind") == "UDPRoute" and "turn" in o["metadata"]["name"]
+                            for o in values.get("extraObjects") or []):
+                add(f"turn.{base}", f"{owner} (TURN/UDP 3478)")
 
         # The browser-facing issuer. It is not a route, but it must be the same name the
         # route serves or every OIDC redirect lands somewhere that does not exist.
@@ -142,16 +147,10 @@ def report(path, args):
     sans = gateway_sans(docs)
     hosts = served(docs, base_domain)
     records = sorted(set(sans) | set(hosts))
-    # Records that must NOT point at the Gateway: LiveKit's media address. The TURN
-    # hostname is neither routed nor on the certificate (apps/livekit/README.md), so it is
-    # stated here from the variable rather than found in the render.
-    off_gateway = {f"turn.{base_domain}": variables["LIVEKIT_IP"]} if variables.get("LIVEKIT_IP") else {}
 
     if args.zone:
         for name in records:
             print(f"{name}.\t300\tIN\tA\t{gateway_ip}")
-        for name, ip in off_gateway.items():
-            print(f"{name}.\t300\tIN\tA\t{ip}")
         return 0
 
     print(f"== {path.stem.removeprefix('cluster-')} — base domain {base_domain or '(unset)'}, Gateway {gateway_ip or '(unset)'}")
@@ -165,10 +164,6 @@ def report(path, args):
         print()
         print(f"   Or one wildcard instead of the {len(records)}:  "
               f"*.{base_domain}  A  {gateway_ip}")
-    for name, ip in off_gateway.items():
-        print()
-        print(f"   And NOT to the Gateway — an explicit record that must beat the wildcard:")
-        print(f"   {name:<34} A  {ip:<16} LiveKit TURN/media (apps/livekit)")
 
     print()
     print("   Order and caveats:")
@@ -181,6 +176,8 @@ def report(path, args):
 
     problems = []
     for name in sorted(set(hosts) - set(sans)):
+        if name.startswith("turn."):
+            continue                      # UDP: no TLS to hand-shake
         problems.append(f"{name} is routed but is not on the certificate — TLS handshake "
                         f"fails for it, which does not look like a routing bug")
     for name in sorted(set(sans) - set(hosts)):
@@ -196,12 +193,6 @@ def report(path, args):
                 problems.append(f"{name} does not resolve ({error})")
             elif gateway_ip and gateway_ip not in addresses:
                 problems.append(f"{name} resolves to {', '.join(addresses)}, not {gateway_ip}")
-        for name, ip in off_gateway.items():
-            addresses, error = resolve(name)
-            if error:
-                problems.append(f"{name} does not resolve ({error})")
-            elif ip not in addresses:
-                problems.append(f"{name} resolves to {', '.join(addresses)}, not {ip}")
 
     print()
     if problems:

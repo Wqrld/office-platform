@@ -1,0 +1,4 @@
+# The SFU at `small`. One process at every size (release.yaml).
+resources:
+  requests: {cpu: 100m, memory: 128Mi}
+  limits: {memory: 512Mi}

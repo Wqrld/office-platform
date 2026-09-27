@@ -101,6 +101,22 @@ spec:
   interval: 24h
   url: https://gh.haaijer.dev
 ---
+# Projects. suitenumerique/projects ships no chart; ours is written in the application's
+# own repo (src/helm/projects, copied from Docs' so it reads as theirs) and the upstreaming
+# PR is open. Until it lands, the chart comes from the FORK's git tag — the same tag that
+# publishes the image (apps/projects/README.md, Pins) — so one pin moves both. When the PR
+# lands, only the url changes: suitenumerique/projects at the tag that carries the chart.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+{{ include "platform.metadata" "wqrld-projects" }}
+spec:
+  interval: 24h
+  url: https://github.com/Wqrld/projects
+  ref: {tag: v1.3.1}
+  ignore: |
+    /*
+    !/src/helm
+---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "garage-operator" }}
@@ -170,3 +186,33 @@ spec:
     /*
     !/livekit-server
     !/egress
+{{- if .Values.cluster.gateway.install }}
+---
+# Envoy Gateway, with the Gateway API CRDs in its chart — only when the platform installs
+# the Gateway (cluster/gateway).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+{{ include "platform.metadata" "envoy-gateway" }}
+spec:
+  interval: 24h
+  url: oci://docker.io/envoyproxy/gateway-helm
+  ref: {tag: v1.7.0}
+{{- end }}
+{{- if .Values.cluster.certManager.install }}
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+{{ include "platform.metadata" "jetstack" }}
+spec:
+  interval: 24h
+  url: https://charts.jetstack.io
+{{- end }}
+{{- if .Values.cluster.loadBalancer.install }}
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+{{ include "platform.metadata" "metallb" }}
+spec:
+  interval: 24h
+  url: https://metallb.github.io/metallb
+{{- end }}

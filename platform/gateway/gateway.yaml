@@ -4,7 +4,7 @@ metadata:
   name: office
   namespace: office-system
 spec:
-  gatewayClassName: eg                      # the cluster's existing Envoy Gateway
+  gatewayClassName: ${GATEWAY_CLASS}        # the cluster's, or ours (cluster/config/gateway)
   infrastructure:
     parametersRef:
       group: gateway.envoyproxy.io
@@ -28,6 +28,37 @@ spec:
         certificateRefs:
           - kind: Secret
             name: office-tls
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              office.haaijer.dev/gateway-access: "true"
+    # WebRTC media for LiveKit, proxied at L4 (adr/0113): Envoy's UDP proxy gives each
+    # client its own upstream socket, which is the NAT every SFU already expects. The
+    # Gateway is therefore the ONE LoadBalancer, on any provider. Open even with Meet off;
+    # without its routes the ports answer nothing.
+    - name: rtc-tcp
+      protocol: TCP
+      port: 7881
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              office.haaijer.dev/gateway-access: "true"
+    - name: rtc-udp
+      protocol: UDP
+      port: 7882
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              office.haaijer.dev/gateway-access: "true"
+    - name: turn-udp
+      protocol: UDP
+      port: 3478
       allowedRoutes:
         namespaces:
           from: Selector

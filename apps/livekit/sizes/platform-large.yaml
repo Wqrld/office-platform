@@ -1,0 +1,7 @@
+# Egress only: the SFU is single-replica at every size.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    egress:
+      {app.kubernetes.io/name: egress, app.kubernetes.io/instance: livekit-egress}

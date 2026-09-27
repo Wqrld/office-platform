@@ -30,7 +30,7 @@ spec:
 ---
 # Source: platform-deps/templates/objectstore.yaml
 # External mode: any S3-compatible store the organisation already runs. Like the SMTP relay,
-# the endpoint and the credential are applied by hand into office-data once (docs/bootstrap.md)
+# the endpoint and the credential are applied by hand into office-data once (docs/install.md)
 # and read back from here, so nothing about the provider is in git. The bucket is still the
 # platform's name for it — the organisation creates `drive` there, and owns its CORS rule
 # for a browser upload, which adr/0110 puts at the edge only when Garage is behind it.

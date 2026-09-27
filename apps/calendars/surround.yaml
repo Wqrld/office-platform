@@ -8,6 +8,8 @@ spec:
   interval: 30m
   dependsOn: [{name: calendars}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: calendars
     baseDomain: ${BASE_DOMAIN}
@@ -49,10 +51,10 @@ spec:
     # lasuite.numerique.gouv.fr. Both URLs are runtime settings (release.yaml's three
     # `FRONTEND_LAGAUFRE_*` vars), so unlike Drive nothing has to be hidden: these two files
     # are served from Calendars' own origin and are what those settings point at.
-    # They stay real files in the config repo; kustomize makes the ConfigMap.
     staticFiles:
       enabled: true
       filesConfigMap: calendars-gaufre
+      servicesConfigMap: office-services
 
     # `external: 443` is OIDC discovery over the public issuer URL and outbound channel sync.
     networkPolicy:

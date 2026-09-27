@@ -464,9 +464,13 @@ spec:
       volumes:
         - name: conf
           configMap: {name: full-static-conf}
-        - configMap:
-            name: full-switcher
-          name: files
+        - name: files
+          projected:
+            sources:
+            - configMap:
+                name: full-switcher
+            - configMap:
+                name: office-services
         - {name: cache, emptyDir: {}}
         - {name: run, emptyDir: {}}
         - {name: tmp, emptyDir: {}}

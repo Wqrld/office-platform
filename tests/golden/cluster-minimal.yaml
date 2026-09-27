@@ -10,12 +10,18 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 data:
   BASE_DOMAIN: "example.org"
+  # Each app's HelmReleases pick their sizing from `<app>-sizes` by this key
+  # (apps/README.md, Sizing); a size the ConfigMap lacks is a HelmRelease that says so.
+  SIZE: "small"
   STORAGE_CLASS: "longhorn"
   GATEWAY_IP: "10.0.0.5"
+  GATEWAY_CLASS: "eg"
+  LB_ANNOTATIONS: "{}"
   TLS_ISSUER: "letsencrypt-gateway"
   ACME_EMAIL: "ops@example.org"
   S3_MODE: "external"
   TLS_HOSTS: "[\"id.example.org\",\"docs.example.org\",\"find.example.org\"]"
+  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://docs.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.example.org/realms/office/account\"}]}"
 ---
 # Source: control-plane/templates/sources.yaml
 # Chart lives in-tree at src/helm/impress; the git tag is the pin.
@@ -63,6 +69,26 @@ spec:
   interval: 24h
   url: https://github.com/suitenumerique/find
   ref: {branch: main, commit: 025e6d02ea08c46ef831a70f0ae1a41036c5a7c9}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# Projects. suitenumerique/projects ships no chart; ours is written in the application's
+# own repo (src/helm/projects, copied from Docs' so it reads as theirs) and the upstreaming
+# PR is open. Until it lands, the chart comes from the FORK's git tag — the same tag that
+# publishes the image (apps/projects/README.md, Pins) — so one pin moves both. When the PR
+# lands, only the url changes: suitenumerique/projects at the tag that carries the chart.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: wqrld-projects
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/Wqrld/projects
+  ref: {tag: v1.3.1}
   ignore: |
     /*
     !/src/helm
@@ -221,7 +247,6 @@ spec:
   wait: true
   sourceRef: {kind: OCIRepository, name: office-config}
   path: ./apps/docs
-  components: ["../overlays/size-small"]
   dependsOn:
     - {name: platform}
     - {name: app-find}
@@ -243,7 +268,6 @@ spec:
   wait: true
   sourceRef: {kind: OCIRepository, name: office-config}
   path: ./apps/find
-  components: ["../overlays/size-small"]
   dependsOn:
     - {name: platform}
   postBuild:
@@ -253,17 +277,23 @@ spec:
 # Source: control-plane/templates/layers.yaml
 # The layers, in reconcile order. Each waits for the previous one to be healthy.
 #
-# infra       operators — CNPG, External Secrets, the Garage operator. Not sized by
-#             profile: one cert-manager is one cert-manager whether it serves 5 people or
-#             5,000, and an operator that is too small fails as "nothing reconciles".
+# cluster-*   what the cluster lacks and the platform was asked to install — Envoy Gateway,
+#             MetalLB — as `cluster.*.install` chooses (adr/0112). Two Kustomizations each:
+#             the chart, then its configuration (GatewayClass, IPAddressPool), because a
+#             CR cannot be applied before the chart that brings its CRD. Not emitted when
+#             the cluster brings its own.
+# infra       operators — CNPG, External Secrets, the Garage operator, and cert-manager
+#             when asked. Not sized by profile: one cert-manager is one cert-manager
+#             whether it serves 5 people or 5,000, and an operator that is too small fails
+#             as "nothing reconciles".
 # platform    the shared stateful layer — gateway, postgres, cache, search, identity, and
 #             the datastores and credentials of EVERY application, enabled or not, which
 #             is what lets a disabled app come back with its data.
 # objectstore Garage, only when the platform runs the object store itself.
 #
 # There is deliberately no `crds` layer yet. Every CRD relied on is either pre-existing in
-# the cluster (Gateway API, cert-manager) or installed by an operator chart on first
-# install; the layer arrives the first time a CRD upgrade needs managing separately.
+# the cluster or installed by an operator chart on first install; the layer arrives the
+# first time a CRD upgrade needs managing separately.
 
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization

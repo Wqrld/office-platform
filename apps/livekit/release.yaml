@@ -19,8 +19,7 @@
 #      removal would silently skip a port the next chart bump adds.
 #
 #   3. No LoadBalancer from the chart. `loadBalancer.type: disable` leaves a ClusterIP
-#      Service with only the http port, which the signaling HTTPRoute uses; the media
-#      Service on ${LIVEKIT_IP} is ours, in surround.yaml.
+#      Service the signaling HTTPRoute and the media routes in surround.yaml point at.
 #
 # `livekit` is also the release NAME, deliberately, and `fullnameOverride` keeps the
 # Service at `livekit` — surround.yaml's route backend and secrets.yaml's egress `ws_url`
@@ -66,8 +65,14 @@ spec:
                   - {name: rtc-tcp, containerPort: 7881, protocol: TCP}
                   - {name: turn-udp, containerPort: 3478, protocol: UDP}
 
+  # Resources come from sizes/<size>.yaml, one key of the `livekit-sizes` ConfigMap.
+  # `spec.values` would beat it, so no sizing key may live here.
+  valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "${SIZE}"}]
   values:
     fullnameOverride: livekit
+    # ONE, at every size, and not as a sizing choice: the media ports are bound per node
+    # and the one MetalLB address fronts one pod. A second replica needs a second address
+    # and LiveKit's multi-node routing — a design change.
     replicaCount: 1
     # The chart's appVersion (v1.11.0) is what its authors last bumped, not what they
     # ship; the image is pinned here and updatecli/updatecli.d/livekit.yaml moves it.
@@ -98,10 +103,6 @@ spec:
     securityContext:
       allowPrivilegeEscalation: false
       capabilities: {drop: [ALL]}
-
-    resources:
-      requests: {cpu: 250m, memory: 256Mi}
-      limits: {memory: 1Gi}
 ---
 # Egress: the recorder. Meet's transcript is a RoomCompositeEgress (audio only, OGG to
 # S3); egress joins the room as a hidden participant through the in-cluster signaling
@@ -135,9 +136,11 @@ spec:
                 value:
                   secretKeyRef: {name: egress-config, key: config.yaml}
 
+  # Sizing — replicas, resources — comes from sizes/egress-<size>.yaml, a key of the
+  # `livekit-sizes` ConfigMap.
+  valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "egress-${SIZE}"}]
   values:
     fullnameOverride: livekit-egress
-    replicaCount: 1
     image:
       repository: livekit/egress
       tag: v1.14.1
@@ -166,7 +169,3 @@ spec:
     securityContext:
       allowPrivilegeEscalation: false
       capabilities: {drop: [ALL]}
-
-    resources:
-      requests: {cpu: 250m, memory: 1Gi}
-      limits: {memory: 3Gi}

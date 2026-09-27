@@ -12,7 +12,7 @@
 #
 # Two prerequisites it cannot create for itself: the models, downloaded on first start
 # into a PVC (minutes, once), and HF_TOKEN, a Hugging Face token whose account has
-# accepted the gated pyannote model terms — the by-hand Secret in docs/bootstrap.md.
+# accepted the gated pyannote model terms — the by-hand Secret in docs/install.md.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: {name: meet-whisperx-models, namespace: office-meet}
@@ -79,6 +79,7 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: {drop: [ALL]}
+          # The same at every size — the model decides, not the head count (README.md).
           resources:
             requests: {cpu: 500m, memory: 3Gi}
             limits: {memory: 6Gi}

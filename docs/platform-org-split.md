@@ -21,7 +21,7 @@ It is presented as the organisation's folder. It is not. Measured:
 | `README.md` | 71 | 0 — how the two-tag release works |
 | `flux-instance.yaml` | 32 | 0 — Flux components, `networkPolicy: false` per `adr/0103` |
 | `config-source.yaml` | 25 | 1 — the version tag |
-| `vars.yaml` | 19 | 5 — `BASE_DOMAIN`, `STORAGE_CLASS`, `GATEWAY_IP`, `TLS_ISSUER`, `LIVEKIT_IP` |
+| `vars.yaml` | 19 | 5 — `BASE_DOMAIN`, `STORAGE_CLASS`, `GATEWAY_IP`, `TLS_ISSUER`, `LIVEKIT_IP` (since gone, adr/0113) |
 | `40-apps.yaml` | 18 | 1 — the size profile path |
 | `30-platform.yaml` | 18 | *the same 1* — the size profile, restated |
 | `20-infra.yaml` | 13 | 0 |
@@ -247,17 +247,11 @@ those dependencies becoming Flux `dependsOn` edges the control-plane chart emits
 That is a real improvement — dependencies become declared and health-gated rather than
 implied by file order — and it is the largest change in this plan.
 
-**The size profiles survive the split intact**, which was not obvious. A component's patches
-are name-targeted, and *kustomize silently no-ops a patch whose target matches nothing*
-(verified). So the same one-file-per-profile component can be applied to a single app's
-directory: one patch matches, the rest do nothing. The property `size-medium`'s header
-defends — one file per profile, numbers in exactly one place — is preserved.
-
-**The hazard that creates.** Silent no-op now applies to app names too, so a typo'd target
-in `size-small` becomes undetectable rather than merely invisible. Mitigation, using
-machinery that already exists: assert that the union of the per-app renders is byte-identical
-to the whole-set render, the same way `measure.py compare` already asserts that `medium` is
-the identity profile.
+**The size profiles survived the split** as a component applied per app — and the hazard
+that created (a typo'd patch target is a silent no-op in every per-app build) is why they
+were then replaced: each app now carries its sizes as values in `apps/<app>/sizes/`,
+delivered by `valuesFrom` and `SIZE` in `cluster-vars`, so a missing size is a HelmRelease
+that says so (`docs/size-is-a-value.md`, `apps/README.md` Sizing).
 
 ## 9 — Sequence
 
@@ -325,7 +319,7 @@ Where what was built differs from the plan above, this is why:
 | Plan | Built | Reason |
 |---|---|---|
 | `charts/platform-control-plane` in a merged repo | `charts/control-plane` in the merged repo | As designed: one public repository, one organisation file. `release.sh` publishes the config artifact and the charts under **one version**, and the control plane pins the charts and the artifact at its own `.Chart.Version` — the organisation's chart pin is the platform version, and nothing is ever bumped by hand to agree with it |
-| `environments/<size>/apps/<name>/` — 21 selector directories | none; the chart emits `path: ./apps/<name>` plus `components: [../overlays/size-<size>]` | Flux `Kustomization.spec.components` applies the profile as a component, verified byte-identical to the overlay render. `environments/` is deleted |
+| `environments/<size>/apps/<name>/` — 21 selector directories | none; the chart emits `path: ./apps/<name>` and `SIZE` in `cluster-vars`, and each app's HelmReleases read `apps/<app>/sizes/` through `valuesFrom` | First as a kustomize component per app (verified byte-identical to the overlay render), then as values (`docs/size-is-a-value.md`) because a component's silent no-op needed its own check. `environments/` is deleted |
 | `objectStore: {endpoint, region, credentialSecret}` as values | `objectStore: {mode}` only; endpoint, region and credentials in a hand-applied `object-store` Secret in `office-data` | The SMTP relay already works this way ("switching provider is one `kubectl` and nothing about mail is in git"); one precedent, not two. `apps/*/deps.yaml` gains one line, `mode: ${S3_MODE}`, not four |
 | Garage stays in 30-platform | `platform/objectstore/` is its own layer, emitted only in `garage` mode | Substitution cannot remove a resource; a layer can be left out. The operator stays in `infra` (its CRDs are what make the CRs applicable) — one idle Deployment in external mode |
 | "union of per-app renders == whole-set render" as the profile test | `tests/profiles.py` asserts every profile patch target matches a rendered object | The union test passes on a typo'd target — both renders lack the patch. The direct assertion is what catches it |

@@ -1,0 +1,28 @@
+# The surround owns the disruption budgets (the upstream charts each spell their own PDB
+# differently, and enabling both gives every component two budgets with two selectors).
+# `components` is name -> selector: the surround has to name the workloads it protects.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    # Read off the live Deployments, not guessed. DINUM's chart puts the values key
+    # verbatim into the component label, camelCase and all, so `yProvider` here and not
+    # `y-provider` — the wrong one selects nothing and the PDB silently protects zero pods.
+    backend:
+      {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
+       app.kubernetes.io/component: backend}
+    frontend:
+      {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
+       app.kubernetes.io/component: frontend}
+    y-provider:
+      {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
+       app.kubernetes.io/component: yProvider}
+    # Scaled above one in large.yaml, so budgeted here. Their component labels are
+    # `celery-worker` and `docspec`, neither of which is the values key that sets their
+    # replicas (`celery`, `docSpec`).
+    celery-worker:
+      {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
+       app.kubernetes.io/component: celery-worker}
+    docspec:
+      {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
+       app.kubernetes.io/component: docspec}

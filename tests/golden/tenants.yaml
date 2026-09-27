@@ -135,6 +135,27 @@ spec:
     - {name: pg_trgm, ensure: present}
 ---
 # Source: platform-tenants/templates/postgres.yaml
+# Extensions are created here by the operator, so the role never needs SUPERUSER.
+# `retain`: dropping the CR must not drop the data.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: projects
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: projects
+  owner: projects
+  ensure: present
+  databaseReclaimPolicy: retain
+---
+# Source: platform-tenants/templates/postgres.yaml
 apiVersion: postgresql.cnpg.io/v1
 kind: DatabaseRole
 metadata:
@@ -247,6 +268,25 @@ spec:
   ensure: present
   login: true
   passwordSecret: {name: meet-db}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: projects
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: projects
+  ensure: present
+  login: true
+  passwordSecret: {name: projects-db}
 ---
 # Source: platform-tenants/templates/oidc.yaml
 # Born in Keycloak's namespace: the realm import substitutes it into the client, and the
@@ -366,6 +406,31 @@ spec:
   refreshInterval: "0"
   target:
     name: oidc-client-meet
+    creationPolicy: Owner
+    template:
+      data:
+        secret: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/oidc.yaml
+# Born in Keycloak's namespace: the realm import substitutes it into the client, and the
+# app reads it back through the identity ClusterSecretStore. Never a value in git.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: oidc-client-projects
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: oidc-client-projects
     creationPolicy: Owner
     template:
       data:
@@ -529,6 +594,32 @@ spec:
   dataFrom:
     - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
 ---
+# Source: platform-tenants/templates/postgres.yaml
+# Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: projects-db
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target:
+    name: projects-db
+    creationPolicy: Owner
+    template:
+      type: kubernetes.io/basic-auth
+      data:
+        username: projects
+        password: "{{ .password }}"
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
 # Source: platform-tenants/templates/valkey.yaml
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
@@ -676,6 +767,25 @@ spec:
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
+  name: valkey-user-projects
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: valkey-user-projects, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+      rewrite: [{regexp: {source: password, target: cache}}]
+---
+# Source: platform-tenants/templates/valkey.yaml
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
   name: valkey-cache-acl
   namespace: office-data
   labels:
@@ -698,6 +808,7 @@ spec:
         drive: "{{ .drive }}"
         find: "{{ .find }}"
         meet: "{{ .meet }}"
+        projects: "{{ .projects }}"
   data:
     - {secretKey: default, remoteRef: {key: valkey-cache-users, property: default}}
     - {secretKey: calendars, remoteRef: {key: valkey-user-calendars, property: cache}}
@@ -705,6 +816,7 @@ spec:
     - {secretKey: drive, remoteRef: {key: valkey-user-drive, property: cache}}
     - {secretKey: find, remoteRef: {key: valkey-user-find, property: cache}}
     - {secretKey: meet, remoteRef: {key: valkey-user-meet, property: cache}}
+    - {secretKey: projects, remoteRef: {key: valkey-user-projects, property: cache}}
 ---
 # Source: platform-tenants/templates/valkey.yaml
 apiVersion: external-secrets.io/v1
@@ -803,5 +915,27 @@ spec:
   from:
     - {kind: GarageBucket, namespace: office-meet}
     - {kind: GarageKey, namespace: office-meet}
+  to:
+    - {kind: GarageCluster, name: office-s3}
+---
+# Source: platform-tenants/templates/grants.yaml
+# Who, outside the data namespace, may point a bucket or key at the cluster. Here and not
+# beside the app: the operator's webhook rejects a cross-namespace reference at dry-run,
+# so a grant in the same Kustomization as its bucket is evaluated too late.
+apiVersion: garage.rajsingh.info/v1beta1
+kind: GarageReferenceGrant
+metadata:
+  name: office-projects
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-2.0.1
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  from:
+    - {kind: GarageBucket, namespace: office-projects}
+    - {kind: GarageKey, namespace: office-projects}
   to:
     - {kind: GarageCluster, name: office-s3}

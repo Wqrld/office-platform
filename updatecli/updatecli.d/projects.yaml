@@ -1,0 +1,46 @@
+# Projects: one git tag of the FORK drives the chart pin AND the image tag, like Meet — the
+# chart lives at `src/helm/projects` in the fork, and the image is tagged from the same git
+# tag with the `v` stripped. The fork carries S3_PROXY_PUBLIC_FILES and the numeric USER
+# (apps/projects/README.md). Pointing this at `suitenumerique/projects` before upstream
+# releases both would be a silent regression: every avatar a broken link.
+name: "La Suite Projects"
+
+sources:
+  release:
+    name: "latest Projects release"
+    kind: gittag
+    spec:
+      url: "https://github.com/Wqrld/projects"
+      versionfilter:
+        kind: semver
+        pattern: ">=1.3.1"
+
+  image:
+    name: "latest Projects release, as an image tag"
+    kind: gittag
+    spec:
+      url: "https://github.com/Wqrld/projects"
+      versionfilter:
+        kind: semver
+        pattern: ">=1.3.1"
+    transformers:
+      - trimprefix: "v"
+
+targets:
+  chart:
+    name: "GitRepository tag"
+    kind: file
+    sourceid: release
+    spec:
+      file: "charts/control-plane/templates/sources.yaml"
+      matchpattern: 'url: https://github\.com/Wqrld/projects\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
+      replacepattern: 'url: https://github.com/Wqrld/projects\n  ref: {tag: {{ source "release" }}}'
+
+  image:
+    name: "workload image tag"
+    kind: file
+    sourceid: image
+    spec:
+      file: "apps/projects/release.yaml"
+      matchpattern: 'tag: "[0-9]+\.[0-9]+\.[0-9]+"'
+      replacepattern: 'tag: "{{ source "image" }}"'

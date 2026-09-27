@@ -1,0 +1,48 @@
+# Drive at `large`. Not validated against a running cluster: a shape to measure from
+# (apps/README.md, Sizing). Budgets for what scales out are in platform-large.yaml.
+backend:
+  replicas: 3
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {memory: 3Gi}
+  # THE WHOLE LIST ENTRY, in every size file: `celeryWorkers` is a list, and Helm merges
+  # lists by replacement, so a file that set only `resources` would drop `probes` — which
+  # the template dereferences with no nil guard — and fail the render. One worker: the
+  # dev values split `mirror` and `malware_detection` queues, but only if
+  # DJANGO_CELERY_TASK_ROUTES sends tasks there, and it is not set.
+  celeryWorkers:
+    - name: default
+      replicas: 2
+      command: []
+      args: ["celery", "-A", "drive.celery_app", "worker", "-l", "INFO",
+             "-n", "drive@%h", "--concurrency", "2"]
+      resources:
+        requests: {cpu: 250m, memory: 768Mi}
+        limits: {memory: 2Gi}
+      probes:
+        liveness:
+          exec:
+            command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
+          initialDelaySeconds: 30
+          periodSeconds: 60
+          timeoutSeconds: 15
+          failureThreshold: 3
+        readiness:
+          exec:
+            command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 15
+          failureThreshold: 3
+  # Still one. Two beats is two schedulers firing the same crontab, which for Drive means
+  # two WOPI reconfigurations racing each other every ten minutes.
+  celeryBeat:
+    replicas: 1
+    resources:
+      requests: {cpu: 25m, memory: 192Mi}
+      limits: {memory: 512Mi}
+frontend:
+  replicas: 3
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}

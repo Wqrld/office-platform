@@ -5,3 +5,14 @@ resources:
   - deps.yaml
   - release.yaml
   - surround.yaml
+
+# The size files, one ConfigMap key each; the HelmRelease picks its key with `${SIZE}`.
+configMapGenerator:
+  - name: collabora-sizes
+    namespace: office-collabora
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+    options:
+      disableNameSuffixHash: true

@@ -23,6 +23,15 @@ The client secret is emitted as an ESO template placeholder, never as a value.
 {{- $host := $o.host | default (printf "%s.%s" $root.Values.app $base) -}}
 {{- $external := printf "https://%s/realms/%s/protocol/openid-connect" (printf "%s.%s" ($o.idHost | default "id") $base) $realm -}}
 {{- $internal := printf "%s/realms/%s/protocol/openid-connect" $o.internalUrl $realm -}}
+{{- /* An app that takes only the issuer and discovers the rest (Projects, openid-client).
+       Discovery returns the PUBLIC endpoints, so the pod reaches Keycloak over the public
+       name for all of it — the split above cannot be expressed; egress 443 is the cost. */ -}}
+{{- if eq $o.env "discovery" -}}
+OIDC_ISSUER: {{ printf "https://%s.%s/realms/%s" ($o.idHost | default "id") $base $realm | quote }}
+OIDC_CLIENT_ID: {{ $client | quote }}
+OIDC_CLIENT_SECRET: "{{ `{{ .secret }}` }}"
+OIDC_SCOPES: {{ $o.scopes | join " " | quote }}
+{{- else -}}
 OIDC_RP_CLIENT_ID: {{ $client | quote }}
 OIDC_RP_CLIENT_SECRET: "{{ `{{ .secret }}` }}"
 OIDC_RP_SIGN_ALGO: {{ $o.signAlgo | quote }}
@@ -47,6 +56,7 @@ OIDC_STORE_ID_TOKEN: {{ $o.storeIdToken | quote }}
 OIDC_STORE_REFRESH_TOKEN: {{ $o.storeRefreshToken | quote }}
 OIDC_USERINFO_FULLNAME_FIELDS: {{ $o.fullnameFields | join "," | quote }}
 OIDC_USERINFO_SHORTNAME_FIELD: {{ $o.shortnameField | quote }}
+{{- end }}
 {{- range $k, $v := $o.extraEnv }}
 {{ $k }}: {{ $v | quote }}
 {{- end }}

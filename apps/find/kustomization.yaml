@@ -5,3 +5,17 @@ resources:
   - deps.yaml
   - release.yaml
   - surround.yaml
+
+# The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
+configMapGenerator:
+  - name: find-sizes
+    namespace: office-find
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true

@@ -1,0 +1,9 @@
+# The surround owns the disruption budgets; `components` is name -> selector, read off the
+# render. The chart's one Deployment carries Docs' labels, component `backend`.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:
+      {app.kubernetes.io/name: projects, app.kubernetes.io/instance: projects,
+       app.kubernetes.io/component: backend}

@@ -14,17 +14,18 @@ charts/
   platform-app/    the surround: HTTPRoutes, NetworkPolicy, PDB
   platform-tenants/ what the platform provisions per app: database, cache users, OIDC secret, grant
 examples/          cluster.yaml — the one file an organisation keeps, in a source of its own
-infra/             operators (CNPG, ESO, the Garage operator)
+cluster/           what the platform installs when the cluster lacks it: Envoy Gateway, MetalLB (adr/0112)
+infra/             operators (CNPG, ESO, the Garage operator; cert-manager when asked)
 platform/          shared stateful layer — gateway, postgres, valkey, search, keycloak, and
                    the datastores of every app whether enabled or not; objectstore/ is its
                    own layer so `objectStore.mode: external` can leave it out
-apps/              one directory per application, each its own Flux Kustomization
-apps/overlays/     the size profiles, applied to each app as a kustomize component
+apps/              one directory per application, each its own Flux Kustomization, with
+                   its three sizes in apps/<app>/sizes/ (apps/README.md, Sizing)
 policy/            conftest rules — charts/ over what the charts render, config/ over the sources
 tests/             every check below, and the cases and goldens they share
 ```
 
-Reconcile order: `infra` → `platform` → `objectstore` → `app-<name>`, with the dependencies
+Reconcile order: `cluster-*` → `infra` → `platform` → `objectstore` → `app-<name>`, with the dependencies
 between applications as `dependsOn` edges from the table in
 `charts/control-plane/apps.yaml`. Cluster singletons (the Gateway,
 PriorityClasses, ClusterIssuers) are plain manifests in `platform/`, not a chart —
@@ -32,7 +33,8 @@ PriorityClasses, ClusterIssuers) are plain manifests in `platform/`, not a chart
 
 Nothing per cluster lives here. A cluster is a `cluster.yaml` in the organisation's own
 source — ours are in `../office-clusters/` — and the `cluster-*` cases in `tests/cases/` are the
-values files the checks build: prod's, demo's, and a minimal selection on external S3.
+values files the checks build: prod's, demo's, a minimal selection on external S3, and a
+fresh VPS as `install.sh` writes it.
 
 ## Checks
 
@@ -45,25 +47,25 @@ chart check iterates; a case added there is picked up by all of them.
 | `./tests/render.py <case>` | what does this case render to? (every chart check renders through it) |
 | `./tests/schema.py` | do the schemas — and the control plane's refusals — still reject a bad values file? |
 | `./tests/golden.py` | did this template change alter the output? `--update`, then read the diff |
-| `./tests/equivalence.py` | do the charts still reproduce the hand-written manifests they replaced? |
 | `./tests/build.py [dir]` | does every layer of every cluster build, with no `${VAR}` left unresolved? |
 | `./tests/kubeconform.sh [dir…]` | is what the charts render and what Flux would apply valid for the API server? |
 | `./tests/render-diff.sh [base]` | what does this change do to what the clusters actually apply? |
 | `./tests/binding.py [app]` | does our surround still attach to what the upstream charts create? |
-| `./tests/profiles.py [size]` | do the size profiles still say what they claim to say? |
+| `./tests/profiles.py [size]` | do the three sizes still say what they claim to say — every replica count with its budget, every sized release with every size, no release file overriding one? |
 | `./tests/check-secrets.py [app]` | do the `postRenderers` envFrom patches still hit exactly the workloads they should? |
 | `conftest verify --policy policy/charts` (and `policy/config`) | do the static rules still fire, both directions? |
 | `conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/` | does the rendered output satisfy them? |
-| `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ tests/golden/` | are the pins and remediation settings still as decided? |
+| `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ cluster/ tests/golden/` | are the pins and remediation settings still as decided? |
 
 `binding.py`, `profiles.py` and `check-secrets.py` fetch the pinned upstream charts into `.charts/`, so they
 need network. Everything else is offline. All of them render through `tests/render.py` —
 the control plane with `helm template`, each layer with `flux build` — so what a check sees
-is what the cluster applies, size profile and `../switcher.js` included. A new app needs a
+is what the cluster applies, sizes and the switcher files included. A new app needs a
 case in `tests/cases/index.yaml` for each of its platform releases; nothing checks that.
 
-Nothing here needs a cluster. What does — bootstrap-from-scratch, the upgrade test, the auth
-smoke test, external-mode rotation — is nightly, and is not written yet.
+Nothing here needs a cluster. `./preflight.py cluster.yaml` does: it checks a live cluster
+has what a `cluster.yaml` assumes. Bootstrap-from-scratch nightly is designed in
+`docs/ci-bootstrap.md` and not running yet.
 
 ## DNS
 
@@ -75,15 +77,11 @@ each one and reports what disagrees.
 Create them all *before* the first release: Let's Encrypt fails the whole certificate if a
 single SAN fails validation, so one mispointed record is an outage for every application.
 
-## Releasing
-
-`./release.sh <version>` publishes the config artifact and the four charts under one
-number; a cluster runs it by setting that number in its `cluster.yaml`, and rolls back by
-setting it back. Published versions are immutable.
-
 ## Runbooks
 
-`docs/bootstrap.md` — empty VM to a serving platform, with what is required and what is not.
+`docs/install.md` — nothing to a serving platform: `./install.sh --k3s` on a fresh VPS,
+`--existing` on a cluster you have.
+`docs/releasing.md` — `./release.sh <version>`: one immutable number for config and charts.
 `docs/gateway-cutover.md` — moving the public IP off an existing ingress controller.
 
 Licence: EUPL-1.2.

@@ -1,0 +1,14 @@
+# A fresh single-node VPS the way install.sh --k3s writes it: the platform installs the
+# Gateway, cert-manager and MetalLB itself, storage is k3s' local-path, mail is not yet
+# configured. Every app, on the one address (adr/0113).
+domain: example.org
+storageClass: local-path
+gateway:
+  ip: 203.0.113.10
+  acmeEmail: ops@example.org
+size: small
+cluster:
+  gateway: {install: true}
+  certManager: {install: true}
+  loadBalancer: {kind: metallb, install: true, pool: ["203.0.113.10/32"]}
+registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}

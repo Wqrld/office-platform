@@ -1,0 +1,6 @@
+# Projects at `small`. One Node process; unmeasured — a starting point (README.md).
+backend:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 192Mi}
+    limits: {memory: 512Mi}

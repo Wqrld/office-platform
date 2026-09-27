@@ -8,7 +8,6 @@ gateway:
   ip: 45.136.141.168
   acmeEmail: wereld03@gmail.com
   tlsIssuer: letsencrypt-gateway
-livekit:
-  ip: 45.136.141.154
 size: medium
 registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}
+smtp: {configured: true}

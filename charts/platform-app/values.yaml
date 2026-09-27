@@ -82,15 +82,17 @@ mediaProxy:
 # rather than content — Drive's `FRONTEND_JS_URL` is the case this exists for. Add a route
 # to `<app>-static:8080` alongside it.
 #
-#   staticFiles: {enabled: true, filesConfigMap: drive-switcher}
+#   staticFiles: {enabled: true, filesConfigMap: drive-switcher, servicesConfigMap: office-services}
 #
 # The ConfigMap is made by kustomize from real files (`configMapGenerator`), so they stay
-# lintable JavaScript rather than block scalars inside a HelmRelease.
+# lintable JavaScript rather than block scalars inside a HelmRelease. `servicesConfigMap`
+# is the switcher's service list (apps/services.yaml), served beside them.
 staticFiles:
   enabled: false
   replicas: 1
   path: /custom/          # nginx location; files are served directly beneath it
   filesConfigMap: ""      # ConfigMap whose keys are the filenames to serve
+  servicesConfigMap: ""   # optional second ConfigMap, projected into the same directory
   maxAge: 300
   image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
   priorityClassName: office-app

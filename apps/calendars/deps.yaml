@@ -40,7 +40,7 @@ spec:
     # The bare EMAIL_* spelling, not Docs' and Drive's DJANGO_-prefixed one: this settings
     # module passes `environ_prefix=None` on every mail value, and its from-address is
     # Django's stock DEFAULT_FROM_EMAIL. The relay account itself is applied by hand into
-    # office-data once and is not in git — docs/bootstrap.md.
+    # office-data once and is not in git — docs/install.md.
     smtp: {enabled: true}
 
     # Both blocks are ORDERED LISTS, and neither can ever gain an entry: `refreshInterval:

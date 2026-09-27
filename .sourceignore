@@ -26,3 +26,8 @@
 /platform/identity/add-client.sh
 /platform/identity/set-smtp.sh
 /platform/identity/vendor/keycloak-operator/update.sh
+
+# Run by hand from a checkout.
+/install.sh
+/preflight.py
+/cluster.yaml

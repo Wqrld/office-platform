@@ -48,8 +48,8 @@ def check_app(app: str, srcs: dict) -> list[str]:
 
     for rel in (d for d in docs if d.get("kind") == "HelmRelease"):
         name, ns = rel["metadata"]["name"], rel["metadata"]["namespace"]
-        values = rel["spec"].get("values") or {}
         try:
+            values = render.values_of(rel, docs)
             chart = render.chart_for(rel, srcs)
         except RuntimeError as e:
             problems.append(f"{app}/{name}: {e}")

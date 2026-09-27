@@ -1,0 +1,23 @@
+# Projects' dependencies. The only consumer of the `url` postgres, `s3` objectstore and
+# `nodemailer` smtp profiles, and of `oidc.env: discovery` — a Node app that takes a
+# connection string, an issuer and nothing more, so every spelling here is its own.
+#
+# The point of the case: DATABASE_URL is assembled inside the ESO template (the password
+# never passes through Helm), SMTP carries no Django backend class or STARTTLS flag, and
+# S3_FORCE_PATH_STYLE rides in the GarageKey's own Secret.
+app: projects
+baseDomain: haaijer.dev
+env: projects
+
+postgres: {enabled: true}
+cache: {enabled: true}
+objectstore: {enabled: true}
+smtp: {enabled: true}
+
+oidc:
+  enabled: true
+  env: discovery
+
+generated:
+  projects-app:
+    - {env: SECRET_KEY, draw: secretkey, generator: office-token-50}

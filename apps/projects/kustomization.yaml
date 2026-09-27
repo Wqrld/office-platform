@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../namespace.yaml
+  - ../services.yaml
+  - deps.yaml
+  - release.yaml
+  - surround.yaml
+
+configMapGenerator:
+  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
+  - name: projects-sizes
+    namespace: office-projects
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true
+
+  # The switcher panel. Projects' LaGaufreButton loads `<widgetPath>lagaufre.js` — a
+  # directory plus a fixed filename — so the key is `lagaufre.js`, not the file's own name.
+  - name: projects-gaufre
+    namespace: office-projects
+    files: [lagaufre.js=../gaufre.js]
+    options:
+      disableNameSuffixHash: true

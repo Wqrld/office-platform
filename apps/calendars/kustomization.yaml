@@ -2,19 +2,29 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../namespace.yaml
+  - ../services.yaml
   - deps.yaml
   - release.yaml
   - surround.yaml
 
-# Calendars' switcher is a REPLACEMENT for the widget script and the service list the
-# gaufre would otherwise load from static.suite.anct.gouv.fr and lasuite.numerique.gouv.fr;
-# both URLs are runtime settings (release.yaml), so nothing has to be hidden the way it is
-# for Drive. No `substitute: disabled` here, deliberately: services.json needs
-# ${BASE_DOMAIN} resolved, and gaufre.js is written with no dollar sign in it so that
-# substituting over the same ConfigMap cannot touch it.
 configMapGenerator:
+  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
+  - name: calendars-sizes
+    namespace: office-calendars
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true
+
+  # The switcher panel `LaGaufreV2` loads by URL (release.yaml's FRONTEND_LAGAUFRE_*),
+  # shared with every app; the service list beside it is `../services.yaml`.
   - name: calendars-gaufre
     namespace: office-calendars
-    files: [gaufre.js, services.json]
+    files: [../gaufre.js]
     options:
       disableNameSuffixHash: true

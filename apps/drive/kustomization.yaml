@@ -2,19 +2,32 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../namespace.yaml
+  - ../services.yaml
   - deps.yaml
   - release.yaml
   - surround.yaml
 
-# The switcher stays a real .js file rather than a block scalar inside a HelmRelease, so
-# it can be read, linted and edited as what it is. It is shared with Meet, so it lives one
-# level up; the surround points at the ConfigMap by name (`staticFiles.filesConfigMap`).
 configMapGenerator:
+  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
+  - name: drive-sizes
+    namespace: office-drive
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true
+
+  # The two switcher scripts (apps/README.md, The switcher), real .js files rather than
+  # block scalars inside a HelmRelease; the surround serves them (`staticFiles`). Neither
+  # carries a `${…}`, and `substitute: disabled` keeps it that way for whoever edits them.
   - name: drive-switcher
     namespace: office-drive
-    files: [../switcher.js]
+    files: [../switcher.js, ../gaufre.js]
     options:
       disableNameSuffixHash: true
       annotations:
-        # The file is full of $variables that postBuild substitution would blank.
         kustomize.toolkit.fluxcd.io/substitute: disabled

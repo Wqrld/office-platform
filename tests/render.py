@@ -8,7 +8,12 @@ Two mechanisms, both real rather than approximated:
 
   * `flux_build(path, components)` — kustomize-build one layer with `flux build`, the same
     code kustomize-controller runs: no load restriction (so `apps/drive` can generate a
-    ConfigMap from `../switcher.js`), and `spec.components` — the size profile — applied.
+    ConfigMap from `../switcher.js`), and `spec.components` applied where a layer has them.
+
+  * `values_of(release, objects)` — a HelmRelease's effective values: what helm-controller
+    merges from its `valuesFrom` ConfigMaps (the app's sizes, `apps/<app>/sizes/`) under
+    `spec.values`. Every check that templates a release goes through it, so a size that is
+    not in the ConfigMap fails here the way it fails there.
 
   * `control_plane(values)` — `helm template` the control-plane chart with an
     organisation's values, the only thing a cluster reads from this repo directly.
@@ -159,6 +164,36 @@ def build(ks: dict, variables: dict[str, str]) -> list[dict]:
     spec = ks["spec"]
     built = flux_build(spec["path"].removeprefix("./"), spec.get("components", []), ks["metadata"]["name"])
     return substitute(built, variables | spec.get("postBuild", {}).get("substitute", {}))
+
+
+def merge(base: dict, over: dict) -> dict:
+    """Helm's values merge: maps deep, everything else — lists included — replaced."""
+    out = dict(base)
+    for k, v in over.items():
+        out[k] = merge(out[k], v) if isinstance(out.get(k), dict) and isinstance(v, dict) else v
+    return out
+
+
+def values_of(rel: dict, objects: list[dict]) -> dict:
+    """A HelmRelease's values as helm-controller computes them: each `valuesFrom` entry in
+    order, then `spec.values` on top. Only ConfigMaps in the same built layer are resolved
+    — that is where the sizes live — and a missing ConfigMap or key is an error, as it is
+    on the cluster (no `optional: true` here, on purpose)."""
+    spec, ns = rel["spec"], rel["metadata"]["namespace"]
+    values: dict = {}
+    for ref in spec.get("valuesFrom") or []:
+        if ref.get("kind") != "ConfigMap":
+            raise RuntimeError(f"{ns}/{rel['metadata']['name']}: valuesFrom {ref.get('kind')} is not resolved here")
+        cm = next((d for d in objects if d.get("kind") == "ConfigMap"
+                   and d["metadata"]["name"] == ref["name"] and d["metadata"].get("namespace") == ns), None)
+        if cm is None:
+            raise RuntimeError(f"{ns}/{rel['metadata']['name']}: valuesFrom ConfigMap {ref['name']} is not in the build")
+        key = ref.get("valuesKey", "values.yaml")
+        if key not in (cm.get("data") or {}):
+            raise RuntimeError(f"{ns}/{rel['metadata']['name']}: ConfigMap {ref['name']} has no key {key!r} "
+                               f"(has {sorted(cm.get('data') or {})})")
+        values = merge(values, yaml.safe_load(cm["data"][key]) or {})
+    return merge(values, spec.get("values") or {})
 
 
 def cluster(values: pathlib.Path, extra: tuple[str, ...] = ()) -> dict[str, list[dict]]:

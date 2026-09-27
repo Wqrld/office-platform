@@ -14,7 +14,8 @@
 | `surround.yaml` | routes and the (unenforced) egress policy |
 | `default.conf` | the frontend nginx config, upstream's plus the switcher injection |
 
-The switcher script itself is `apps/switcher.js`, shared with Drive.
+The switcher scripts are `apps/switcher.js` (the button) and `apps/gaufre.js` (the panel),
+shared with the other apps (`apps/README.md`, The switcher).
 
 ## The transcript pipeline
 
@@ -50,14 +51,20 @@ return). `main` upstream made the model an env var (`TRANSCRIBE_MODEL`) — the 
 v1.2.0 changes `args` in whisperx.yaml.
 
 First start downloads the models into the PVC (minutes); the startup probe allows 20.
-`whisperx-sitecustomize.py` fixes the image's CPU start (it passes a torch dtype where CTranslate2 wants a string) and picks `int8`. `HF_TOKEN` is required and is the one by-hand credential — `docs/bootstrap.md` §4c.
+**One size at every profile.** It is the one workload that is not a chart, so `sizes/`
+cannot reach it, and a chart for one Deployment is a fifth chart to publish, pin and
+source for three numbers; and the numbers are the model's, not the user count's — `small`
+is ~2Gi resident whether five people or five hundred are meeting, and more people at once
+is a GPU or an external endpoint (above), not a bigger pod.
+`whisperx-sitecustomize.py` fixes the image's CPU start (it passes a torch dtype where CTranslate2 wants a string) and picks `int8`. `HF_TOKEN` is required and is the one by-hand credential — `docs/install.md` §4c.
 
 ## The gaufre
 
 Meet ships no switcher and no hook for one. `default.conf` adds a `sub_filter` that appends
-`<script src="/custom/switcher.js">` to every HTML response and serves the file from the same
-ConfigMap (`meet-frontend`, mounted over the image's `default.conf` via
-`frontend.extraVolumes`). On a chart bump, diff `default.conf` against upstream's
+`<script src="/custom/switcher.js">` to every HTML response and serves `/custom/` from a
+projected volume: the two scripts from the same ConfigMap (`meet-frontend`, also mounted
+over the image's `default.conf` via `frontend.extraVolumes`) and the service list from
+`office-services`. On a chart bump, diff `default.conf` against upstream's
 `src/frontend/default.conf`. The mount point in the page is `nav > div` (layout/Header.tsx);
 in a call there is no header and the button falls back to a fixed position.
 

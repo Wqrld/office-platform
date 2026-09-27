@@ -12,6 +12,8 @@ spec:
   interval: 30m
   dependsOn: [{name: find}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  # The disruption budget comes with the size (sizes/platform-<size>.yaml).
+  valuesFrom: [{kind: ConfigMap, name: find-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: find
     baseDomain: ${BASE_DOMAIN}

@@ -37,7 +37,7 @@ resources:
 # secrets/database-users.yaml, secrets/valkey-users.yaml, postgres/databases.yaml, the
 # oidc-client-* ExternalSecrets in identity/keycloak.yaml and this block.
 patches:
-  - target: {kind: ExternalSecret, namespace: office-data, name: "(docs|drive|find|calendars|meet|keycloak)-db|valkey-.*"}
+  - target: {kind: ExternalSecret, namespace: office-data, name: "(docs|drive|find|calendars|meet|projects|keycloak)-db|valkey-.*"}
     patch: |
       - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
       - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}

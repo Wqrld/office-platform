@@ -1,6 +1,5 @@
 # expect: value must be one of 'garage', 'external'
 domain: example.org
 gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
-livekit: {ip: 10.0.0.6}
 objectStore: {mode: minio}
 registry: {url: oci://registry.example.org/office}

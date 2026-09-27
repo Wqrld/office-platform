@@ -7,8 +7,12 @@ A few files served from the application's own origin, for upstream frontends tha
 URL rather than content (Drive's `FRONTEND_JS_URL`). The files come from a ConfigMap made
 elsewhere so they stay real files; nginx reads them per request and a mounted ConfigMap
 updates in place, so editing them needs no restart. Everything here is public, cached and
-read-only.
+read-only. `servicesConfigMap` — the switcher's service list, substituted per cluster — is
+projected into the same directory: two ConfigMaps, one /srv, and still updated in place
+(a subPath mount would not be).
 */}}
+{{- $sources := list (dict "configMap" (dict "name" $files)) }}
+{{- with $f.servicesConfigMap }}{{ $sources = append $sources (dict "configMap" (dict "name" .)) }}{{ end }}
 {{- $conf := printf `server {
   listen 8080;
   charset utf-8;
@@ -23,6 +27,6 @@ read-only.
 }` $f.path $f.maxAge }}
 # The `/custom` route's backend, or wherever `staticFiles.path` points.
 {{ include "platform.nginx" (dict "root" . "name" $name "confName" (printf "%s-conf" $name) "conf" $conf "w" $f
-     "volumes" (list (dict "name" "files" "configMap" (dict "name" $files)))
+     "volumes" (list (dict "name" "files" "projected" (dict "sources" $sources)))
      "mounts" (list (dict "name" "files" "mountPath" "/srv"))) }}
 {{- end }}

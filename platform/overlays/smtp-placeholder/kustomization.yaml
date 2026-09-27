@@ -1,0 +1,5 @@
+# In while `smtp.configured` is false: a relay that cannot resolve, so pods start and
+# sends fail. docs/install.md, "Mail".
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources: [secret.yaml]
