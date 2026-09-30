@@ -47,6 +47,14 @@ spec:
     backend:
       pdb: {enabled: false}          # the surround owns budgets, at every size
 
+      # Upstream's CI builds the backend without DOCKER_USER, so `USER ${DOCKER_USER}` is
+      # root and the chart's `runAsNonRoot: true` refuses every pod. 1001 is what upstream's
+      # test CI builds with; the entrypoint adds the passwd entry (group 0 may write it).
+      # Covers worker, Jobs and cronjob, which all read backend.securityContext. A map
+      # merge: the rest of the chart's securityContext stands. Dropped once the fork's CI
+      # passes DOCKER_USER.
+      securityContext: {runAsUser: 1001}
+
       envFrom:
         - {secretRef: {name: messages-postgres}}
         - {secretRef: {name: messages-cache}}
