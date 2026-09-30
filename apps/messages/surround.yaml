@@ -59,24 +59,7 @@ spec:
         spec:
           targetRefs: [{group: gateway.networking.k8s.io, kind: TCPRoute, name: messages-smtp}]
           proxyProtocol: {version: V2}
-      # STARTTLS for the MTA. Self-signed on purpose: an ACME certificate for `mx.` would
-      # have to be issued in office-system (the HTTP listener admits only its own
-      # namespace's routes) and copied here, and no sending MTA verifies it without
-      # MTA-STS or DANE — README.md, Known gaps.
-      - apiVersion: cert-manager.io/v1
-        kind: Issuer
-        metadata: {name: messages-selfsigned, namespace: office-messages}
-        spec: {selfSigned: {}}
-      - apiVersion: cert-manager.io/v1
-        kind: Certificate
-        metadata: {name: messages-mx, namespace: office-messages}
-        spec:
-          secretName: messages-mx-tls
-          commonName: mx.${BASE_DOMAIN}
-          dnsNames: ["mx.${BASE_DOMAIN}"]   # quoted: `${` is not valid inside a flow sequence
-          duration: 8760h
-          privateKey: {algorithm: ECDSA, size: 256}
-          issuerRef: {name: messages-selfsigned, kind: Issuer}
+      # STARTTLS's certificate is mx-tls.yaml, not here: mta-in mounts it, so it cannot wait for this release.
 
     # `external: 25` is the point of MTA_OUT_MODE=direct: the worker opens SMTP to every
     # recipient's MX. 443 is OIDC over the public issuer, IMAP imports are 993.

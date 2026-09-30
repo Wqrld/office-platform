@@ -1,0 +1,21 @@
+# STARTTLS for the MTA. Self-signed on purpose: an ACME certificate for `mx.` would have to
+# be issued in office-system (the HTTP listener admits only its own namespace's routes) and
+# copied here, and no sending MTA verifies it without MTA-STS or DANE — README.md, Known gaps.
+#
+# A plain resource, not in surround.yaml: mta-in mounts it, the chart's release waits for
+# mta-in, and the surround waits for the chart's release — a cycle. This lands before all three.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata: {name: messages-selfsigned, namespace: office-messages}
+spec: {selfSigned: {}}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: {name: messages-mx, namespace: office-messages}
+spec:
+  secretName: messages-mx-tls
+  commonName: mx.${BASE_DOMAIN}
+  dnsNames: ["mx.${BASE_DOMAIN}"]   # quoted: `${` is not valid inside a flow sequence
+  duration: 8760h
+  privateKey: {algorithm: ECDSA, size: 256}
+  issuerRef: {name: messages-selfsigned, kind: Issuer}

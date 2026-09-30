@@ -5,6 +5,7 @@ resources:
   - ../services.yaml
   - deps.yaml
   - release.yaml
+  - mx-tls.yaml
   - surround.yaml
 
 configMapGenerator:
