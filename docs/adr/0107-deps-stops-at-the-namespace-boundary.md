@@ -40,9 +40,9 @@ reaches across a boundary it should not cross. A clean line that is honest about
 beats a partial abstraction that hides half of it.
 
 The cost is stated rather than hidden: **adding an application still touches the platform
-layer** — `platform/postgres/databases.yaml`, `platform/secrets/database-users.yaml`, and
-`platform/valkey/{cache,broker}.yaml` for the ACL user. That is three files, in one layer,
-all declarative, and it was already true before this chart existed.
+layer** — one line in `charts/platform-tenants/values.yaml` and one in each of
+`platform/valkey/{cache,broker}.yaml` for the ACL user (amended 2026-09-30: this was three
+hand-written files until the `platform-tenants` chart replaced them).
 
 ## Consequences
 - `platform-deps` shrinks, which is the right direction for a chart whose value is removing

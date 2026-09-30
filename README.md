@@ -9,7 +9,7 @@ artifact and four charts — and installed by an organisation from one file of i
 charts/
   control-plane/   the chart an organisation installs: renders the Flux control plane —
                    sources, cluster vars, one Kustomization per layer and per ENABLED app —
-                   from ~10 typed, schema-checked values (docs/platform-org-split.md)
+                   from ~10 typed, schema-checked values (docs/history/platform-org-split.md)
   platform-deps/   everything an app needs BEFORE it starts: datastores + secrets
   platform-app/    the surround: HTTPRoutes, NetworkPolicy, PDB
   platform-tenants/ what the platform provisions per app: database, cache users, OIDC secret, grant
@@ -53,12 +53,13 @@ chart check iterates; a case added there is picked up by all of them.
 | `./tests/binding.py [app]` | does our surround still attach to what the upstream charts create? |
 | `./tests/profiles.py [size]` | do the three sizes still say what they claim to say — every replica count with its budget, every sized release with every size, no release file overriding one? |
 | `./tests/check-secrets.py [app]` | do the `postRenderers` envFrom patches still hit exactly the workloads they should? |
+| `./tests/startup.py [app]` | will every pod start — can each non-root container run as its image's user, and does every Secret and ConfigMap a release needs come from something it does not wait behind? |
 | `conftest verify --policy policy/charts` (and `policy/config`) | do the static rules still fire, both directions? |
 | `conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/` | does the rendered output satisfy them? |
 | `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ cluster/ tests/golden/` | are the pins and remediation settings still as decided? |
 
-`binding.py`, `profiles.py` and `check-secrets.py` fetch the pinned upstream charts into `.charts/`, so they
-need network. Everything else is offline. All of them render through `tests/render.py` —
+`binding.py`, `profiles.py`, `check-secrets.py` and `startup.py` fetch the pinned upstream charts into `.charts/`
+(`startup.py` also each image's config, from its registry), so they need network. Everything else is offline. All of them render through `tests/render.py` —
 the control plane with `helm template`, each layer with `flux build` — so what a check sees
 is what the cluster applies, sizes and the switcher files included. A new app needs a
 case in `tests/cases/index.yaml` for each of its platform releases; nothing checks that.

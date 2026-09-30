@@ -15,7 +15,7 @@ platform provisions for it (`charts/platform-tenants/values.yaml`).
 | **docs** | 5 — backend, frontend, celery, yprovider, docspec | ● | ● | ● | ● | ● | upstream, git tag | `docs` |
 | **drive** | 4 — backend, frontend, celery, celery-beat | ● | ● | ● | | ● | upstream, git tag | `drive` |
 | **calendars** | 4 — backend, frontend, caldav, worker | ● | ● | | | ● | upstream PR, from our Helm repo | `calendars` |
-| **projects** | 1 — backend (Sails: SPA, API, socket.io, files) | ● | ● | ● | | ● | ours in the app's repo, from our Helm repo | `projects` |
+| **projects** | 1 — backend (Sails: SPA, API, socket.io, files) | ● | ● | ● | | ● | ours in the app's repo, from the fork's git tag | `projects` |
 | **find** | 1 — backend | ● | ● | | ● | ● | upstream, commit pin | `find` |
 | **messages** | 5 — backend, frontend, celery (+beat), mta-in, mpa (rspamd) | ● | ● | ● | ● | ● | ours in the app's repo, from the fork's git tag | `messages`; `mx` → SMTP 25 |
 | **meet** | 5 live (+4 at 0 replicas) + our whisperx | ● | ● | ● | | ● | upstream, git tag | `meet` |

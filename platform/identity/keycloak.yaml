@@ -14,114 +14,6 @@ spec:
     - sourceRef:
         generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
 ---
-# The `docs` OIDC client secret. Generated here, in Keycloak's namespace, and read by
-# BOTH sides: the realm import substitutes it into the client definition, and Docs reads
-# it back through the `office-identity` ClusterSecretStore. Neither side holds the value
-# in git — history/design/07-identity-and-secrets.md, "One name, two consumers".
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: oidc-client-docs, namespace: office-identity}
-spec:
-  refreshInterval: "0"
-  target:
-    name: oidc-client-docs
-    creationPolicy: Owner
-    template:
-      data:
-        secret: "{{ .password }}"
-  dataFrom:
-    - sourceRef:
-        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
----
-# The `drive` OIDC client secret. Same shape, same reasoning as `docs` above: one value,
-# written into Keycloak by the realm import and read back by the application, never in git.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: oidc-client-drive, namespace: office-identity}
-spec:
-  refreshInterval: "0"
-  target:
-    name: oidc-client-drive
-    creationPolicy: Owner
-    template:
-      data:
-        secret: "{{ .password }}"
-  dataFrom:
-    - sourceRef:
-        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
----
-# The `find` client secret. Find never logs anyone in; it presents this at Keycloak's
-# introspection endpoint to validate the access tokens Docs forwards.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: oidc-client-find, namespace: office-identity}
-spec:
-  refreshInterval: "0"
-  target:
-    name: oidc-client-find
-    creationPolicy: Owner
-    template:
-      data:
-        secret: "{{ .password }}"
-  dataFrom:
-    - sourceRef:
-        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
----
-# The `calendars` client secret. Same shape as `docs` and `drive`: a login client, so the
-# realm import writes this value into Keycloak and the application reads it back.
-#
-# It has to EXIST before `add-client.sh calendars` runs — the script reads it out of this
-# Secret to build the client body, because the realm import is import-once and adding the
-# client to realm.yaml creates nothing on a realm that is already imported.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: oidc-client-calendars, namespace: office-identity}
-spec:
-  refreshInterval: "0"
-  target:
-    name: oidc-client-calendars
-    creationPolicy: Owner
-    template:
-      data:
-        secret: "{{ .password }}"
-  dataFrom:
-    - sourceRef:
-        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
----
-# The `projects` client secret. A login client; same import-once caveat, so
-# `add-client.sh projects` after this Secret exists.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: oidc-client-projects, namespace: office-identity}
-spec:
-  refreshInterval: "0"
-  target:
-    name: oidc-client-projects
-    creationPolicy: Owner
-    template:
-      data:
-        secret: "{{ .password }}"
-  dataFrom:
-    - sourceRef:
-        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
----
-# The `meet` client secret. A login client like the three above; same import-once caveat,
-# so `add-client.sh meet` after this Secret exists.
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: {name: oidc-client-meet, namespace: office-identity}
-spec:
-  refreshInterval: "0"
-  target:
-    name: oidc-client-meet
-    creationPolicy: Owner
-    template:
-      data:
-        secret: "{{ .password }}"
-  dataFrom:
-    - sourceRef:
-        generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}
----
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: keycloak-db, namespace: office-identity}
@@ -170,7 +62,7 @@ spec:
     enabled: false
   bootstrapAdmin:
     # Only consulted the first time a Keycloak is created against an empty database —
-    # which is the credential add-client.sh and set-smtp.sh read. A Keycloak created
+    # which is the credential the tenants chart's realm Job logs in with. A Keycloak created
     # before this stanza existed has the operator-generated `keycloak-initial-admin`
     # instead; none of ours is that old.
     user: {secret: keycloak-bootstrap-admin}

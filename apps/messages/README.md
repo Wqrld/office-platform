@@ -43,7 +43,7 @@ Django, so most of the `lasuite` family; two profiles are new (`env: messages`,
 **OpenSearch verifies the server**, unlike Find, so the platform's private CA is copied into
 `messages-opensearch-ca` (`opensearch.caSecret`) and mounted where `OPENSEARCH_CA_CERTS`
 says. The index name is fixed in the code (`messages`), so the role
-(`platform/secrets/opensearch-users.yaml`) pins the name rather than a prefix.
+(`search: [messages]` in `charts/platform-tenants/values.yaml`) pins the name rather than a prefix.
 
 ## How mail flows
 
@@ -151,14 +151,10 @@ upstream's; the images carry the tag without the `v`. updatecli tracks the fork'
 Everything for a login client (Projects' README), plus mail:
 
 1. **Mail DNS** above, and outbound 25 lifted at the provider.
-2. **OpenSearch security config is read once.** The `messages` user and role are rendered
-   into `opensearch-security-config`, which the plugin loads on first boot only: after the
-   platform layer reconciles, force-sync that ExternalSecret and run `securityadmin.sh`
-   (`platform/opensearch/README.md`).
-3. **The realm import is import-once.** Run `platform/identity/add-client.sh messages` once
-   `oidc-client-messages` exists.
-4. Reconcile apps; watch the migrate Job, then the MTA log for the first connection.
-5. **A mail domain.** In `/admin/` as `admin@${BASE_DOMAIN}` (password in
+2. Reconcile the platform layer: the tenants chart's Jobs add the `messages` OpenSearch user
+   and the realm client (`kubectl -n office-data get job`, `-n office-identity`).
+3. Reconcile apps; watch the migrate Job, then the MTA log for the first connection.
+4. **A mail domain.** In `/admin/` as `admin@${BASE_DOMAIN}` (password in
    `messages-django`, `DJANGO_SUPERUSER_PASSWORD`), add the domain with `oidc_autojoin`.
    A realm user whose email is on that domain gets that address as its mailbox at their
    next login; everyone else logs in to an empty account. Publish

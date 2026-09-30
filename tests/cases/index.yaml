@@ -36,7 +36,7 @@ cases:
     description: >-
       The smallest selection the platform accepts on an organisation's own S3: Docs and
       Find, nothing that needs Garage, LiveKit or Collabora. Both acceptance criteria of
-      docs/platform-org-split.md, asserted on every build.
+      docs/history/platform-org-split.md, asserted on every build.
 
   - name: cluster-vps
     chart: control-plane

@@ -57,6 +57,9 @@ upstream `OPENSEARCH_CA_CERTS` setting; it is worth a PR and is recorded as the 
 the mounted files on first boot only. After that the index is the source of truth, so
 rotating the `find` password means re-rendering the Secret *and* running `securityadmin.sh`
 with the admin certificate. The runbook is in `platform/opensearch/README.md`.
+*Amended 2026-09-30:* the tenants chart's reconcile Job runs `securityadmin.sh` on every
+change to the users or roles, so adding a consumer is one `search` entry and nothing by
+hand; rotating a password is deleting it and re-running the Job.
 
 **Adding a consumer is three edits**, the same shape as adding a Valkey user: a
 generate-once password, a role and mapping in the security config, and the app's

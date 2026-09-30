@@ -1,0 +1,88 @@
+{{- /*
+The `office` realm, reconciled: files/realm.yaml plus one client per `oidc` entry, applied
+by keycloak-config-cli on every change. It replaces a realm that was import-once (the
+operator's KeycloakRealmImport runs `--override=false` and never re-runs), which is why
+adding a client or configuring mail used to be a script run by hand on every cluster.
+
+The Job and its ConfigMap are named for a hash of what they apply, so a change to the realm
+is a new Job: Helm deletes the old one and creates the next, which runs once. A secret's
+VALUE is not in the hash — a rotated relay password is applied by re-running the Job
+(platform/identity/README.md, Rotating the relay).
+
+What it may do, and what it may not:
+  * it creates and updates the realm's settings and the clients listed here;
+  * it deletes NOTHING — every managed type is `no-delete`, so a client made by hand, one
+    whose app left this table, and every user are left alone;
+  * it never touches users: the import has no `users` key.
+*/ -}}
+{{- $d := required "domain is required: the clients' URLs are https://<app>.<domain>" .Values.domain }}
+{{- $clients := list }}
+{{- range $app, $t := .Values.apps }}{{ with $t.oidc }}
+{{- $clients = append $clients (include "tenants.client" (list $app . $d) | fromYaml) }}
+{{- end }}{{ end }}
+{{- $realm := .Files.Get "files/realm.yaml" | fromYaml | merge (dict "clients" $clients) | toYaml }}
+{{- $k := .Values.keycloak }}
+{{- $hash := printf "%s\n%s" $realm $k.image | sha256sum | trunc 10 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realm-{{ $hash }}
+  namespace: {{ .Values.namespaces.identity }}
+  labels: {{- include "tenants.labels" . | nindent 4 }}
+data:
+  realm.yaml: |
+    {{- $realm | nindent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: realm-{{ $hash }}
+  namespace: {{ .Values.namespaces.identity }}
+  labels: {{- include "tenants.labels" . | nindent 4 }}
+spec:
+  # On a fresh install Keycloak starts after this Job does; the availability check waits
+  # ten minutes, the retries cover the rest. Nothing waits on this Job (platform/tenants.yaml).
+  backoffLimit: 10
+  template:
+    metadata:
+      labels: {{- include "tenants.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: keycloak-config-cli
+          image: {{ $k.image }}
+          args:
+            - --import.files.locations=/config/realm.yaml
+            - --import.var-substitution.enabled=true
+            {{- range list "client" "role" "client-scope" "scope-mapping" "client-scope-mapping" "group" "sub-group" "required-action" "component" "sub-component" "authentication-flow" "identity-provider" "identity-provider-mapper" "client-authorization-resources" "client-authorization-policies" "client-authorization-scopes" "message-bundles" "workflow" }}
+            - --import.managed.{{ . }}=no-delete
+            {{- end }}
+          env:
+            - {name: KEYCLOAK_URL, value: {{ $k.url | quote }}}
+            - {name: KEYCLOAK_AVAILABILITYCHECK_ENABLED, value: "true"}
+            - {name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT, value: 600s}
+            - {name: KEYCLOAK_USER, valueFrom: {secretKeyRef: {name: {{ $k.adminSecret }}, key: username}}}
+            - {name: KEYCLOAK_PASSWORD, valueFrom: {secretKeyRef: {name: {{ $k.adminSecret }}, key: password}}}
+            {{- range $app, $t := .Values.apps }}{{ if $t.oidc }}
+            - {name: CLIENT_SECRET_{{ upper $app }}, valueFrom: {secretKeyRef: {name: oidc-client-{{ $app }}, key: secret}}}
+            {{- end }}{{ end }}
+            {{- range $env, $key := dict "SMTP_HOST" "host" "SMTP_PORT" "port" "SMTP_USER" "username" "SMTP_PASSWORD" "password" "SMTP_STARTTLS" "useTLS" "SMTP_SSL" "useSSL" "SMTP_FROM" "from" }}
+            - {name: {{ $env }}, valueFrom: {secretKeyRef: {name: {{ $k.smtpSecret }}, key: {{ $key }}}}}
+            {{- end }}
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: config, configMap: {name: realm-{{ $hash }}}}
+        - {name: tmp, emptyDir: {}}

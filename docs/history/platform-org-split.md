@@ -251,7 +251,7 @@ implied by file order — and it is the largest change in this plan.
 that created (a typo'd patch target is a silent no-op in every per-app build) is why they
 were then replaced: each app now carries its sizes as values in `apps/<app>/sizes/`,
 delivered by `valuesFrom` and `SIZE` in `cluster-vars`, so a missing size is a HelmRelease
-that says so (`docs/size-is-a-value.md`, `apps/README.md` Sizing).
+that says so (`docs/history/size-is-a-value.md`, `apps/README.md` Sizing).
 
 ## 9 — Sequence
 
@@ -319,7 +319,7 @@ Where what was built differs from the plan above, this is why:
 | Plan | Built | Reason |
 |---|---|---|
 | `charts/platform-control-plane` in a merged repo | `charts/control-plane` in the merged repo | As designed: one public repository, one organisation file. `release.sh` publishes the config artifact and the charts under **one version**, and the control plane pins the charts and the artifact at its own `.Chart.Version` — the organisation's chart pin is the platform version, and nothing is ever bumped by hand to agree with it |
-| `environments/<size>/apps/<name>/` — 21 selector directories | none; the chart emits `path: ./apps/<name>` and `SIZE` in `cluster-vars`, and each app's HelmReleases read `apps/<app>/sizes/` through `valuesFrom` | First as a kustomize component per app (verified byte-identical to the overlay render), then as values (`docs/size-is-a-value.md`) because a component's silent no-op needed its own check. `environments/` is deleted |
+| `environments/<size>/apps/<name>/` — 21 selector directories | none; the chart emits `path: ./apps/<name>` and `SIZE` in `cluster-vars`, and each app's HelmReleases read `apps/<app>/sizes/` through `valuesFrom` | First as a kustomize component per app (verified byte-identical to the overlay render), then as values (`docs/history/size-is-a-value.md`) because a component's silent no-op needed its own check. `environments/` is deleted |
 | `objectStore: {endpoint, region, credentialSecret}` as values | `objectStore: {mode}` only; endpoint, region and credentials in a hand-applied `object-store` Secret in `office-data` | The SMTP relay already works this way ("switching provider is one `kubectl` and nothing about mail is in git"); one precedent, not two. `apps/*/deps.yaml` gains one line, `mode: ${S3_MODE}`, not four |
 | Garage stays in 30-platform | `platform/objectstore/` is its own layer, emitted only in `garage` mode | Substitution cannot remove a resource; a layer can be left out. The operator stays in `infra` (its CRDs are what make the CRs applicable) — one idle Deployment in external mode |
 | "union of per-app renders == whole-set render" as the profile test | `tests/profiles.py` asserts every profile patch target matches a rendered object | The union test passes on a typo'd target — both renders lack the patch. The direct assertion is what catches it |

@@ -31,7 +31,7 @@ cache:
   uses: [cache]                    # which instances this app needs
   instances:
     # `credentialSecret` is the ASSEMBLED Secret, not the generate-once one that feeds it —
-    # `platform/secrets/valkey-users.yaml`. Pointing at `valkey-*-users` instead
+    # `charts/platform-tenants/templates/valkey.yaml`. Pointing at `valkey-*-users` instead
     # resolves for the users that predate the split and fails for every app added after.
     cache:
       host: valkey-cache.office-data.svc.cluster.local

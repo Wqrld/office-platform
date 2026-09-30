@@ -37,7 +37,7 @@ verifying per app that the upstream chart exposes a key prefix and that Celery's
 honour it, and a pattern an app does not use is a cache that silently denies every write.
 
 Never add a `dataFrom` entry to `valkey-{cache,broker}-users`. That was the original shape
-and it does not work; the file's header comment has the full account. Short version, all
+and it does not work (`charts/platform-tenants/templates/valkey.yaml`). Short version, all
 three measured against this cluster:
 
 - `refreshInterval: "0"` means *written once and never again*, not "re-draw on a spec

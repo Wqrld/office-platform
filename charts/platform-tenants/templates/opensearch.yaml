@@ -1,0 +1,123 @@
+{{- /*
+OpenSearch's security config, reconciled: one internal user and one role per `search` entry.
+
+The plugin reads its config files ONCE — `allow_default_init_securityindex` seeds the
+security index on first boot and ignores the files ever after — so a user added to a file
+reaches nothing until `securityadmin` pushes it. The Job below does that on every change.
+
+Two Secrets' worth of care, both learned on prod:
+  * No hash is rendered here. bcrypt re-salts, so a template that hashes produces a new
+    (equally valid) value on every render; the Job hashes each generated password at run
+    time with the server's own hash.sh instead.
+  * `securityadmin -cd <dir>` aborts on an optional file it does not find AFTER writing the
+    index but BEFORE telling the nodes. The Job uploads one config type at a time with `-f
+    -t`, only the types defined here, each of which reloads on success.
+*/ -}}
+{{- $users := dict }}
+{{- range $app, $t := .Values.apps }}{{ with $t.search }}{{ $_ := set $users $app . }}{{ end }}{{ end }}
+{{- $files := dict
+  "config.yml" `_meta: {type: config, config_version: 2}
+config:
+  dynamic:
+    authc:
+      basic_internal_auth_domain:
+        description: HTTP basic against the internal user database
+        http_enabled: true
+        transport_enabled: true
+        order: 0
+        http_authenticator: {type: basic, challenge: true}
+        authentication_backend: {type: intern}
+`
+  "internal_users.yml" "_meta: {type: internalusers, config_version: 2}\n"
+  "roles.yml" (include "tenants.opensearchRoles" $users)
+  "roles_mapping.yml" (include "tenants.opensearchMapping" $users)
+  "action_groups.yml" "_meta: {type: actiongroups, config_version: 2}\n"
+  "tenants.yml" "_meta: {type: tenants, config_version: 2}\n" }}
+{{- $o := .Values.opensearch }}
+{{- $hash := printf "%s\n%s" (toYaml $files) $o.image | sha256sum | trunc 10 }}
+---
+# What the server mounts as its first-boot config (platform/opensearch/cluster.yaml) and the
+# Job's input: every file but the users' hashes, which only the Job writes. A Secret because
+# the chart mounts nothing else there; nothing in it is secret. No `admin` user: cluster
+# administration is the admin certificate only, so there is no all-access password to leak.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opensearch-security
+  namespace: {{ .Values.namespaces.data }}
+  labels: {{- include "tenants.labels" . | nindent 4 }}
+stringData:
+  {{- toYaml $files | nindent 2 }}
+{{- range $app, $_ := $users }}
+---
+# Generated once: re-drawing it locks the app out of its own index until the Job runs again
+# AND the app restarts. platform-deps reads it into the app's namespace (`opensearch`).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opensearch-user-{{ $app }}
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "tenants.labels" $ | nindent 4 }}
+spec:
+  refreshInterval: "0"
+  target: {name: opensearch-user-{{ $app }}, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: {{ $.Values.passwordGenerator }}}}
+{{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-security-{{ $hash }}
+  namespace: {{ .Values.namespaces.data }}
+  labels: {{- include "tenants.labels" . | nindent 4 }}
+spec:
+  # On a fresh install the server starts after this Job does; the retries wait it out.
+  # Nothing waits on this Job (platform/tenants.yaml).
+  backoffLimit: 10
+  template:
+    metadata:
+      labels: {{- include "tenants.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: securityadmin
+          image: {{ $o.image }}
+          command: [bash, -euo, pipefail, -c]
+          args:
+            - |
+              tools=/usr/share/opensearch/plugins/opensearch-security/tools
+              cp /security/*.yml /tmp/
+              for app in {{ keys $users | sortAlpha | join " " }}; do
+                var="PASSWORD_${app^^}"
+                hash="$("$tools/hash.sh" -p "${!var}" | tail -n1)"
+                printf '%s:\n  hash: "%s"\n  reserved: false\n  description: "%s service account"\n' \
+                  "$app" "$hash" "$app" >> /tmp/internal_users.yml
+              done
+              # Roles before the mapping that names them, users last.
+              for t in config:config roles:roles rolesmapping:roles_mapping actiongroups:action_groups tenants:tenants internalusers:internal_users; do
+                "$tools/securityadmin.sh" -f "/tmp/${t#*:}.yml" -t "${t%%:*}" \
+                  -h {{ $o.host }} -icl -nhnv \
+                  -cacert /admin/ca.crt -cert /admin/tls.crt -key /admin/tls.key
+              done
+          env:
+            {{- range $app, $_ := $users }}
+            - {name: PASSWORD_{{ upper $app }}, valueFrom: {secretKeyRef: {name: opensearch-user-{{ $app }}, key: password}}}
+            {{- end }}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: security, mountPath: /security, readOnly: true}
+            - {name: admin, mountPath: /admin, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: security, secret: {secretName: opensearch-security}}
+        - {name: admin, secret: {secretName: {{ $o.adminTlsSecret }}}}
+        - {name: tmp, emptyDir: {}}

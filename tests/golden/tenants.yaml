@@ -1,4 +1,452 @@
 ---
+# Source: platform-tenants/templates/opensearch.yaml
+# What the server mounts as its first-boot config (platform/opensearch/cluster.yaml) and the
+# Job's input: every file but the users' hashes, which only the Job writes. A Secret because
+# the chart mounts nothing else there; nothing in it is secret. No `admin` user: cluster
+# administration is the admin certificate only, so there is no all-access password to leak.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opensearch-security
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+stringData:
+  action_groups.yml: |
+    _meta: {type: actiongroups, config_version: 2}
+  config.yml: |
+    _meta: {type: config, config_version: 2}
+    config:
+      dynamic:
+        authc:
+          basic_internal_auth_domain:
+            description: HTTP basic against the internal user database
+            http_enabled: true
+            transport_enabled: true
+            order: 0
+            http_authenticator: {type: basic, challenge: true}
+            authentication_backend: {type: intern}
+  internal_users.yml: |
+    _meta: {type: internalusers, config_version: 2}
+  roles.yml: |
+    _meta: {type: roles, config_version: 2}
+    find_service:
+      reserved: false
+      cluster_permissions: [cluster_composite_ops]
+      index_permissions:
+        - index_patterns: ["find-*"]
+          allowed_actions: [indices_all]
+    messages_service:
+      reserved: false
+      cluster_permissions: [cluster_composite_ops]
+      index_permissions:
+        - index_patterns: ["messages"]
+          allowed_actions: [indices_all]
+  roles_mapping.yml: |
+    _meta: {type: rolesmapping, config_version: 2}
+    find_service:
+      reserved: false
+      users: [find]
+    messages_service:
+      reserved: false
+      users: [messages]
+  tenants.yml: |
+    _meta: {type: tenants, config_version: 2}
+---
+# Source: platform-tenants/templates/keycloak.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: realm-be0a9a1f20
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+data:
+  realm.yaml: |
+    adminEventsEnabled: true
+    bruteForceProtected: true
+    bruteForceStrategy: LINEAR
+    clients:
+    - adminUrl: https://calendars.haaijer.dev
+      alwaysDisplayInConsole: true
+      attributes:
+        backchannel.logout.session.required: "true"
+        backchannel.logout.url: https://calendars.haaijer.dev/api/v1.0/logout/
+        frontchannel.logout.session.required: "false"
+        frontchannel.logout.url: https://calendars.haaijer.dev/api/v1.0/logout/
+        post.logout.redirect.uris: https://calendars.haaijer.dev/*
+      baseUrl: https://calendars.haaijer.dev
+      clientAuthenticatorType: client-secret
+      clientId: calendars
+      description: Calendars — agenda's delen en vergaderingen plannen
+      directAccessGrantsEnabled: false
+      enabled: true
+      frontchannelLogout: true
+      implicitFlowEnabled: false
+      name: Calendars
+      protocol: openid-connect
+      publicClient: false
+      redirectUris:
+      - https://calendars.haaijer.dev/*
+      rootUrl: https://calendars.haaijer.dev
+      secret: $(env:CLIENT_SECRET_CALENDARS)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: true
+      webOrigins:
+      - https://calendars.haaijer.dev
+    - adminUrl: https://docs.haaijer.dev
+      alwaysDisplayInConsole: true
+      attributes:
+        access.token.lifespan: "1200"
+        backchannel.logout.session.required: "true"
+        backchannel.logout.url: https://docs.haaijer.dev/api/v1.0/logout/
+        frontchannel.logout.session.required: "false"
+        frontchannel.logout.url: https://docs.haaijer.dev/api/v1.0/logout/
+        post.logout.redirect.uris: https://docs.haaijer.dev/*
+      baseUrl: https://docs.haaijer.dev
+      clientAuthenticatorType: client-secret
+      clientId: docs
+      description: Docs — samen werken aan documenten
+      directAccessGrantsEnabled: false
+      enabled: true
+      frontchannelLogout: true
+      implicitFlowEnabled: false
+      name: Docs
+      protocol: openid-connect
+      protocolMappers:
+      - config:
+          access.token.claim: "true"
+          id.token.claim: "false"
+          included.client.audience: find
+        name: find-audience
+        protocol: openid-connect
+        protocolMapper: oidc-audience-mapper
+      publicClient: false
+      redirectUris:
+      - https://docs.haaijer.dev/*
+      rootUrl: https://docs.haaijer.dev
+      secret: $(env:CLIENT_SECRET_DOCS)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: true
+      webOrigins:
+      - https://docs.haaijer.dev
+    - adminUrl: https://drive.haaijer.dev
+      alwaysDisplayInConsole: true
+      attributes:
+        backchannel.logout.session.required: "true"
+        backchannel.logout.url: https://drive.haaijer.dev/api/v1.0/logout/
+        frontchannel.logout.session.required: "false"
+        frontchannel.logout.url: https://drive.haaijer.dev/api/v1.0/logout/
+        post.logout.redirect.uris: https://drive.haaijer.dev/*
+      baseUrl: https://drive.haaijer.dev
+      clientAuthenticatorType: client-secret
+      clientId: drive
+      description: Drive — bestanden delen en samen bewerken
+      directAccessGrantsEnabled: false
+      enabled: true
+      frontchannelLogout: true
+      implicitFlowEnabled: false
+      name: Drive
+      protocol: openid-connect
+      publicClient: false
+      redirectUris:
+      - https://drive.haaijer.dev/*
+      rootUrl: https://drive.haaijer.dev
+      secret: $(env:CLIENT_SECRET_DRIVE)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: true
+      webOrigins:
+      - https://drive.haaijer.dev
+    - alwaysDisplayInConsole: false
+      clientAuthenticatorType: client-secret
+      clientId: find
+      description: Find — zoeken over alle applicaties
+      directAccessGrantsEnabled: false
+      enabled: true
+      implicitFlowEnabled: false
+      name: Find
+      protocol: openid-connect
+      publicClient: false
+      secret: $(env:CLIENT_SECRET_FIND)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: false
+    - adminUrl: https://meet.haaijer.dev
+      alwaysDisplayInConsole: true
+      attributes:
+        backchannel.logout.session.required: "true"
+        backchannel.logout.url: https://meet.haaijer.dev/api/v1.0/logout/
+        frontchannel.logout.session.required: "false"
+        frontchannel.logout.url: https://meet.haaijer.dev/api/v1.0/logout/
+        post.logout.redirect.uris: https://meet.haaijer.dev/*
+      baseUrl: https://meet.haaijer.dev
+      clientAuthenticatorType: client-secret
+      clientId: meet
+      description: Meet — videovergaderen
+      directAccessGrantsEnabled: false
+      enabled: true
+      frontchannelLogout: true
+      implicitFlowEnabled: false
+      name: Meet
+      protocol: openid-connect
+      publicClient: false
+      redirectUris:
+      - https://meet.haaijer.dev/*
+      rootUrl: https://meet.haaijer.dev
+      secret: $(env:CLIENT_SECRET_MEET)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: true
+      webOrigins:
+      - https://meet.haaijer.dev
+    - adminUrl: https://messages.haaijer.dev
+      alwaysDisplayInConsole: true
+      attributes:
+        backchannel.logout.session.required: "true"
+        backchannel.logout.url: https://messages.haaijer.dev/api/v1.0/logout/
+        frontchannel.logout.session.required: "false"
+        frontchannel.logout.url: https://messages.haaijer.dev/api/v1.0/logout/
+        post.logout.redirect.uris: https://messages.haaijer.dev/*
+      baseUrl: https://messages.haaijer.dev
+      clientAuthenticatorType: client-secret
+      clientId: messages
+      description: Messages — gedeelde mailboxen
+      directAccessGrantsEnabled: false
+      enabled: true
+      frontchannelLogout: true
+      implicitFlowEnabled: false
+      name: Messages
+      protocol: openid-connect
+      publicClient: false
+      redirectUris:
+      - https://messages.haaijer.dev/*
+      rootUrl: https://messages.haaijer.dev
+      secret: $(env:CLIENT_SECRET_MESSAGES)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: true
+      webOrigins:
+      - https://messages.haaijer.dev
+    - adminUrl: https://projects.haaijer.dev
+      alwaysDisplayInConsole: true
+      attributes:
+        post.logout.redirect.uris: https://projects.haaijer.dev/*
+      baseUrl: https://projects.haaijer.dev
+      clientAuthenticatorType: client-secret
+      clientId: projects
+      description: Projects — borden, lijsten en kaarten voor projectbeheer
+      directAccessGrantsEnabled: false
+      enabled: true
+      frontchannelLogout: false
+      implicitFlowEnabled: false
+      name: Projects
+      protocol: openid-connect
+      publicClient: false
+      redirectUris:
+      - https://projects.haaijer.dev/oidc-callback
+      rootUrl: https://projects.haaijer.dev
+      secret: $(env:CLIENT_SECRET_PROJECTS)
+      serviceAccountsEnabled: false
+      standardFlowEnabled: true
+      webOrigins:
+      - https://projects.haaijer.dev
+    defaultLocale: nl
+    defaultSignatureAlgorithm: RS256
+    displayName: Office
+    displayNameHtml: <b>Office</b>
+    duplicateEmailsAllowed: false
+    editUsernameAllowed: false
+    enabled: true
+    eventsEnabled: true
+    eventsExpiration: 86400
+    failureFactor: 30
+    internationalizationEnabled: true
+    loginWithEmailAllowed: true
+    maxDeltaTimeSeconds: 43200
+    maxFailureWaitSeconds: 900
+    minimumQuickLoginWaitSeconds: 60
+    permanentLockout: false
+    quickLoginCheckMilliSeconds: 1000
+    realm: office
+    refreshTokenMaxReuse: 3
+    registrationAllowed: false
+    rememberMe: true
+    resetPasswordAllowed: true
+    revokeRefreshToken: true
+    smtpServer:
+      auth: "true"
+      from: $(env:SMTP_FROM)
+      fromDisplayName: Office
+      host: $(env:SMTP_HOST)
+      password: $(env:SMTP_PASSWORD)
+      port: $(env:SMTP_PORT)
+      ssl: $(env:SMTP_SSL)
+      starttls: $(env:SMTP_STARTTLS)
+      user: $(env:SMTP_USER)
+    supportedLocales:
+    - en
+    - nl
+    waitIncrementSeconds: 60
+---
+# Source: platform-tenants/templates/keycloak.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: realm-be0a9a1f20
+  namespace: office-identity
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  # On a fresh install Keycloak starts after this Job does; the availability check waits
+  # ten minutes, the retries cover the rest. Nothing waits on this Job (platform/tenants.yaml).
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: platform-tenants-<version>
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: office
+        app.kubernetes.io/name: tenants
+        app.kubernetes.io/instance: tenants
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: keycloak-config-cli
+          image: docker.io/adorsys/keycloak-config-cli:6.5.1-26.5.5
+          args:
+            - --import.files.locations=/config/realm.yaml
+            - --import.var-substitution.enabled=true
+            - --import.managed.client=no-delete
+            - --import.managed.role=no-delete
+            - --import.managed.client-scope=no-delete
+            - --import.managed.scope-mapping=no-delete
+            - --import.managed.client-scope-mapping=no-delete
+            - --import.managed.group=no-delete
+            - --import.managed.sub-group=no-delete
+            - --import.managed.required-action=no-delete
+            - --import.managed.component=no-delete
+            - --import.managed.sub-component=no-delete
+            - --import.managed.authentication-flow=no-delete
+            - --import.managed.identity-provider=no-delete
+            - --import.managed.identity-provider-mapper=no-delete
+            - --import.managed.client-authorization-resources=no-delete
+            - --import.managed.client-authorization-policies=no-delete
+            - --import.managed.client-authorization-scopes=no-delete
+            - --import.managed.message-bundles=no-delete
+            - --import.managed.workflow=no-delete
+          env:
+            - {name: KEYCLOAK_URL, value: "http://keycloak-service.office-identity.svc:8080"}
+            - {name: KEYCLOAK_AVAILABILITYCHECK_ENABLED, value: "true"}
+            - {name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT, value: 600s}
+            - {name: KEYCLOAK_USER, valueFrom: {secretKeyRef: {name: keycloak-bootstrap-admin, key: username}}}
+            - {name: KEYCLOAK_PASSWORD, valueFrom: {secretKeyRef: {name: keycloak-bootstrap-admin, key: password}}}
+            - {name: CLIENT_SECRET_CALENDARS, valueFrom: {secretKeyRef: {name: oidc-client-calendars, key: secret}}}
+            - {name: CLIENT_SECRET_DOCS, valueFrom: {secretKeyRef: {name: oidc-client-docs, key: secret}}}
+            - {name: CLIENT_SECRET_DRIVE, valueFrom: {secretKeyRef: {name: oidc-client-drive, key: secret}}}
+            - {name: CLIENT_SECRET_FIND, valueFrom: {secretKeyRef: {name: oidc-client-find, key: secret}}}
+            - {name: CLIENT_SECRET_MEET, valueFrom: {secretKeyRef: {name: oidc-client-meet, key: secret}}}
+            - {name: CLIENT_SECRET_MESSAGES, valueFrom: {secretKeyRef: {name: oidc-client-messages, key: secret}}}
+            - {name: CLIENT_SECRET_PROJECTS, valueFrom: {secretKeyRef: {name: oidc-client-projects, key: secret}}}
+            - {name: SMTP_FROM, valueFrom: {secretKeyRef: {name: smtp-credentials, key: from}}}
+            - {name: SMTP_HOST, valueFrom: {secretKeyRef: {name: smtp-credentials, key: host}}}
+            - {name: SMTP_PASSWORD, valueFrom: {secretKeyRef: {name: smtp-credentials, key: password}}}
+            - {name: SMTP_PORT, valueFrom: {secretKeyRef: {name: smtp-credentials, key: port}}}
+            - {name: SMTP_SSL, valueFrom: {secretKeyRef: {name: smtp-credentials, key: useSSL}}}
+            - {name: SMTP_STARTTLS, valueFrom: {secretKeyRef: {name: smtp-credentials, key: useTLS}}}
+            - {name: SMTP_USER, valueFrom: {secretKeyRef: {name: smtp-credentials, key: username}}}
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: config, mountPath: /config, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: config, configMap: {name: realm-be0a9a1f20}}
+        - {name: tmp, emptyDir: {}}
+---
+# Source: platform-tenants/templates/opensearch.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-security-36fafa61f4
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  # On a fresh install the server starts after this Job does; the retries wait it out.
+  # Nothing waits on this Job (platform/tenants.yaml).
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: platform-tenants-<version>
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: office
+        app.kubernetes.io/name: tenants
+        app.kubernetes.io/instance: tenants
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: securityadmin
+          image: docker.io/opensearchproject/opensearch:3.8.0
+          command: [bash, -euo, pipefail, -c]
+          args:
+            - |
+              tools=/usr/share/opensearch/plugins/opensearch-security/tools
+              cp /security/*.yml /tmp/
+              for app in find messages; do
+                var="PASSWORD_${app^^}"
+                hash="$("$tools/hash.sh" -p "${!var}" | tail -n1)"
+                printf '%s:\n  hash: "%s"\n  reserved: false\n  description: "%s service account"\n' \
+                  "$app" "$hash" "$app" >> /tmp/internal_users.yml
+              done
+              # Roles before the mapping that names them, users last.
+              for t in config:config roles:roles rolesmapping:roles_mapping actiongroups:action_groups tenants:tenants internalusers:internal_users; do
+                "$tools/securityadmin.sh" -f "/tmp/${t#*:}.yml" -t "${t%%:*}" \
+                  -h opensearch-cluster-master.office-data.svc -icl -nhnv \
+                  -cacert /admin/ca.crt -cert /admin/tls.crt -key /admin/tls.key
+              done
+          env:
+            - {name: PASSWORD_FIND, valueFrom: {secretKeyRef: {name: opensearch-user-find, key: password}}}
+            - {name: PASSWORD_MESSAGES, valueFrom: {secretKeyRef: {name: opensearch-user-messages, key: password}}}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: security, mountPath: /security, readOnly: true}
+            - {name: admin, mountPath: /admin, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: security, secret: {secretName: opensearch-security}}
+        - {name: admin, secret: {secretName: opensearch-admin-tls}}
+        - {name: tmp, emptyDir: {}}
+---
 # Source: platform-tenants/templates/postgres.yaml
 # Extensions are created here by the operator, so the role never needs SUPERUSER.
 # `retain`: dropping the CR must not drop the data.
@@ -8,7 +456,7 @@ metadata:
   name: calendars
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -29,7 +477,7 @@ metadata:
   name: docs
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -53,7 +501,7 @@ metadata:
   name: drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -78,7 +526,7 @@ metadata:
   name: find
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -99,7 +547,7 @@ metadata:
   name: keycloak
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -120,7 +568,7 @@ metadata:
   name: meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -143,7 +591,7 @@ metadata:
   name: messages
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -166,7 +614,7 @@ metadata:
   name: projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -185,7 +633,7 @@ metadata:
   name: calendars
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -204,7 +652,7 @@ metadata:
   name: docs
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -223,7 +671,7 @@ metadata:
   name: drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -242,7 +690,7 @@ metadata:
   name: find
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -261,7 +709,7 @@ metadata:
   name: keycloak
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -280,7 +728,7 @@ metadata:
   name: meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -299,7 +747,7 @@ metadata:
   name: messages
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -318,7 +766,7 @@ metadata:
   name: projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -339,7 +787,7 @@ metadata:
   name: oidc-client-calendars
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -364,7 +812,7 @@ metadata:
   name: oidc-client-docs
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -389,7 +837,7 @@ metadata:
   name: oidc-client-drive
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -414,7 +862,7 @@ metadata:
   name: oidc-client-find
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -439,7 +887,7 @@ metadata:
   name: oidc-client-meet
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -464,7 +912,7 @@ metadata:
   name: oidc-client-messages
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -489,7 +937,7 @@ metadata:
   name: oidc-client-projects
   namespace: office-identity
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -505,6 +953,46 @@ spec:
   dataFrom:
     - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
 ---
+# Source: platform-tenants/templates/opensearch.yaml
+# Generated once: re-drawing it locks the app out of its own index until the Job runs again
+# AND the app restarts. platform-deps reads it into the app's namespace (`opensearch`).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opensearch-user-find
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: opensearch-user-find, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
+# Source: platform-tenants/templates/opensearch.yaml
+# Generated once: re-drawing it locks the app out of its own index until the Job runs again
+# AND the app restarts. platform-deps reads it into the app's namespace (`opensearch`).
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: opensearch-user-messages
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  refreshInterval: "0"
+  target: {name: opensearch-user-messages, creationPolicy: Owner}
+  dataFrom:
+    - sourceRef: {generatorRef: {apiVersion: generators.external-secrets.io/v1alpha1, kind: ClusterGenerator, name: office-password}}
+---
 # Source: platform-tenants/templates/postgres.yaml
 # Generated once: `refreshInterval: "0"` is written once and never again (adr/0107).
 apiVersion: external-secrets.io/v1
@@ -513,7 +1001,7 @@ metadata:
   name: calendars-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -539,7 +1027,7 @@ metadata:
   name: docs-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -565,7 +1053,7 @@ metadata:
   name: drive-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -591,7 +1079,7 @@ metadata:
   name: find-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -617,7 +1105,7 @@ metadata:
   name: keycloak-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -643,7 +1131,7 @@ metadata:
   name: meet-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -669,7 +1157,7 @@ metadata:
   name: messages-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -695,7 +1183,7 @@ metadata:
   name: projects-db
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -720,7 +1208,7 @@ metadata:
   name: valkey-cache-users
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -741,7 +1229,7 @@ metadata:
   name: valkey-broker-users
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -762,7 +1250,7 @@ metadata:
   name: valkey-user-calendars
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -783,7 +1271,7 @@ metadata:
   name: valkey-user-drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -804,7 +1292,7 @@ metadata:
   name: valkey-user-find
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -823,7 +1311,7 @@ metadata:
   name: valkey-user-livekit
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -842,7 +1330,7 @@ metadata:
   name: valkey-user-meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -863,7 +1351,7 @@ metadata:
   name: valkey-user-messages
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -884,7 +1372,7 @@ metadata:
   name: valkey-user-projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -903,7 +1391,7 @@ metadata:
   name: valkey-cache-acl
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -941,7 +1429,7 @@ metadata:
   name: valkey-broker-acl
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -980,7 +1468,7 @@ metadata:
   name: office-docs
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -1002,7 +1490,7 @@ metadata:
   name: office-drive
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -1024,7 +1512,7 @@ metadata:
   name: office-meet
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -1046,7 +1534,7 @@ metadata:
   name: office-messages
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants
@@ -1068,7 +1556,7 @@ metadata:
   name: office-projects
   namespace: office-data
   labels:
-    helm.sh/chart: platform-tenants-2.2.2
+    helm.sh/chart: platform-tenants-<version>
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: office
     app.kubernetes.io/name: tenants

@@ -1,0 +1,68 @@
+# The `office` realm: every setting except the clients, which templates/keycloak.yaml adds
+# from the `oidc` entries in values.yaml. keycloak-config-cli applies this on every change
+# (templates/keycloak.yaml) — it is continuously reconciled config, not a one-time import.
+#
+# `$(env:NAME)` is keycloak-config-cli's substitution, resolved from the Job's environment
+# at run time: secrets reach the realm that way and never through git or Helm values. It is
+# NOT Keycloak's own `${NAME}` placeholder syntax, and neither Helm nor Flux touches it.
+#
+# No `users` key: the realm's users are the organisation's, made in the admin console, and
+# keycloak-config-cli leaves a type it is not given alone. An imported user would lack
+# `default-roles-office` anyway, so the Account Console would 401 for them.
+realm: office
+displayName: Office
+displayNameHtml: "<b>Office</b>"
+enabled: true
+defaultSignatureAlgorithm: RS256
+# Users arrive through this realm only; self-registration is not part of the product.
+registrationAllowed: false
+editUsernameAllowed: false
+loginWithEmailAllowed: true
+# Needs smtpServer below, and is worthless without it: without a relay the "Forgot
+# password?" link renders and then fails on the send. `verifyEmail` stays OFF — turning
+# it on retroactively locks every existing user out until they verify.
+resetPasswordAllowed: true
+duplicateEmailsAllowed: false
+rememberMe: true
+revokeRefreshToken: true
+# Rotation stays on, but zero reuse cannot survive a browser. Docs searches as you type,
+# so several XHRs hit the refresh middleware at once; the first rotates the token and
+# the rest present the consumed one. Keycloak answers "Maximum allowed refresh token
+# reuse exceeded", then "Session doesn't have required client" for everything after —
+# the session is dead and every search 401s until the user logs in again.
+refreshTokenMaxReuse: 3
+# Outbound mail, from the relay account (`smtp-credentials`, platform/identity/smtp.yaml).
+# None of the relay's details are in git, not even the host. Without a relay the platform
+# ships a placeholder Secret, so this always resolves.
+#
+# 587/STARTTLS or 465/SSL, never 25: outbound TCP 25 is blocked by this platform's
+# provider (measured). The two flags are mutually exclusive and both come from the one
+# hand-applied Secret, so the realm cannot disagree with the applications about which of
+# them is in use. smtpServer is a map of STRINGS, hence "true"/"false" and not booleans.
+smtpServer:
+  host: $(env:SMTP_HOST)
+  port: $(env:SMTP_PORT)
+  from: $(env:SMTP_FROM)
+  fromDisplayName: Office
+  auth: "true"
+  user: $(env:SMTP_USER)
+  password: $(env:SMTP_PASSWORD)
+  starttls: $(env:SMTP_STARTTLS)
+  ssl: $(env:SMTP_SSL)
+
+internationalizationEnabled: true
+supportedLocales: [en, nl]
+defaultLocale: nl
+# Carried over from the legacy realm: these numbers were tuned there, not guessed.
+bruteForceProtected: true
+permanentLockout: false
+bruteForceStrategy: LINEAR
+failureFactor: 30
+maxFailureWaitSeconds: 900
+minimumQuickLoginWaitSeconds: 60
+waitIncrementSeconds: 60
+quickLoginCheckMilliSeconds: 1000
+maxDeltaTimeSeconds: 43200
+eventsEnabled: true
+eventsExpiration: 86400
+adminEventsEnabled: true

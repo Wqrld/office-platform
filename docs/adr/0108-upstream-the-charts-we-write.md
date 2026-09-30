@@ -1,6 +1,15 @@
 # 0108 — Charts we write for La Suite apps should go upstream
 
-**Status:** accepted · **Date:** 2026-09-03 · **Relates to:** `0104`, design set `history/design/05-app-contract.md`
+**Status:** accepted, amended 2026-09-30 (Outcome) · **Date:** 2026-09-03 · **Relates to:** `0104`, design set `history/design/05-app-contract.md`
+
+## Outcome
+Decision points 3 and 4 held; 1 and 2 did not. Projects' and Messages' charts were written
+straight into the application's own repo at `src/helm/<name>`, copied from Docs'
+`src/helm/impress` so upstream reads them as theirs — never under `charts/` here, so the
+licence question never arose (the app repos are MIT, and so is the chart). Each is consumed
+from the fork's git tag, the same tag that publishes the images, until the upstream PR
+lands; then only the `GitRepository` url changes. `platform-lib` and `tests/equivalence.py`,
+named below, no longer exist. The Context and Decision are as written on 2026-09-03.
 
 ## Context
 `0104` established that La Suite publishes no Helm repository and charts come from pinned

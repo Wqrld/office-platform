@@ -1,15 +1,21 @@
 # Everything the platform provisions per application — charts/platform-tenants/values.yaml
 # is the list. In office-data because that is where the datastores are; the OIDC client
-# secrets it renders land in office-identity.
+# secrets, the realm and its reconcile Job land in office-identity.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: tenants, namespace: office-data}
 spec:
   interval: 30m
   chartRef: {kind: OCIRepository, name: platform-tenants, namespace: flux-system}
+  # The realm and OpenSearch reconcile Jobs wait on Keycloak and OpenSearch, which start
+  # in this same layer and read this release's Secrets: waiting on the Jobs would put this
+  # release behind servers that are waiting on it. They retry on their own.
   install:
+    disableWaitForJobs: true
     remediation: {retries: 3}
   upgrade:
+    disableWaitForJobs: true
     remediation: {retries: 3}
   values:
+    domain: ${BASE_DOMAIN}
     objectStore: ${S3_MODE}

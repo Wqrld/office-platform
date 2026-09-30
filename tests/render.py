@@ -22,7 +22,8 @@ Two mechanisms, both real rather than approximated:
     `postBuild` would. That is the whole cluster from one values file, nothing hardcoded.
 
 Upstream charts (`fetch_upstream`) come from the pins the control plane renders, cached
-under .charts/ — the checks that need them (binding, profiles, measure) need network.
+under .charts/ — the checks that need them (binding, profiles, check-secrets, startup,
+measure) need network.
 """
 from __future__ import annotations
 
@@ -225,15 +226,6 @@ def unresolved(objects: list[dict], allowed: set[str] = frozenset()) -> set[str]
     return set(VAR.findall(yaml.safe_dump_all(objects))) - set(allowed)
 
 
-def keycloak_placeholders() -> set[str]:
-    """Keycloak's own `$${NAME}` placeholders look like unresolved Flux variables after the
-    build — on purpose (platform/identity/realm.yaml). Allowed by name, read from the realm."""
-    names: set[str] = set()
-    for d in docs_in((ROOT / "platform/identity/realm.yaml").read_text()):
-        if d.get("kind") == "KeycloakRealmImport":
-            names |= set(d["spec"].get("placeholders") or {})
-    return names
-
 
 # ---------------------------------------------------------------- upstream charts
 
@@ -291,6 +283,26 @@ def fetch_upstream(rel: dict, srcs: dict) -> str | None:
 def chart_for(rel: dict, srcs: dict) -> str | None:
     """Local or upstream, whichever the HelmRelease names; None for a chartRef not in charts/."""
     return local_chart(rel) if rel["spec"].get("chartRef") else fetch_upstream(rel, srcs)
+
+
+def release(rel: dict, objects: list[dict], srcs: dict) -> list[dict]:
+    """What helm-controller applies for one HelmRelease: its chart at the pin, with its
+    effective values, then its `postRenderers` — the kustomize patches and image overrides
+    that Drive, Meet, Find and LiveKit use to reach inside upstream charts."""
+    name, ns = rel["metadata"]["name"], rel["metadata"]["namespace"]
+    chart = chart_for(rel, srcs)
+    if chart is None:
+        raise RuntimeError(f"{ns}/{name}: chartRef did not resolve to a chart under charts/")
+    out = helm_template(chart, name, ns, values_of(rel, objects))
+    for pr in rel["spec"].get("postRenderers") or []:
+        k = {key: pr["kustomize"][key] for key in ("patches", "images") if key in pr.get("kustomize", {})}
+        if not k:
+            continue
+        with tempfile.TemporaryDirectory() as work:
+            pathlib.Path(work, "all.yaml").write_text(yaml.safe_dump_all(out))
+            pathlib.Path(work, "kustomization.yaml").write_text(yaml.safe_dump({"resources": ["all.yaml"], **k}))
+            out = docs_in(run(["kubectl", "kustomize", work]))
+    return out
 
 
 if __name__ == "__main__":

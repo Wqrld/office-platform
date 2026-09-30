@@ -33,7 +33,7 @@ spec:
 
     # Meet's OIDC_* names carry no prefix and match
     # platform.oidc.env one for one; the callback is /api/v1.0/callback/ and the client's
-    # redirect URI in platform/identity/realm.yaml is the wildcard.
+    # redirect URI (charts/platform-tenants, `oidc`) is the wildcard.
     oidc: {enabled: true}
 
     # DJANGO_EMAIL_*: Meet's mail settings use django-configurations' default prefix

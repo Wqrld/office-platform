@@ -2,7 +2,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["apps"],
+  "required": [
+    "apps"
+  ],
   "properties": {
     "apps": {
       "type": "object",
@@ -13,24 +15,148 @@
           "postgres": {
             "type": "object",
             "additionalProperties": false,
-            "properties": {"extensions": {"type": "array", "items": {"type": "string"}}}
+            "properties": {
+              "extensions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
           },
-          "cache": {"type": "array", "items": {"enum": ["cache", "broker"]}, "minItems": 1},
-          "oidc": {"type": "boolean"},
-          "bucket": {"type": "boolean"}
+          "cache": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "cache",
+                "broker"
+              ]
+            },
+            "minItems": 1
+          },
+          "oidc": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "description"
+            ],
+            "properties": {
+              "shape": {
+                "enum": [
+                  "lasuite",
+                  "login",
+                  "resource-server"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "redirect": {
+                "type": "string",
+                "pattern": "^/"
+              },
+              "accessTokenLifespan": {
+                "type": "integer",
+                "minimum": 60
+              },
+              "audiences": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "bucket": {
+            "type": "boolean"
+          },
+          "search": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
         }
       }
     },
-    "legacyValkeyUsers": {"type": "array", "items": {"type": "string"}},
-    "objectStore": {"enum": ["garage", "external"]},
-    "tenant": {"type": "string", "minLength": 1},
+    "legacyValkeyUsers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "objectStore": {
+      "enum": [
+        "garage",
+        "external"
+      ]
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1
+    },
     "namespaces": {
       "type": "object",
       "additionalProperties": false,
-      "properties": {"data": {"type": "string"}, "identity": {"type": "string"}}
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "identity": {
+          "type": "string"
+        }
+      }
     },
-    "postgresCluster": {"type": "string"},
-    "garageCluster": {"type": "string"},
-    "passwordGenerator": {"type": "string"}
+    "postgresCluster": {
+      "type": "string"
+    },
+    "garageCluster": {
+      "type": "string"
+    },
+    "passwordGenerator": {
+      "type": "string"
+    },
+    "domain": {
+      "type": "string"
+    },
+    "keycloak": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "adminSecret": {
+          "type": "string"
+        },
+        "smtpSecret": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        }
+      }
+    },
+    "opensearch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string"
+        },
+        "adminTlsSecret": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string"
+        }
+      }
+    }
   }
 }

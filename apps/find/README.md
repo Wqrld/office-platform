@@ -53,15 +53,9 @@ unconditionally, so the `services` M2M stays empty.
 ## Bringing it up
 
 Find must exist before Docs' flag Job and reindex run — `docs: {requires: [find]}` in the
-control plane's app table makes `app-docs` wait for `app-find`. The realm import is import-once, so after the first release create the
-client against the live realm:
-
-```sh
-./add-client.sh find
-```
-
-Then confirm the created client's secret equals `oidc-client-find`; a mismatch fails at
-introspection and reads exactly like a wrong OIDC configuration.
+control plane's app table makes `app-docs` wait for `app-find`. Its realm client
+and OpenSearch user are the tenants chart's (`oidc` and `search` in
+`charts/platform-tenants/values.yaml`), applied by its reconcile Jobs.
 
 ## Known limitations, recorded not fixed
 

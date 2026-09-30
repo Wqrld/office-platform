@@ -99,6 +99,10 @@ jobs:
       # Same fetched charts: the envFrom patches hit exactly the workloads they should.
       - name: secrets reach their workloads
         run: ./tests/check-secrets.py
+      # Same fetched charts: every non-root container can run as its image's user, and no
+      # release waits behind the thing that makes its own Secrets (2.2.2, 2.2.3).
+      - name: pods can start
+        run: ./tests/startup.py
 
   profiles:
     name: size profiles

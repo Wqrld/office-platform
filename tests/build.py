@@ -49,7 +49,6 @@ def app_table_agrees() -> list[str]:
 
 def main() -> int:
     out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix="built-")).resolve()
-    allowed = render.keycloak_placeholders()
     leftover: list[str] = []
 
     print("== application table")
@@ -70,7 +69,7 @@ def main() -> int:
         for name, objects in layers.items():
             (out / cluster / f"{name}.yaml").write_text(yaml.safe_dump_all(objects, sort_keys=False))
             print(f"   {name:16} {len(objects):3} objects")
-            leftover += [f"{cluster}/{name}: ${{{v}}}" for v in sorted(render.unresolved(objects, allowed))]
+            leftover += [f"{cluster}/{name}: ${{{v}}}" for v in sorted(render.unresolved(objects))]
 
     print("\n== unresolved substitutions")
     if leftover:
@@ -78,7 +77,7 @@ def main() -> int:
         print("\nFAIL — a variable is used but the control plane does not emit it into cluster-vars.")
         print("Flux leaves an unknown ${VAR} untouched, so it reaches the cluster as a literal.")
         return 1
-    print(f"   none ({len(allowed)} Keycloak placeholders allowed by name)\n\n{out}")
+    print(f"   none\n\n{out}")
     return 0
 
 

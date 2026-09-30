@@ -13,12 +13,9 @@ resources:
   - secrets/generator.yaml
   - secrets/stores.yaml
   - tenants.yaml
-  - secrets/valkey-users.yaml
-  - secrets/database-users.yaml
   - secrets/opensearch-users.yaml
   - secrets/service-tokens.yaml
   - postgres/cluster.yaml
-  - postgres/databases.yaml
   - valkey/cache.yaml
   - valkey/broker.yaml
   - opensearch/certificate.yaml
@@ -27,29 +24,23 @@ resources:
   - identity/namespace.yaml
   - identity/vendor/keycloak-operator   # vendored upstream, pinned in its kustomization
   - identity/keycloak.yaml
-  - identity/smtp.yaml               # the relay account, read in for realm.yaml's placeholders
+  - identity/smtp.yaml               # the relay account, read by the tenants chart's realm Job
   - identity/realm.yaml
 
-# PHASE 1 OF THE HANDOVER TO platform-tenants (tenants.yaml). The per-app objects below are
-# claimed by that Helm release; without these labels Helm refuses them ("invalid ownership
-# metadata"), and without `prune: disabled` kustomize-controller would delete them — and
-# ESO their Secrets — before helm-controller re-created them. The next release deletes
-# secrets/database-users.yaml, secrets/valkey-users.yaml, postgres/databases.yaml, the
-# oidc-client-* ExternalSecrets in identity/keycloak.yaml and this block.
+
+# PHASE 1 OF THE HANDOVER TO platform-tenants, for the OpenSearch users and the realm. The
+# next release deletes secrets/opensearch-users.yaml, identity/realm.yaml and this block.
+#   * opensearch-user-*: claimed by the tenants release, which needs Helm's ownership
+#     metadata on them; `prune: disabled` so removing the file never lets ESO delete a live
+#     password.
+#   * the KeycloakRealmImport: `prune: disabled` before it leaves git. Deleting it would not
+#     delete the realm — the operator's controller has no cleanup and the CR no finalizer —
+#     but it is the realm, and it is not removed on an argument.
 patches:
-  - target: {kind: ExternalSecret, namespace: office-data, name: "(docs|drive|find|calendars|meet|projects|keycloak)-db|valkey-.*"}
+  - target: {kind: ExternalSecret, namespace: office-data, name: "opensearch-user-.*"}
     patch: |
       - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
       - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
-  - target: {kind: ExternalSecret, namespace: office-identity, name: "oidc-client-.*"}
+  - target: {kind: KeycloakRealmImport}
     patch: |
-      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
-      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
-  - target: {kind: Database}
-    patch: |
-      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
-      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
-  - target: {kind: DatabaseRole}
-    patch: |
-      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
-      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}
+      - {op: add, path: /metadata/annotations, value: {kustomize.toolkit.fluxcd.io/prune: disabled}}

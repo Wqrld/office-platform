@@ -1,15 +1,16 @@
 # Shared OpenSearch
 
-One single-node instance in `office-data`, serving Find's `find-*` indices. The security
+One single-node instance in `office-data`, serving Find's `find-*` and Messages' indices. The security
 posture — plugin on, TLS on the REST layer, per-app internal user scoped to an index prefix
 — is recorded in `docs/adr/0111`.
 
 ## What isolates one app from another
 
-The **index prefix**, not a request parameter. `opensearch-security-config` grants the
-`find` user `indices_all` on `find-*` and nothing else, so an app reaching for another's
-index gets a 403 from the server rather than a filtered result. `platform-deps`' `opensearch`
-kind emits the same prefix into the app's environment.
+The **index pattern**, not a request parameter. Each app's `search` entry in
+`charts/platform-tenants/values.yaml` becomes an internal user whose role grants
+`indices_all` on exactly those patterns — `find-*` for Find, `messages` for Messages — so an
+app reaching for another's index gets a 403 from the server rather than a filtered result.
+`platform-deps`' `opensearch` kind emits the same prefix into the app's environment.
 
 There is no `admin` internal user. Cluster administration is the admin **certificate** only,
 so there is no all-access password anywhere to leak.
@@ -17,23 +18,37 @@ so there is no all-access password anywhere to leak.
 ## Changing the security config
 
 `allow_default_init_securityindex: true` seeds `.opendistro_security` from the mounted files
-**on first boot only**. After that the index is the source of truth and the files are
-ignored — so editing `secrets/opensearch-users.yaml` and reconciling changes nothing.
+**on first boot only**; after that the index is the source of truth and the files are
+ignored. So the platform keeps the index in step itself: the tenants chart renders
+`opensearch-security` — every file but the users' hashes, mounted as the first-boot config —
+and an `opensearch-security-<hash>` Job that hashes each app's generated password with the
+server's own `hash.sh` and uploads the config with `securityadmin.sh`. The name is a hash of
+what it applies, so a change is a new Job, which runs once.
 
-To apply a change, or after rotating the `find` password:
+**Adding a user is adding a `search` entry.** Nothing to run. Two things the Job does on
+purpose, both paid for once by hand:
+
+- It uploads one config type at a time (`securityadmin.sh -f <file> -t <type>`), only the
+  six types the chart defines. `-cd <dir>` aborts on an optional file it does not find
+  *after* writing the index but *before* telling the nodes, which left the change written
+  and unloaded. Each `-f` upload reloads on success.
+- It hashes at run time. bcrypt re-salts, so a hash rendered by ESO or Helm is a different
+  (equally valid) value on every render.
+
+Rotating an app's password: delete `opensearch-user-<app>` (ESO draws a new one), re-run the
+Job, restart the app —
 
 ```sh
-kubectl -n office-data exec opensearch-cluster-master-0 -- \
-  plugins/opensearch-security/tools/securityadmin.sh \
-    -cd config/opensearch-security \
-    -icl -nhnv \
-    -cacert config/certs/ca.crt \
-    -cert config/admin-certs/tls.crt \
-    -key config/admin-certs/tls.key
+kubectl -n office-data delete job -l app.kubernetes.io/instance=tenants
+flux reconcile helmrelease tenants -n office-data --force
 ```
 
-This is why `opensearch-admin` exists in `certificate.yaml` despite nothing mounting it in
-steady state.
+The admin certificate (`certificate.yaml`) is what the Job authenticates with, and the only
+way into the security config: there is no admin user.
+
+Verified against an OpenSearch 3.8.0 container on the rendered files: first boot with no
+users, the Job's upload, `find` confined to `find-*` and `messages` to `messages` (403 on
+each other's), and a second run that changes nothing a client can see.
 
 ## Gotchas paid for once
 
@@ -43,9 +58,6 @@ steady state.
 - **`DISABLE_INSTALL_DEMO_CONFIG: "true"` is required.** Without it the image installs demo
   certificates over ours, and separately refuses to start unless
   `OPENSEARCH_INITIAL_ADMIN_PASSWORD` is set.
-- **`bcrypt` re-salts on every render**, so `opensearch-security-config` is
-  `refreshInterval: "0"`. A refreshing one would rewrite the Secret with a different but
-  equally valid hash and roll the StatefulSet on every sync.
 - **No `sysctlInit`.** It runs a privileged initContainer that this namespace's `baseline`
   PSA refuses, and the node is already at `vm.max_map_count=1048576`.
 - **The chart's `resources` defaults are wrong for a JVM** — 1000m CPU and 100Mi memory

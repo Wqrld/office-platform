@@ -2,23 +2,11 @@
 # one platform component an organisation can opt out of (`objectStore.mode: external` in
 # the control plane), and substitution cannot remove a resource from a kustomization, so
 # the control plane either emits this layer or does not. It reconciles after `platform`
-# (office-data, the Gateway) and before every app, which is the ordering
-# reference-grants.yaml needs.
+# (office-data, the Gateway, the tenants chart's reference grants) and before every app.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - admin-token.yaml
   - cluster.yaml
-  - reference-grants.yaml
   - public-route.yaml
 
-# PHASE 1 OF THE HANDOVER TO platform-tenants (tenants.yaml). The per-app objects below are
-# claimed by that Helm release; without these labels Helm refuses them ("invalid ownership
-# metadata"), and without `prune: disabled` kustomize-controller would delete them — and
-# ESO their Secrets — before helm-controller re-created them. The next release deletes
-# reference-grants.yaml and this block.
-patches:
-  - target: {kind: GarageReferenceGrant}
-    patch: |
-      - {op: add, path: /metadata/labels, value: {app.kubernetes.io/managed-by: Helm}}
-      - {op: add, path: /metadata/annotations, value: {meta.helm.sh/release-name: tenants, meta.helm.sh/release-namespace: office-data, kustomize.toolkit.fluxcd.io/prune: disabled}}

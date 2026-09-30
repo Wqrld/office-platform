@@ -90,15 +90,11 @@ back to `docker.io/lasuite/projects`.
 
 ## Install order
 
-The same two things that do not take effect by reconciling as for every login client:
-
-1. **The realm import is import-once.** Run `platform/identity/add-client.sh projects` once
-   `oidc-client-projects` exists.
-2. **The certificate.** `projects.${BASE_DOMAIN}` comes from `charts/control-plane/apps.yaml`;
+**The certificate.** `projects.${BASE_DOMAIN}` comes from `charts/control-plane/apps.yaml`;
    let the certificate reissue before the hostname is used.
 
 Then: reconcile the platform layer, confirm `projects-db`, `valkey-user-projects` and
-`oidc-client-projects` exist, run `add-client.sh`, reconcile apps, and watch the first pod's
+`oidc-client-projects` exist and the `realm-*` Job in office-identity completed, reconcile apps, and watch the first pod's
 log for the migrations. Log in once through Keycloak, then make that user admin:
 
 ```sh

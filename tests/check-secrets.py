@@ -10,9 +10,7 @@ is exactly the union of the patches that target it.
 """
 import pathlib
 import re
-import subprocess
 import sys
-import tempfile
 
 import yaml
 
@@ -37,12 +35,7 @@ def check(app: str, srcs: dict) -> bool:
                    if "/envFrom" in p["patch"]]
         if not patches:
             continue
-        rendered = render.helm_template(render.chart_for(rel, srcs), name, rel["metadata"]["namespace"],
-                                        render.values_of(rel, docs))
-        with tempfile.TemporaryDirectory() as work:
-            pathlib.Path(work, "all.yaml").write_text(yaml.safe_dump_all(rendered))
-            pathlib.Path(work, "kustomization.yaml").write_text(yaml.safe_dump({"resources": ["all.yaml"], "patches": patches}))
-            patched = render.docs_in(render.run(["kubectl", "kustomize", work]))
+        patched = render.release(rel, docs, srcs)
 
         hit = [0] * len(patches)
         for d, got in workloads(patched):

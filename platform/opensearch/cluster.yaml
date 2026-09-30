@@ -59,9 +59,9 @@ spec:
     securityConfig:
       enabled: true
       config:
-        # Rendered by ESO so the bcrypt hash of the `find` password never enters git —
-        # platform/secrets/opensearch-users.yaml.
-        securityConfigSecret: opensearch-security-config
+        # First boot only: every file but the users, who are added by the tenants chart's
+        # reconcile Job (charts/platform-tenants/templates/opensearch.yaml).
+        securityConfigSecret: opensearch-security
 
     config:
       # Replaces the chart's default file wholesale. Paths are relative to the config dir.

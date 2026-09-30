@@ -469,7 +469,7 @@ spec:
   wait: true
   sourceRef: {kind: OCIRepository, name: office-config}
   path: ./platform
-  components: ["./overlays/size-small"]
+  components: ["./overlays/size-small","./overlays/smtp-placeholder"]
   dependsOn:
     - {name: infra}
   postBuild:

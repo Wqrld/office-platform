@@ -133,18 +133,13 @@ All found while integrating; none blocks deployment except by workaround.
 
 ## Install order
 
-The platform layer has two things that do **not** take effect by reconciling:
-
-1. **The realm import is import-once.** Adding the `calendars` client to
-   `platform/identity/realm.yaml` creates nothing on a realm that is already imported. Run
-   `platform/identity/add-client.sh calendars` once the `oidc-client-calendars` Secret exists.
-2. **The certificate.** `calendars.${BASE_DOMAIN}` must be in the SAN list before the
+**The certificate.** `calendars.${BASE_DOMAIN}` must be in the SAN list before the
    hostname is used, or the Gateway serves the wrong certificate and every call — browser and
    CalDAV client alike — fails the handshake. It is in the same commit for that reason.
 
 Then, in order: reconcile the platform layer, confirm `calendars-db`,
-`valkey-user-calendars` and `oidc-client-calendars` exist, run `add-client.sh`, reconcile
-apps, and **watch `calendars-caldav-initdb` first** — it is the one Job that can fail on a
+`valkey-user-calendars` and `oidc-client-calendars` exist and the `realm-*` Job completed,
+reconcile apps, and **watch `calendars-caldav-initdb` first** — it is the one Job that can fail on a
 privilege this integration assumed rather than verified.
 
 Last: every switcher lists Calendars once `apps.calendars` is on — the list is the control

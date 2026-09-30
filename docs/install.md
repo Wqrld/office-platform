@@ -85,7 +85,9 @@ kubectl -n office-data create secret generic smtp-credentials \
   --from-literal=username='…' --from-literal=password='…' \
   --from-literal=useTLS=true --from-literal=useSSL=false \
   --from-literal=from=noreply@<domain>
-platform/identity/set-smtp.sh          # Keycloak imported the placeholder; tell the realm
+# the realm took the placeholder; re-run its Job (platform/identity/README.md, Rotating the relay)
+kubectl -n office-identity delete job -l app.kubernetes.io/instance=tenants
+flux reconcile helmrelease tenants -n office-data --force
 ```
 
 then restart what sends: `kubectl -n office-<app> rollout restart deploy` for every app.
@@ -116,7 +118,7 @@ OpenSearch to take their time.
 ```sh
 ./dns.py cluster.yaml --check
 kubectl -n office-system get certificate office-tls       # Ready=True
-apps/drive/check-secrets.sh && apps/meet/check-secrets.sh
+kubectl get externalsecret -A | grep -v SecretSynced     # only the header line
 DOMAIN=<domain> E2E_USER=<user> E2E_PASSWORD=<password> apps/drive/e2e.py
 ```
 
