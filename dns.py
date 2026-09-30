@@ -117,6 +117,11 @@ def served(docs, base_domain):
             if base and any(o.get("kind") == "UDPRoute" and "turn" in o["metadata"]["name"]
                             for o in values.get("extraObjects") or []):
                 add(f"turn.{base}", f"{owner} (TURN/UDP 3478)")
+            # The MX likewise: a TCPRoute on the Gateway's `smtp` listener (apps/messages).
+            if base and any(o.get("kind") == "TCPRoute" and any(
+                    p.get("sectionName") == "smtp" for p in o["spec"].get("parentRefs", []))
+                    for o in values.get("extraObjects") or []):
+                add(f"mx.{base}", f"{owner} (SMTP 25)")
 
         # The browser-facing issuer. It is not a route, but it must be the same name the
         # route serves or every OIDC redirect lands somewhere that does not exist.
@@ -173,11 +178,22 @@ def report(path, args):
     print("     validation — one bad record is an outage for every application, not one.")
     print("   - The certificate's SAN list is derived from the apps this cluster enables, so")
     print("     turning one on adds its record here; create it BEFORE enabling the app.")
+    if f"mx.{base_domain}" in hosts:
+        # Mail leaves from the node the worker runs on, not from the Gateway, so these
+        # name an address this config does not know (apps/messages/README.md, Mail DNS).
+        print()
+        print("   Mail (Messages), beside the A record for mx.:")
+        print(f"   _spf.{base_domain:<29} TXT \"v=spf1 ip4:<egress address> -all\"")
+        print(f"   PTR of <egress address> -> mx.{base_domain}  (at the provider; EHLO says it)")
+        print("   - The egress address is the nodes' own outbound address, not the Gateway's")
+        print("     LoadBalancer address. Outbound 25 must be open at the provider.")
+        print("   - Per mail domain: MX, SPF include, DKIM and DMARC as Messages lists them")
+        print("     (admin, the domain's DNS page, or `manage.py dns_check --domain`).")
 
     problems = []
     for name in sorted(set(hosts) - set(sans)):
-        if name.startswith("turn."):
-            continue                      # UDP: no TLS to hand-shake
+        if name.startswith(("turn.", "mx.")):
+            continue                      # UDP, or SMTP's own STARTTLS: no Gateway TLS
         problems.append(f"{name} is routed but is not on the certificate — TLS handshake "
                         f"fails for it, which does not look like a routing bug")
     for name in sorted(set(sans) - set(hosts)):

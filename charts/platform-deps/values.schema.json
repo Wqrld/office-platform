@@ -89,6 +89,8 @@
         },
         "useSSL": {"type": "boolean"},
         "credentialSecret": {"description": "Defaults to opensearch-user-<app>, created by 30-platform.", "type": "string"},
+        "caSecret": {"description": "Copy the cluster-internal CA into this Secret, for an app that verifies the server.", "type": "string"},
+        "caPath": {"description": "Where the app mounts caSecret; the profile's caCerts env names it.", "type": "string"},
         "refreshInterval": {"$ref": "#/$defs/duration"}
       }
     },

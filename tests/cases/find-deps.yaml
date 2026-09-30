@@ -23,7 +23,6 @@ opensearch:
 
 oidc:
   enabled: true
-  createUser: false
   extraEnv:
     OIDC_OP_URL: https://id.haaijer.dev/realms/office
     OIDC_OP_INTROSPECTION_ENDPOINT: http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token/introspect

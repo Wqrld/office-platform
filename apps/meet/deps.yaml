@@ -31,11 +31,10 @@ spec:
       mode: ${S3_MODE}     # the organisation's — see apps/docs/deps.yaml
       quota: {maxSize: 20Gi}
 
-    # Open provisioning, like Drive and Calendars: a realm user who has never logged in
-    # is created on first login. Meet's OIDC_* names carry no prefix and match
+    # Meet's OIDC_* names carry no prefix and match
     # platform.oidc.env one for one; the callback is /api/v1.0/callback/ and the client's
     # redirect URI in platform/identity/realm.yaml is the wildcard.
-    oidc: {enabled: true, createUser: true}
+    oidc: {enabled: true}
 
     # DJANGO_EMAIL_*: Meet's mail settings use django-configurations' default prefix
     # (meet/settings.py `EMAIL_HOST = values.Value(None)`), same as Docs and Drive.

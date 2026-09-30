@@ -27,6 +27,9 @@ apps:
   calendars: true
   projects: true
   meet: true
+  # Off until an organisation has port 25 open in BOTH directions and a PTR record for
+  # its egress address — apps/messages/README.md, Mail DNS.
+  messages: false
 objectStore:
   # garage: the platform runs its own S3 (Garage) and publishes s3.<domain> for Drive's
   #         browser uploads.

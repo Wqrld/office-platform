@@ -38,3 +38,7 @@ spec:
         # +info: node_redis (Sails' sessions and socket.io adapter) sends INFO as its ready
         # check, and INFO is @dangerous — without it the client never becomes ready.
         projects:  {permissions: "~* &* +@all -@dangerous +flushdb +info"}
+        # Django's cache and, through the same URL, rspamd (apps/messages): Bayes, reputation
+        # and ratelimit state, loaded as Lua scripts — @scripting, which this line allows.
+        # Tested against exactly these permissions; eviction costs rspamd retraining, not mail.
+        messages:  {permissions: "~* &* +@all -@dangerous +flushdb"}

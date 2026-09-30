@@ -40,6 +40,8 @@ spec:
         calendars: {permissions: "~* &* +@all -@dangerous +keys"}
         # Meet's summary service (Celery) — the transcript queue.
         meet:      {permissions: "~* &* +@all -@dangerous"}
+        # Messages' Celery: inbound delivery, outbound sending, imports, reindexing.
+        messages:  {permissions: "~* &* +@all -@dangerous"}
         # LiveKit: room state, node registry and the egress request queue. Its Redis client
         # also SUBSCRIBEs, which `&*` covers.
         livekit:   {permissions: "~* &* +@all -@dangerous"}

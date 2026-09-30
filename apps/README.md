@@ -32,8 +32,8 @@ switcher; a link that resolves nowhere is a table entry that is wrong.
 `gaufre.js` is the panel — a drop-in for the lasuite widget script that Docs' and Calendars'
 `LaGaufreV2` load by URL (their defaults are the French government's CDN). `switcher.js` is
 the button for Drive and Meet, whose frontends have none we can use; it hands the button to
-`gaufre.js` over the widget's queue protocol. Docs, Drive and Calendars serve both files
-through the surround's `staticFiles`; Meet's own nginx serves them (`apps/meet/default.conf`).
+`gaufre.js` over the widget's queue protocol. Docs, Drive, Calendars and Messages serve
+both files through the surround's `staticFiles`; Meet's own nginx serves them (`apps/meet/default.conf`).
 Projects' own `LaGaufreButton` speaks the widget's older dialect (`_stmsg_widget`, a
 `toggle` command, no button element) and loads `<dir>/lagaufre.js`, so `gaufre.js` handles
 both queues and Projects serves it under that key. Neither script may contain a dollar sign:

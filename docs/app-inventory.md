@@ -17,6 +17,7 @@ platform provisions for it (`charts/platform-tenants/values.yaml`).
 | **calendars** | 4 — backend, frontend, caldav, worker | ● | ● | | | ● | upstream PR, from our Helm repo | `calendars` |
 | **projects** | 1 — backend (Sails: SPA, API, socket.io, files) | ● | ● | ● | | ● | ours in the app's repo, from our Helm repo | `projects` |
 | **find** | 1 — backend | ● | ● | | ● | ● | upstream, commit pin | `find` |
+| **messages** | 5 — backend, frontend, celery (+beat), mta-in, mpa (rspamd) | ● | ● | ● | ● | ● | ours in the app's repo, from the fork's git tag | `messages`; `mx` → SMTP 25 |
 | **meet** | 5 live (+4 at 0 replicas) + our whisperx | ● | ● | ● | | ● | upstream, git tag | `meet` |
 | **livekit** | 2 — server, egress | | ● | | | | vendor, commit pin | `livekit`; `turn` → its own IP |
 | **collabora** | 1 | | | | | | vendor | `collabora` |
@@ -103,6 +104,17 @@ the UI's writes go over the socket, so `/socket.io` is a websocket route or the 
 saving. Upstream links avatars straight to the bucket; the fork's `S3_PROXY_PUBLIC_FILES`
 streams them through the server instead, so the bucket stays private. No chart upstream —
 ours is Docs' cut down to one workload.
+
+### messages
+
+A mail system, which nothing else here is: SMTP in on the Gateway's `smtp` listener (25, a
+PROXY header carrying the sender's address), SMTP out straight to each recipient's MX from
+the Celery worker — so outbound 25 must be open at the provider, and the egress address
+needs a PTR naming `mx.` and an SPF record. Off by default for that reason. Upstream's MPA
+(rspamd) replaced rspamd's whole configuration with a stub, hard-coded an unauthenticated
+Redis and ran as root; the fork runs it on the stock configuration, non-root, on the cache's
+URL, and publishes the image upstream does not (`apps/messages/README.md`). No chart
+upstream — ours is Docs' plus two components.
 
 ### element / synapse — stays, on ESS Community
 
@@ -303,8 +315,7 @@ Not in mijn-bureau-infra. It overlaps Keycloak for authentication but adds team/
 structure the other apps can consume. Early-stage: the v0.0.7 chart has a broken
 `createsuperuser` job and an undisableable waffle. **Worth evaluating after M6**, not before.
 
-Also charted upstream but out of scope for now: Projects (no chart), Calc (prototype),
-Messages (no deployment artifacts).
+Also charted upstream but out of scope for now: Calc (prototype).
 
 ## Cross-app integration that does not exist yet
 

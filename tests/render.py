@@ -41,6 +41,9 @@ CHART = ROOT / "charts" / "control-plane"
 CASES = ROOT / "tests" / "cases"
 CACHE = ROOT / ".charts"
 PROD = CASES / "cluster-prod.yaml"
+# Prod with every app on, off-by-default ones included — what the per-app checks render,
+# so an app no production cluster enables yet is still checked rather than silently absent.
+FULL = CASES / "cluster-full.yaml"
 SIZES = ("small", "medium", "large")
 # Every application directory. The control-plane chart carries the same list with each
 # app's dependencies and hosts; tests/build.py asserts the two agree.
@@ -205,7 +208,7 @@ def cluster(values: pathlib.Path, extra: tuple[str, ...] = ()) -> dict[str, list
                                     for ks in cp if ks["kind"] == "Kustomization"}
 
 
-def apps(size: str, names: list[str] = APPS, values: pathlib.Path = PROD) -> list[dict]:
+def apps(size: str, names: list[str] = APPS, values: pathlib.Path = FULL) -> list[dict]:
     """Every named application at one size, built the way the control plane says."""
     layers = cluster(values, ("--set", f"size={size}"))
     return [d for a in names for d in layers.get(f"app-{a}", [])]

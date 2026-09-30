@@ -59,6 +59,9 @@
         "projects": {
           "type": "boolean"
         },
+        "messages": {
+          "type": "boolean"
+        },
         "meet": {
           "type": "boolean"
         }

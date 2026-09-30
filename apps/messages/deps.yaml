@@ -1,0 +1,55 @@
+# Messages' prerequisites. Django and Celery like Docs, but not Docs' spellings everywhere,
+# so `env: messages` is a family of its own (charts/platform-deps/templates/_profiles.tpl):
+# CELERY_BROKER_URL without the DJANGO_ prefix, and OpenSearch as one URL.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: messages-deps, namespace: office-messages}
+spec:
+  interval: 30m
+  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  values:
+    app: messages
+    env: messages
+    baseDomain: ${BASE_DOMAIN}
+
+    # `unaccent` is created by a migration, which only a superuser may do; the tenants
+    # chart creates it first (charts/platform-tenants/values.yaml).
+    postgres: {enabled: true}
+
+    # REDIS_URL — Django's cache, and rspamd's state through the same URL (release.yaml,
+    # mpa). CELERY_BROKER_URL — inbound and outbound delivery are Celery tasks, so the
+    # broker is the mail queue and must not evict.
+    cache: {enabled: true, uses: [cache, broker]}
+
+    # One bucket for the three storages Messages has: AWS_S3_* here, and the imports and
+    # blob-offload storages pointed at the same keys in release.yaml. Private: uploads go
+    # through the backend, so nothing presigns an upload and there is no publicEndpoint.
+    objectstore: {enabled: true, mode: "${S3_MODE}"}   # quoted: `${` is not valid inside a flow map
+
+    # OPENSEARCH_URL with the credential in it. Messages verifies the server's certificate
+    # (Find does not), so the cluster's private CA comes along in a Secret of its own.
+    opensearch: {enabled: true, caSecret: messages-opensearch-ca}
+
+    # A realm user whose email is on a mail domain with `oidc_autojoin` gets that mailbox
+    # at login. The email claim is trusted as-is — see README.md, Known gaps.
+    oidc: {enabled: true}
+
+    # Django's own notification mail (DJANGO_EMAIL_*) through the relay. User mail does not
+    # go this way: MTA_OUT_MODE=direct delivers to recipients' MX itself (release.yaml).
+    smtp: {enabled: true}
+
+    # Ordered lists that can never gain an entry (`refreshInterval: "0"`, see Calendars'
+    # deps.yaml). Three Secrets, so each workload reads only what it needs: the MTA gets
+    # the MDA secret and not Django's key, rspamd gets its controller password alone.
+    generated:
+      messages-django:
+        - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
+        - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
+        - {env: SALT_KEY, draw: salt, generator: office-token-50}
+      # Signs the JWT the MTA presents to the backend for every recipient check and every
+      # delivery — the only authentication on that channel.
+      messages-mda:
+        - {env: MDA_API_SECRET, draw: mda, generator: office-token-50}
+      # rspamd's controller (web UI, learning). The scanner the backend calls needs none.
+      messages-mpa:
+        - {env: RSPAMD_password, draw: controller}

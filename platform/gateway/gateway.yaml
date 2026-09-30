@@ -65,6 +65,18 @@ spec:
           selector:
             matchLabels:
               office.haaijer.dev/gateway-access: "true"
+    # Inbound mail for Messages, the MX (apps/messages/surround.yaml). Plain TCP: STARTTLS
+    # is the MTA's own, and it needs the sender's address, which reaches it as a PROXY
+    # header. Open even with Messages off, answering nothing.
+    - name: smtp
+      protocol: TCP
+      port: 25
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              office.haaijer.dev/gateway-access: "true"
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

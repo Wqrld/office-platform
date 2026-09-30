@@ -1,6 +1,6 @@
-# One shared OpenSearch for every application that needs full-text search; today that is
-# Find alone, on the `find-*` index pattern. Per-app isolation is the index prefix plus an
-# internal user whose role grants only that prefix — adr/0111.
+# One shared OpenSearch for every application that needs full-text search: Find on the
+# `find-*` pattern, Messages on its one `messages` index. Per-app isolation is an internal
+# user whose role grants only that pattern — adr/0111.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: opensearch, namespace: office-data}

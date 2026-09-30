@@ -1,0 +1,14 @@
+# Every application the platform knows, including the ones off by default — today that is
+# Messages, which needs port 25 open both ways and so is no default (apps/messages/README.md).
+# Production's other choices, so the build, kubeconform and dns checks cover every app
+# directory under apps/ on at least one cluster.
+domain: haaijer.dev
+storageClass: longhorn
+gateway:
+  ip: 45.136.141.168
+  acmeEmail: wereld03@gmail.com
+  tlsIssuer: letsencrypt-gateway
+size: large
+registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}
+smtp: {configured: true}
+apps: {messages: true}

@@ -22,11 +22,11 @@ spec:
     # bucket and a key here; external reshapes their S3 credential instead.
     objectstore: {enabled: true, mode: "${S3_MODE}", quota: {maxSize: 20Gi}}   # quoted: `${` is not valid inside a flow map
 
-    # The restored database already holds every user; login matches by sub, then email.
+    # Login matches by sub, then email, so the restored database's users keep their accounts.
     # storeRefreshToken: search forwards the user's access token to Find, and `search` is
     # decorated with `@conditional_refresh_oidc_token`, a no-op without it — so 5 minutes
     # after login the token introspects as inactive and search falls back to titles.
-    oidc: {enabled: true, createUser: false, storeRefreshToken: true}
+    oidc: {enabled: true, storeRefreshToken: true}
 
     # The relay account itself is applied by hand into office-data once and is not in git —
     # docs/install.md. This only reshapes it into the DJANGO_EMAIL_* names Docs reads.

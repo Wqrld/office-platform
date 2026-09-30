@@ -35,7 +35,6 @@ smtp:
 
 oidc:
   enabled: true
-  createUser: true
 
 generated:
   calendars-django:

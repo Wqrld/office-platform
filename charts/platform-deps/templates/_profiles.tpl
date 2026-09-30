@@ -52,6 +52,10 @@ cache:
   # task results in a SECOND store, and that URL carries the password, so it cannot be
   # composed in the app's own values. Which instance `results` points at is the app's
   # choice (`cache.instances` in its deps.yaml).
+  # Messages: Celery's own setting name, without Docs' DJANGO_ prefix.
+  celery:
+    cache: REDIS_URL
+    broker: CELERY_BROKER_URL
   dramatiq:
     cache: REDIS_URL
     broker: DRAMATIQ_BROKER_URL
@@ -67,6 +71,12 @@ opensearch:
     password: OPENSEARCH_PASSWORD
     useSSL: OPENSEARCH_USE_SSL
     indexPrefix: OPENSEARCH_INDEX_PREFIX
+  # Messages: one URL with the credential in it (settings' OPENSEARCH_URL is a list of
+  # hosts). No prefix to emit — its index name is fixed, and the role pins it. It VERIFIES
+  # the certificate, so it is given the private CA (`opensearch.caSecret`).
+  url:
+    url: OPENSEARCH_URL
+    caCerts: OPENSEARCH_CA_CERTS
 
 # The relay. Unlike every other kind here, none of this is generated in-cluster — it is one
 # operator-supplied credential fanned out to four namespaces, so the profile's whole job is
@@ -115,6 +125,7 @@ lasuite:   {postgres: django, cache: django, objectstore: django-s3, smtp: djang
 find:      {postgres: django, cache: django, opensearch: find}
 calendars: {postgres: django, cache: dramatiq, smtp: django}
 projects:  {postgres: url, cache: django, objectstore: s3, smtp: nodemailer}
+messages:  {postgres: django, cache: celery, objectstore: django-s3, smtp: django-prefixed, opensearch: url}
 {{- end -}}
 
 {{/*

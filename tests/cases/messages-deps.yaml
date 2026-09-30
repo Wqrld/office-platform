@@ -1,0 +1,21 @@
+# Messages' dependencies. The only consumer of the `celery` cache profile and of the `url`
+# opensearch profile — and of `opensearch.caSecret`, since Find does not verify the server.
+#
+# The point of the case: OPENSEARCH_URL is assembled inside the ESO template with the
+# credential in it (the password never passes through Helm), OPENSEARCH_CA_CERTS names the
+# path the release mounts, and the CA arrives in a Secret of its own, not as a key an
+# `envFrom` would try to turn into an env var.
+app: messages
+baseDomain: haaijer.dev
+env: messages
+
+postgres: {enabled: true}
+cache: {enabled: true, uses: [cache, broker]}
+objectstore: {enabled: true}
+opensearch: {enabled: true, caSecret: messages-opensearch-ca}
+oidc: {enabled: true}
+smtp: {enabled: true}
+
+generated:
+  messages-mda:
+    - {env: MDA_API_SECRET, draw: mda, generator: office-token-50}

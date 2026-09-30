@@ -48,7 +48,7 @@ smtp:
 
 oidc:
   enabled: true
-  createUser: true               # the opposite of both live apps
+  createUser: false              # NOT the default
   storeRefreshToken: true
   scopes: [openid, email, profile, offline_access]
   extraEnv:

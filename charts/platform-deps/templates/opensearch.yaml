@@ -23,12 +23,39 @@ spec:
     creationPolicy: Owner
     template:
       data:
+        {{- if hasKey $keys "url" }}
+        {{ index $keys "url" }}: "{{ ternary "https" "http" $o.useSSL }}://{{ $user }}:{{ `{{ .password }}` }}@{{ $o.host }}:{{ $o.port }}"
+        {{- else }}
         {{ index $keys "host" }}: {{ $o.host | quote }}
         {{ index $keys "port" }}: {{ $o.port | quote }}
         {{ index $keys "username" }}: {{ $user | quote }}
         {{ index $keys "password" }}: "{{ `{{ .password }}` }}"
         {{ index $keys "useSSL" }}: {{ $o.useSSL | quote }}
         {{ index $keys "indexPrefix" }}: {{ $prefix | quote }}
+        {{- end }}
+        {{- if $o.caSecret }}
+        {{- if not (hasKey $keys "caCerts") }}{{ fail (printf "opensearch.caSecret is set but profile %q has no env name for it" $o.env) }}{{ end }}
+        {{ index $keys "caCerts" }}: {{ $o.caPath | quote }}
+        {{- end }}
   data:
     - {secretKey: password, remoteRef: {key: {{ $cred }}, property: password}}
+{{- if $o.caSecret }}
+---
+# The cluster-internal CA, for an app that verifies the server (Find does not). Its own
+# Secret, not a key of the one above: that one is consumed whole with `envFrom`, and a
+# `ca.crt` key there is an invalid env name. The app mounts this at `caPath`.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $o.caSecret }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  refreshInterval: {{ $o.refreshInterval | quote }}
+  secretStoreRef: {kind: ClusterSecretStore, name: {{ .Values.platform.stores.data }}}
+  target: {name: {{ $o.caSecret }}, creationPolicy: Owner}
+  data:
+    - {secretKey: ca.crt, remoteRef: {key: opensearch-ca, property: ca.crt}}
+{{- end }}
 {{- end }}

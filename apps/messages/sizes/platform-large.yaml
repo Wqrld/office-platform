@@ -1,0 +1,21 @@
+# The surround owns the disruption budgets; `components` is name -> selector, read off the
+# render. Only what large.yaml runs twice: the worker stays single (it runs beat), and on
+# one replica a budget can only block a drain.
+pdb:
+  enabled: true
+  maxUnavailable: 1
+  components:
+    backend:
+      {app.kubernetes.io/name: messages, app.kubernetes.io/instance: messages,
+       app.kubernetes.io/component: backend}
+    frontend:
+      {app.kubernetes.io/name: messages, app.kubernetes.io/instance: messages,
+       app.kubernetes.io/component: frontend}
+    # Two MX-facing pods behind one route: a drain takes one, mail keeps arriving.
+    mta-in:
+      {app.kubernetes.io/name: messages, app.kubernetes.io/instance: messages,
+       app.kubernetes.io/component: mta-in}
+    # Fail-closed: with no rspamd, inbound mail is held for retry (docs/spam.md).
+    mpa:
+      {app.kubernetes.io/name: messages, app.kubernetes.io/instance: messages,
+       app.kubernetes.io/component: mpa}

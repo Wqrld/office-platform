@@ -24,9 +24,7 @@ spec:
       # the browser uses. Published for the `/drive/` prefix only.
       publicEndpoint: https://s3.${BASE_DOMAIN}
 
-    # Open provisioning, unlike Docs: Drive starts with an empty user table, so a realm
-    # user who has never logged in has to be created on first login.
-    oidc: {enabled: true, createUser: true}
+    oidc: {enabled: true}
 
     # Same spelling as Docs — the two settings modules are identical in the EMAIL_* block.
     # The relay account is applied by hand into office-data once; docs/install.md.

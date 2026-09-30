@@ -24,6 +24,10 @@ docs: {requires: [find], hosts: [docs], switcher: {name: Docs, logo: /assets/ico
 calendars: {hosts: [calendars], switcher: {name: Calendars, logo: /favicon.png, maturity: beta}}
 # Its gaufre is the app's own LaGaufreButton, configured through THEME (apps/projects).
 projects: {hosts: [projects], switcher: {name: Projects, logo: /oss/light/logomark.svg, maturity: beta}}
+# Mail also arrives on the Gateway's `smtp` listener, as `mx.` — which is an A record and no
+# host here: it is never served over HTTPS, so it has no business on the certificate. The
+# MTA's STARTTLS certificate is its own (apps/messages/surround.yaml).
+messages: {hosts: [messages], switcher: {name: Messages, logo: /images/pwa/icons/ios/32.png, maturity: alpha}}
 # WebRTC media; nothing but Meet uses it. `livekit.*` is the SIGNALLING host, a WebSocket
 # through the Gateway; media goes through the Gateway's L4 listeners (adr/0113). `turn.*`
 # is an A record to the Gateway but no host here: it is never served over HTTPS, so it

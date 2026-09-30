@@ -25,6 +25,7 @@ spec:
     CLIENT_SECRET_CALENDARS: {secret: {name: oidc-client-calendars, key: secret}}
     CLIENT_SECRET_PROJECTS: {secret: {name: oidc-client-projects, key: secret}}
     CLIENT_SECRET_MEET:  {secret: {name: oidc-client-meet, key: secret}}
+    CLIENT_SECRET_MESSAGES: {secret: {name: oidc-client-messages, key: secret}}
     # The relay account, read into this namespace by smtp.yaml. Placeholders are the only
     # way a secret reaches the realm, and smtpServer is a map of STRINGS in the CRD — hence
     # the TLS flags travelling as "true"/"false" rather than as booleans.
@@ -222,6 +223,30 @@ spec:
         frontchannelLogout: false
         attributes:
           post.logout.redirect.uris: https://projects.${BASE_DOMAIN}/*
+      # The same lasuite login and logout views as Docs, so the same client shape.
+      - clientId: messages
+        name: Messages
+        description: Messages — gedeelde mailboxen
+        enabled: true
+        alwaysDisplayInConsole: true
+        protocol: openid-connect
+        publicClient: false
+        clientAuthenticatorType: client-secret
+        secret: "$${CLIENT_SECRET_MESSAGES}"
+        rootUrl: https://messages.${BASE_DOMAIN}
+        baseUrl: https://messages.${BASE_DOMAIN}
+        adminUrl: https://messages.${BASE_DOMAIN}
+        redirectUris: ["https://messages.${BASE_DOMAIN}/*"]
+        webOrigins: ["https://messages.${BASE_DOMAIN}"]
+        standardFlowEnabled: true
+        implicitFlowEnabled: false
+        directAccessGrantsEnabled: false
+        serviceAccountsEnabled: false
+        frontchannelLogout: true
+        attributes:
+          backchannel.logout.url: https://messages.${BASE_DOMAIN}/api/v1.0/logout/
+          backchannel.logout.session.required: "true"
+          frontchannel.logout.url: https://messages.${BASE_DOMAIN}/api/v1.0/logout/
       - clientId: meet
         name: Meet
         description: Meet — videovergaderen

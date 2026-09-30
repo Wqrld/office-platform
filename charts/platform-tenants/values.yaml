@@ -14,6 +14,7 @@ apps:
   calendars: {postgres: {}, cache: [cache, broker], oidc: true}
   projects:  {postgres: {}, cache: [cache], oidc: true, bucket: true}
   meet:      {postgres: {extensions: [pg_trgm]}, cache: [cache, broker], oidc: true, bucket: true}
+  messages:  {postgres: {extensions: [unaccent]}, cache: [cache, broker], oidc: true, bucket: true}
   livekit:   {cache: [broker]}
 
 # Valkey passwords drawn before generation was per app live in `valkey-<instance>-users`

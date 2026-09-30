@@ -33,9 +33,7 @@ spec:
           db: 2
           credentialSecret: valkey-cache-acl
 
-    # Open provisioning, like Drive and unlike Docs: there is no restored user table here,
-    # so a realm user who has never logged in has to be created on first login.
-    oidc: {enabled: true, createUser: true}
+    oidc: {enabled: true}
 
     # The bare EMAIL_* spelling, not Docs' and Drive's DJANGO_-prefixed one: this settings
     # module passes `environ_prefix=None` on every mail value, and its from-address is

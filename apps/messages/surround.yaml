@@ -1,0 +1,92 @@
+# Messages' surround. HTTPS for the web app, and the one thing no other app has: SMTP,
+# through the Gateway's `smtp` listener on 25, as LiveKit's media goes through its L4
+# listeners (adr/0113) — one address per cluster, whatever the provider.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: messages-platform, namespace: office-messages}
+spec:
+  interval: 30m
+  dependsOn: [{name: messages}]
+  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "platform-${SIZE}"}]
+  values:
+    app: messages
+    baseDomain: ${BASE_DOMAIN}
+
+    routes:
+      # The SPA, and through its Caddy the admin and the health checks.
+      - host: messages
+        backend: {name: messages-frontend, port: 80}
+        paths: [/]
+
+      # The API straight to Django, one hop fewer. Attachments and import uploads are
+      # POSTs here; the frontend sends imports in chunks of 100 MB (its default
+      # FRONTEND_MULTIPART_UPLOAD_CHUNK_SIZE_MB), so that is the largest single body.
+      - name: api
+        host: messages
+        backend: {name: messages-backend, port: 80}
+        paths: [/api]
+        requestBuffer: 110Mi
+        timeout: 300s
+
+      - name: static
+        host: messages
+        backend: {name: messages-static, port: 8080}
+        paths: [/custom]
+
+    staticFiles:
+      enabled: true
+      filesConfigMap: messages-gaufre
+      servicesConfigMap: office-services
+
+    extraObjects:
+      # SMTP. The listener is the Gateway's (platform/gateway/gateway.yaml); the chart's
+      # Service maps 25 to the MTA's unprivileged 2525.
+      - apiVersion: gateway.networking.k8s.io/v1alpha2
+        kind: TCPRoute
+        metadata: {name: messages-smtp, namespace: office-messages}
+        spec:
+          parentRefs: [{name: office, namespace: office-system, sectionName: smtp}]
+          rules: [{backendRefs: [{name: messages-mta-in, port: 25}]}]
+      # Envoy terminates the TCP connection, so without this the MTA sees Envoy as every
+      # sender. The Gateway's Service keeps the client address (Envoy Gateway's default
+      # externalTrafficPolicy is Local), and this hands it on; the MTA expects the header
+      # (release.yaml).
+      - apiVersion: gateway.envoyproxy.io/v1alpha1
+        kind: BackendTrafficPolicy
+        metadata: {name: messages-smtp, namespace: office-messages}
+        spec:
+          targetRefs: [{group: gateway.networking.k8s.io, kind: TCPRoute, name: messages-smtp}]
+          proxyProtocol: {version: V2}
+      # STARTTLS for the MTA. Self-signed on purpose: an ACME certificate for `mx.` would
+      # have to be issued in office-system (the HTTP listener admits only its own
+      # namespace's routes) and copied here, and no sending MTA verifies it without
+      # MTA-STS or DANE — README.md, Known gaps.
+      - apiVersion: cert-manager.io/v1
+        kind: Issuer
+        metadata: {name: messages-selfsigned, namespace: office-messages}
+        spec: {selfSigned: {}}
+      - apiVersion: cert-manager.io/v1
+        kind: Certificate
+        metadata: {name: messages-mx, namespace: office-messages}
+        spec:
+          secretName: messages-mx-tls
+          commonName: mx.${BASE_DOMAIN}
+          dnsNames: ["mx.${BASE_DOMAIN}"]   # quoted: `${` is not valid inside a flow sequence
+          duration: 8760h
+          privateKey: {algorithm: ECDSA, size: 256}
+          issuerRef: {name: messages-selfsigned, kind: Issuer}
+
+    # `external: 25` is the point of MTA_OUT_MODE=direct: the worker opens SMTP to every
+    # recipient's MX. 443 is OIDC over the public issuer, IMAP imports are 993.
+    networkPolicy:
+      egress:
+        - {datastore: postgres}
+        - {datastore: cache}
+        - {datastore: objectstore}
+        - {datastore: opensearch}
+        - {identity: true}
+        - {external: true, port: 25}
+        - {external: true, port: 443}
+        - {external: true, port: 993}

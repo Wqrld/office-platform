@@ -1,0 +1,33 @@
+# Messages at `large`: two of everything but the worker. Unmeasured — Docs' measured
+# backend and worker are the guide, rspamd's own minimum for the MPA (README.md).
+backend:
+  replicas: 2
+  resources:
+    requests: {cpu: 100m, memory: 768Mi}
+    limits: {memory: 2Gi}
+  celery:
+    replicas: 1
+    # One worker at every size: it also runs the beat scheduler (worker.py), and two
+    # schedulers fire every periodic task twice. Scale it by concurrency. Without the flag
+    # Celery preforks one process per CPU, each a full Django (Docs' medium.yaml).
+    args: ["python", "worker.py", "--concurrency", "8"]
+    # Eight forked Djangos: memory grows with concurrency, not with a second pod.
+    resources:
+      requests: {cpu: 200m, memory: 768Mi}
+      limits: {memory: 2Gi}
+frontend:
+  replicas: 2
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 128Mi}
+mtaIn:
+  replicas: 2
+  resources:
+    requests: {cpu: 10m, memory: 64Mi}
+    limits: {memory: 256Mi}
+mpa:
+  replicas: 2
+  # rspamd loads its maps and Hyperscan database at start; below ~300Mi it is killed there.
+  resources:
+    requests: {cpu: 50m, memory: 384Mi}
+    limits: {memory: 768Mi}

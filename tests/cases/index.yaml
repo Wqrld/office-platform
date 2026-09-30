@@ -46,6 +46,14 @@ cases:
       A fresh VPS as install.sh writes it — the platform installs Gateway, cert-manager and
       MetalLB itself, the SMTP placeholder is in, Meet is off.
 
+  - name: cluster-full
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: >-
+      Every app including the ones off by default (Messages), at `large`: the one cluster
+      that builds every directory under apps/ and every size's PDBs for them.
+
   # ---- the two shapes that are live today -------------------------------------------
   - name: docs-deps
     chart: platform-deps
@@ -70,8 +78,8 @@ cases:
     release: find-deps
     namespace: office-find
     description: >-
-      Find's datastores — the only consumer of the `opensearch` kind, and the only OIDC
-      block that is a resource server rather than a login client.
+      Find's datastores — the `find` opensearch profile (parts, an index prefix), and the
+      only OIDC block that is a resource server rather than a login client.
 
   - name: calendars-deps
     chart: platform-deps
@@ -88,6 +96,14 @@ cases:
     description: >-
       Projects' datastores — the only consumer of the `url`, `s3` and `nodemailer`
       profiles and of `oidc.env: discovery`: one connection string, one issuer.
+
+  - name: messages-deps
+    chart: platform-deps
+    release: messages-deps
+    namespace: office-messages
+    description: >-
+      Messages' datastores — the only consumer of the `celery` cache profile and of the
+      `url` opensearch profile, with the private CA in a Secret of its own.
 
   - name: external-deps
     chart: platform-deps

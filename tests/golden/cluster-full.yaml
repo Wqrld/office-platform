@@ -1,0 +1,578 @@
+---
+# Source: control-plane/templates/cluster-vars.yaml
+# The scalars the layers substitute (`postBuild.substituteFrom`), derived from the typed
+# values above rather than written by hand: one input, one artifact, nothing twice.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-vars
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+data:
+  BASE_DOMAIN: "haaijer.dev"
+  # Each app's HelmReleases pick their sizing from `<app>-sizes` by this key
+  # (apps/README.md, Sizing); a size the ConfigMap lacks is a HelmRelease that says so.
+  SIZE: "large"
+  STORAGE_CLASS: "longhorn"
+  GATEWAY_IP: "45.136.141.168"
+  GATEWAY_CLASS: "eg"
+  LB_ANNOTATIONS: "{\"metallb.universe.tf/loadBalancerIPs\":\"45.136.141.168\"}"
+  TLS_ISSUER: "letsencrypt-gateway"
+  ACME_EMAIL: "wereld03@gmail.com"
+  S3_MODE: "garage"
+  TLS_HOSTS: "[\"id.haaijer.dev\",\"s3.haaijer.dev\",\"calendars.haaijer.dev\",\"collabora.haaijer.dev\",\"docs.haaijer.dev\",\"drive.haaijer.dev\",\"find.haaijer.dev\",\"livekit.haaijer.dev\",\"meet.haaijer.dev\",\"messages.haaijer.dev\",\"projects.haaijer.dev\"]"
+  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.haaijer.dev/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.haaijer.dev\"},{\"logo\":\"https://docs.haaijer.dev/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.haaijer.dev\"},{\"logo\":\"https://drive.haaijer.dev/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.haaijer.dev\"},{\"logo\":\"https://meet.haaijer.dev/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.haaijer.dev\"},{\"logo\":\"https://messages.haaijer.dev/images/pwa/icons/ios/32.png\",\"maturity\":\"alpha\",\"name\":\"Messages\",\"url\":\"https://messages.haaijer.dev\"},{\"logo\":\"https://projects.haaijer.dev/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.haaijer.dev\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.haaijer.dev/realms/office/account\"}]}"
+---
+# Source: control-plane/templates/sources.yaml
+# Chart lives in-tree at src/helm/impress; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: suitenumerique-docs
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/docs
+  ref: {tag: v5.5.0}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# Chart lives in-tree at src/helm/drive; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: suitenumerique-drive
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/drive
+  ref: {tag: v0.21.2}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# Chart lives in-tree at src/helm/find; there is no tag to pin. `suitenumerique/find` has
+# never cut a release — zero git tags — so this is the one source pinned to a COMMIT, the
+# single departure from adr/0104. See apps/find/README.md.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: suitenumerique-find
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/find
+  ref: {branch: main, commit: 025e6d02ea08c46ef831a70f0ae1a41036c5a7c9}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# Projects. suitenumerique/projects ships no chart; ours is written in the application's
+# own repo (src/helm/projects, copied from Docs' so it reads as theirs) and the upstreaming
+# PR is open. Until it lands, the chart comes from the FORK's git tag — the same tag that
+# publishes the image (apps/projects/README.md, Pins) — so one pin moves both. When the PR
+# lands, only the url changes: suitenumerique/projects at the tag that carries the chart.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: wqrld-projects
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/Wqrld/projects
+  ref: {tag: v1.3.1}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# Messages. The same arrangement as Projects: suitenumerique/messages ships no chart, ours is
+# src/helm/messages (copied from Docs') in the fork, and the fork's tag also publishes the
+# images — including the MPA (rspamd), which upstream builds but does not publish
+# (apps/messages/README.md, Pins). When the PR lands, only the url changes.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: wqrld-messages
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/Wqrld/messages
+  ref: {tag: v0.9.0-office.1}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# Chart lives in-tree at src/helm/meet; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: suitenumerique-meet
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/meet
+  ref: {tag: v1.31.0}
+  ignore: |
+    /*
+    !/src/helm
+---
+# Source: control-plane/templates/sources.yaml
+# LiveKit. Not a La Suite application, and it DOES publish a Helm repository
+# (https://helm.livekit.io) — but that index stopped being updated at livekit-server 1.9.0
+# and egress 1.8.4 (mid-2025), while the chart repository itself is current and its last
+# git tag is v1.5.2, older still. So this is the second commit pin after Find's, for the
+# same reason: there is no tag that names the chart we deploy. Both charts (`livekit-server`
+# and `egress`) live at the repository root. The IMAGES are pinned separately in
+# apps/livekit/release.yaml — the charts' appVersion lags the images by several releases.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: livekit-helm
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://github.com/livekit/livekit-helm
+  ref: {branch: master, commit: 8f0ad0809c2be8cbed375a6f8bef10625e5e8a2b}
+  ignore: |
+    /*
+    !/livekit-server
+    !/egress
+---
+# Source: control-plane/templates/sources.yaml
+# Chart sources — every pin the platform runs, in one file. Upstream pins are literal:
+# updatecli rewrites them here (updatecli/README.md). La Suite publishes no Helm
+# repository, so its charts come from pinned git tags — see docs/adr/0104.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: cloudnative-pg
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://cloudnative-pg.github.io/charts
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: external-secrets
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://charts.external-secrets.io
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: valkey
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://valkey.io/valkey-helm/
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: opensearch
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://opensearch-project.github.io/helm-charts
+---
+# Source: control-plane/templates/sources.yaml
+# Collabora is the exception to adr/0104: it is not a La Suite application and it DOES
+# publish a chart repository, so it is an ordinary pinned HelmRelease.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: collabora
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://collaboraonline.github.io/online
+---
+# Source: control-plane/templates/sources.yaml
+# Calendars. The chart is written IN the application's own repo (src/helm/calendars) the way
+# adr/0104 expects, but it is not in any upstream tag yet — v0.1.0 predates it and the
+# upstreaming PR is open. Rather than pin a moving branch (which policy/pins.rego denies,
+# correctly) or make a second commit-pin exception of Find's, that chart is packaged and
+# published to our own Helm repository, and consumed here as an ordinary versioned chart.
+#
+# When the PR lands this becomes a GitRepository on suitenumerique/calendars at a tag, and
+# apps/calendars/release.yaml's `chart.spec` is the only other thing that changes.
+#
+# The IMAGES come from the same fork, and have to. `dockerflow`, which serves the
+# `/__heartbeat__` and `/__lbheartbeat__` probes this chart configures, was added after
+# upstream's `v0.1.0`, and upstream's own `:main` tag was last built months before it — so
+# every published upstream image 404s the chart's default probes. The fork's `v0.1.1`
+# carries the chart commit plus the CI fix that makes those images run non-root.
+#
+# The chart version and the image tags stay independent pins: the chart declares
+# `appVersion: latest`, and the images are tagged from git tags with the `v` stripped
+# (`v0.1.1` publishes `…-backend:0.1.1`). See updatecli/updatecli.d/calendars.yaml.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: calendars
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://gh.haaijer.dev
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: garage-operator
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  type: oci
+  url: oci://ghcr.io/rajsinghtech/charts
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-calendars
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/calendars
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"calendars"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-collabora
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/collabora
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"collabora"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-docs
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/docs
+  dependsOn:
+    - {name: objectstore}
+    - {name: app-find}
+  postBuild:
+    substitute: {"APP":"docs"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-drive
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/drive
+  dependsOn:
+    - {name: objectstore}
+    - {name: app-collabora}
+  postBuild:
+    substitute: {"APP":"drive"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-find
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/find
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"find"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-livekit
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/livekit
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"livekit"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-meet
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/meet
+  dependsOn:
+    - {name: objectstore}
+    - {name: app-docs}
+    - {name: app-livekit}
+  postBuild:
+    substitute: {"APP":"meet"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-messages
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/messages
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"messages"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-projects
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/projects
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"projects"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/layers.yaml
+# The layers, in reconcile order. Each waits for the previous one to be healthy.
+#
+# cluster-*   what the cluster lacks and the platform was asked to install — Envoy Gateway,
+#             MetalLB — as `cluster.*.install` chooses (adr/0112). Two Kustomizations each:
+#             the chart, then its configuration (GatewayClass, IPAddressPool), because a
+#             CR cannot be applied before the chart that brings its CRD. Not emitted when
+#             the cluster brings its own.
+# infra       operators — CNPG, External Secrets, the Garage operator, and cert-manager
+#             when asked. Not sized by profile: one cert-manager is one cert-manager
+#             whether it serves 5 people or 5,000, and an operator that is too small fails
+#             as "nothing reconciles".
+# platform    the shared stateful layer — gateway, postgres, cache, search, identity, and
+#             the datastores and credentials of EVERY application, enabled or not, which
+#             is what lets a disabled app come back with its data.
+# objectstore Garage, only when the platform runs the object store itself.
+#
+# There is deliberately no `crds` layer yet. Every CRD relied on is either pre-existing in
+# the cluster or installed by an operator chart on first install; the layer arrives the
+# first time a CRD upgrade needs managing separately.
+
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infra
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./infra
+  postBuild:
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/layers.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./platform
+  components: ["./overlays/size-large"]
+  dependsOn:
+    - {name: infra}
+  postBuild:
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/layers.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: objectstore
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./platform/objectstore
+  components: ["../overlays/size-large"]
+  dependsOn:
+    - {name: platform}
+  postBuild:
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/config.yaml
+# The config artifact: infra/, platform/ and apps/, read by every Kustomization this chart
+# emits — at this chart's version, like the charts above. release.sh publishes both under
+# one number, so the organisation's chart pin IS the platform version: there is no second
+# pointer to keep in step and no moving tag anywhere (the old `:latest` / `:X.Y.Z` split
+# existed only because the pointer used to live inside the tree it pointed at).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: office-config
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 5m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/config
+  ref: {tag: "<version>"}
+  secretRef: {name: harbor-auth}
+---
+# Source: control-plane/templates/sources.yaml
+# Our own charts, at THIS chart's version: release.sh publishes the config artifact and all
+# four charts under one number, so nothing here is ever bumped by hand and a control plane
+# can only ever pair with the platform charts it was released with. The registry is the
+# organisation's one knob in this file.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: platform-deps
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
+  ref: {tag: "<version>"}
+  secretRef: {name: harbor-auth}
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: platform-app
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  ref: {tag: "<version>"}
+  secretRef: {name: harbor-auth}
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: platform-tenants
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-tenants
+  ref: {tag: "<version>"}
+  secretRef: {name: harbor-auth}

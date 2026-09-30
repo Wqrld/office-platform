@@ -51,6 +51,7 @@ spec:
       calendars: true
       projects: true
       meet: true                       # brings LiveKit with it
+      messages: false                  # mail: needs port 25 both ways (apps/messages/README.md)
     objectStore:
       mode: garage                     # or external: your S3, credentials in a Secret
     cluster:                           # what the platform installs because the cluster lacks it

@@ -21,7 +21,6 @@ spec:
     # nobody in. The login half of this block is emitted and unused.
     oidc:
       enabled: true
-      createUser: false
       extraEnv:
         # Must equal the `iss` in Keycloak's introspection response BYTE FOR BYTE. Keycloak
         # returns the external issuer even when the call arrives on the internal Service, so

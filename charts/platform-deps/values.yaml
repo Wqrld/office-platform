@@ -57,6 +57,10 @@ opensearch:
   # there is no server authentication on that path (adr/0111).
   useSSL: true
   credentialSecret: ""             # defaults to opensearch-user-<app>, created by 30-platform
+  # For an app that verifies the certificate: the CA is copied into this Secret, and the
+  # profile's caCerts env names `caPath`, where the app's release mounts it.
+  caSecret: ""
+  caPath: /etc/opensearch-ca/ca.crt
   refreshInterval: 1h
 
 objectstore:
@@ -126,9 +130,9 @@ oidc:
   signAlgo: RS256
   requireHttps: true
   useNonce: true
-  # Closed provisioning. An app whose users should be created on first login sets this
-  # true; the failure when it is wrong is a refused login, which is loud, not silent.
-  createUser: false
+  # Open provisioning: the realm decides who exists, and every app creates a realm user on
+  # first login. Registration is off in the realm, so this admits no one Keycloak didn't.
+  createUser: true
   fallbackToEmail: true
   allowDuplicateEmails: false
   storeAccessToken: true

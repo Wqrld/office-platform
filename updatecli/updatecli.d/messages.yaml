@@ -1,0 +1,47 @@
+# Messages: one git tag of the FORK drives the chart pin AND every image tag, like Projects —
+# the chart lives at `src/helm/messages` in the fork, and the fork's CI publishes all five
+# images from the same tag with the `v` stripped. The fork carries the MPA image and
+# MTA_OUT_EHLO_HOSTNAME (apps/messages/README.md). Pointing this at `suitenumerique/messages`
+# before upstream publishes both would lose the spam filter and the EHLO name.
+name: "La Suite Messages"
+
+sources:
+  release:
+    name: "latest Messages release of the fork"
+    kind: gittag
+    spec:
+      url: "https://github.com/Wqrld/messages"
+      versionfilter:
+        kind: regex
+        pattern: '^v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+$'
+
+  image:
+    name: "latest Messages release of the fork, as an image tag"
+    kind: gittag
+    spec:
+      url: "https://github.com/Wqrld/messages"
+      versionfilter:
+        kind: regex
+        pattern: '^v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+$'
+    transformers:
+      - trimprefix: "v"
+
+targets:
+  chart:
+    name: "GitRepository tag"
+    kind: file
+    sourceid: release
+    spec:
+      file: "charts/control-plane/templates/sources.yaml"
+      matchpattern: 'url: https://github\.com/Wqrld/messages\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+\}'
+      replacepattern: 'url: https://github.com/Wqrld/messages\n  ref: {tag: {{ source "release" }}}'
+
+  # Every `tag:` in the file: the backend's and the four component images', one release.
+  image:
+    name: "workload image tags"
+    kind: file
+    sourceid: image
+    spec:
+      file: "apps/messages/release.yaml"
+      matchpattern: 'tag: "[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+"'
+      replacepattern: 'tag: "{{ source "image" }}"'

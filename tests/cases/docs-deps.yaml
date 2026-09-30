@@ -23,8 +23,6 @@ smtp:
 
 oidc:
   enabled: true
-  # The restored database already holds every user; login matches by sub, then by email.
-  createUser: false
 
 # Draw names match the objects already in the cluster, so adopting them is a no-op. A
 # changed spec here would make ESO draw new values — new Django secret key, new

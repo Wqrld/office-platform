@@ -99,7 +99,7 @@ spec:
         OIDC_REDIRECT_ALLOWED_HOSTS: "https://find.haaijer.dev"
         OIDC_REDIRECT_REQUIRE_HTTPS: "true"
         OIDC_USE_NONCE: "true"
-        OIDC_CREATE_USER: "false"
+        OIDC_CREATE_USER: "true"
         OIDC_FALLBACK_TO_EMAIL_FOR_IDENTIFICATION: "true"
         OIDC_ALLOW_DUPLICATE_EMAILS: "false"
         OIDC_STORE_ACCESS_TOKEN: "true"

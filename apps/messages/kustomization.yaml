@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../namespace.yaml
+  - ../services.yaml
+  - deps.yaml
+  - release.yaml
+  - surround.yaml
+
+configMapGenerator:
+  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
+  - name: messages-sizes
+    namespace: office-messages
+    files:
+      - small=sizes/small.yaml
+      - medium=sizes/medium.yaml
+      - large=sizes/large.yaml
+      - platform-small=sizes/platform-small.yaml
+      - platform-medium=sizes/platform-medium.yaml
+      - platform-large=sizes/platform-large.yaml
+    options:
+      disableNameSuffixHash: true
+
+  # The switcher panel, served as /custom/gaufre.js (release.yaml, THE GAUFRE).
+  - name: messages-gaufre
+    namespace: office-messages
+    files: [../gaufre.js]
+    options:
+      disableNameSuffixHash: true

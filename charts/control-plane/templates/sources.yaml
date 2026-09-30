@@ -117,6 +117,21 @@ spec:
     /*
     !/src/helm
 ---
+# Messages. The same arrangement as Projects: suitenumerique/messages ships no chart, ours is
+# src/helm/messages (copied from Docs') in the fork, and the fork's tag also publishes the
+# images — including the MPA (rspamd), which upstream builds but does not publish
+# (apps/messages/README.md, Pins). When the PR lands, only the url changes.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+{{ include "platform.metadata" "wqrld-messages" }}
+spec:
+  interval: 24h
+  url: https://github.com/Wqrld/messages
+  ref: {tag: v0.9.0-office.1}
+  ignore: |
+    /*
+    !/src/helm
+---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "garage-operator" }}
