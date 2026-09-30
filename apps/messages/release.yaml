@@ -55,6 +55,12 @@ spec:
       # passes DOCKER_USER.
       securityContext: {runAsUser: 1001}
 
+      # The chart's liveness path is Docs' `/__lbheartbeat__`, which Messages does not serve:
+      # a 404, and the kubelet restarts every backend pod. Dropped once the fork's chart
+      # default says `/__heartbeat__`.
+      probes:
+        liveness: {path: /__heartbeat__}
+
       envFrom:
         - {secretRef: {name: messages-postgres}}
         - {secretRef: {name: messages-cache}}
