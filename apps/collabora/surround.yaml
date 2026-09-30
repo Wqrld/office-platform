@@ -11,8 +11,7 @@ spec:
     baseDomain: ${BASE_DOMAIN}
 
     routes:
-      - host: collabora
-        backend: {name: collabora-online, port: 9980}
+      - backend: {name: collabora-online, port: 9980}
         paths: [/]
         websocket: true                 # the editor holds one open all session
 

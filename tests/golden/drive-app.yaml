@@ -156,7 +156,7 @@ data:
     }
 ---
 # Source: platform-app/templates/static.yaml
-# The `/custom` route's backend, or wherever `staticFiles.path` points.
+# The implied `static` route's backend (platform.app.routes), at `staticFiles.path`.
 
 apiVersion: v1
 kind: ConfigMap
@@ -344,6 +344,8 @@ spec:
             sources:
             - configMap:
                 name: drive-switcher
+            - configMap:
+                name: office-services
         - {name: cache, emptyDir: {}}
         - {name: run, emptyDir: {}}
         - {name: tmp, emptyDir: {}}
@@ -450,30 +452,6 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: drive-static
-  namespace: office-drive
-  labels:
-    helm.sh/chart: platform-app-<version>
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/part-of: office
-    app.kubernetes.io/name: drive-platform
-    app.kubernetes.io/instance: drive-platform
-spec:
-  parentRefs:
-    - name: office
-      namespace: office-system
-      sectionName: https
-  hostnames: ["drive.${BASE_DOMAIN}"]
-  rules:
-    - matches:
-        - {path: {type: PathPrefix, value: /custom}}
-      backendRefs:
-        - {name: drive-static, port: 8080}
----
-# Source: platform-app/templates/routes.yaml
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
   name: drive-media
   namespace: office-drive
   labels:
@@ -493,3 +471,27 @@ spec:
         - {path: {type: PathPrefix, value: /media}}
       backendRefs:
         - {name: drive-media-proxy, port: 8080}
+---
+# Source: platform-app/templates/routes.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: drive-static
+  namespace: office-drive
+  labels:
+    helm.sh/chart: platform-app-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: drive-platform
+    app.kubernetes.io/instance: drive-platform
+spec:
+  parentRefs:
+    - name: office
+      namespace: office-system
+      sectionName: https
+  hostnames: ["drive.${BASE_DOMAIN}"]
+  rules:
+    - matches:
+        - {path: {type: PathPrefix, value: /custom}}
+      backendRefs:
+        - {name: drive-static, port: 8080}

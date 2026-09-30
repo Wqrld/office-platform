@@ -8,24 +8,16 @@ app: drive
 baseDomain: ${BASE_DOMAIN}
 
 routes:
-  - host: drive
-    backend: {name: drive-frontend, port: 80}
+  - backend: {name: drive-frontend, port: 80}
     paths: [/]
 
   - name: api
-    host: drive
     backend: {name: drive-backend, port: 80}
     paths: [/api, /admin, /static]
     requestBuffer: 25Mi
     timeout: 300s
 
-  - name: static
-    host: drive
-    backend: {name: drive-static, port: 8080}
-    paths: [/custom]
-
   - name: media
-    host: drive
     backend: {name: drive-media-proxy, port: 8080}
     paths: [/media]
     timeout: 300s

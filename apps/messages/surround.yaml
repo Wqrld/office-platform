@@ -8,7 +8,7 @@ spec:
   interval: 30m
   dependsOn: [{name: messages}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: messages
@@ -16,29 +16,19 @@ spec:
 
     routes:
       # The SPA, and through its Caddy the admin and the health checks.
-      - host: messages
-        backend: {name: messages-frontend, port: 80}
+      - backend: {name: messages-frontend, port: 80}
         paths: [/]
 
       # The API straight to Django, one hop fewer. Attachments and import uploads are
       # POSTs here; the frontend sends imports in chunks of 100 MB (its default
       # FRONTEND_MULTIPART_UPLOAD_CHUNK_SIZE_MB), so that is the largest single body.
       - name: api
-        host: messages
         backend: {name: messages-backend, port: 80}
         paths: [/api]
         requestBuffer: 110Mi
         timeout: 300s
 
-      - name: static
-        host: messages
-        backend: {name: messages-static, port: 8080}
-        paths: [/custom]
-
-    staticFiles:
-      enabled: true
-      filesConfigMap: messages-gaufre
-      servicesConfigMap: office-services
+    staticFiles: {enabled: true}
 
     extraObjects:
       # SMTP. The listener is the Gateway's (platform/gateway/gateway.yaml); the chart's

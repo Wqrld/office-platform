@@ -14,7 +14,7 @@ spec:
   interval: 30m
   dependsOn: [{name: livekit}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budget comes with the size (sizes/platform-<size>.yaml).
+  # The disruption budget comes with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: livekit
@@ -24,8 +24,7 @@ spec:
       # Signaling. `websocket: true` sets the connection idle timeout to the platform's
       # 24h rather than Envoy's default — a call is one WebSocket that lasts the meeting.
       # The chart's Service maps 80 → 7880.
-      - host: livekit
-        backend: {name: livekit, port: 80}
+      - backend: {name: livekit, port: 80}
         paths: [/]
         websocket: true
 

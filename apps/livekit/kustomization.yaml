@@ -18,8 +18,8 @@ configMapGenerator:
       - egress-small=sizes/egress-small.yaml
       - egress-medium=sizes/egress-medium.yaml
       - egress-large=sizes/egress-large.yaml
-      - platform-small=sizes/platform-small.yaml
-      - platform-medium=sizes/platform-medium.yaml
+      - platform-small=../sizes-no-pdb.yaml
+      - platform-medium=../sizes-no-pdb.yaml
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true

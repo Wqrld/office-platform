@@ -8,7 +8,7 @@ spec:
   interval: 30m
   dependsOn: [{name: calendars}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: calendars
@@ -17,12 +17,10 @@ spec:
     # Grouped by BACKEND, not by path: a BackendTrafficPolicy attaches to an HTTPRoute, so
     # paths that need different traffic treatment cannot share one object.
     routes:
-      - host: calendars
-        backend: {name: calendars-frontend, port: 80}
+      - backend: {name: calendars-frontend, port: 80}
         paths: [/]
 
       - name: api
-        host: calendars
         backend: {name: calendars-backend, port: 80}
         # `/caldav` points at the BACKEND, not at calendars-caldav. Django's CalDAVProxyView
         # authenticates the request and translates ACLs before forwarding; SabreDAV behind
@@ -41,20 +39,12 @@ spec:
         timeout: 300s
         # No requestBuffer: nothing here uploads. An .ics PUT is kilobytes.
 
-      - name: static
-        host: calendars
-        backend: {name: calendars-static, port: 8080}
-        paths: [/custom]
-
     # THE GAUFRE. `LaGaufreV2` renders the button in Calendars' own header and then loads a
     # widget script and a service list by URL — by default from static.suite.anct.gouv.fr and
     # lasuite.numerique.gouv.fr. Both URLs are runtime settings (release.yaml's three
     # `FRONTEND_LAGAUFRE_*` vars), so unlike Drive nothing has to be hidden: these two files
     # are served from Calendars' own origin and are what those settings point at.
-    staticFiles:
-      enabled: true
-      filesConfigMap: calendars-gaufre
-      servicesConfigMap: office-services
+    staticFiles: {enabled: true}
 
     # `external: 443` is OIDC discovery over the public issuer URL and outbound channel sync.
     networkPolicy:

@@ -7,19 +7,17 @@ spec:
   interval: 30m
   dependsOn: [{name: docs}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: docs
     baseDomain: ${BASE_DOMAIN}
 
     routes:
-      - host: docs
-        backend: {name: docs-frontend, port: 80}
+      - backend: {name: docs-frontend, port: 80}
         paths: [/]
 
       - name: api
-        host: docs
         backend: {name: docs-backend, port: 80}
         # /static is Django's own admin CSS. Not in the upstream ingress set, which is why
         # /admin renders unstyled there; the frontend serves nothing under /static.
@@ -28,31 +26,21 @@ spec:
         timeout: 300s               # uploads and conversion are slow, not hung
 
       - name: media
-        host: docs
         backend: {name: docs-media-proxy, port: 8080}
         paths: [/media]
         timeout: 300s
 
       - name: collaboration
-        host: docs
         backend: {name: docs-y-provider, port: 443}
         # The websocket the editor holds open all session, and the server-to-server API
         # the backend calls at its PUBLIC url — so it must be routable from outside too.
         paths: [/collaboration/ws, /collaboration/api]
         websocket: true             # setting requestBuffer here is a render-time error
 
-      - name: static
-        host: docs
-        backend: {name: docs-static, port: 8080}
-        paths: [/custom]
-
     # THE GAUFRE's two files, from Docs' own origin: the widget script `LaGaufreV2` loads
     # (`waffle.widgetPath`, release.yaml — by default the French government's CDN) and the
     # service list it fetches (`waffle.apiUrl`).
-    staticFiles:
-      enabled: true
-      filesConfigMap: docs-gaufre
-      servicesConfigMap: office-services
+    staticFiles: {enabled: true}
 
     mediaProxy:
       enabled: true

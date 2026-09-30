@@ -6,19 +6,17 @@ spec:
   interval: 30m
   dependsOn: [{name: drive}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: drive
     baseDomain: ${BASE_DOMAIN}
 
     routes:
-      - host: drive
-        backend: {name: drive-frontend, port: 80}
+      - backend: {name: drive-frontend, port: 80}
         paths: [/]
 
       - name: api
-        host: drive
         backend: {name: drive-backend, port: 80}
         # /api carries the WOPI host endpoints that Collabora calls from OUTSIDE the
         # cluster, so this cannot become internal-only. /static is whitenoise serving
@@ -28,13 +26,7 @@ spec:
         requestBuffer: 25Mi
         timeout: 300s
 
-      - name: static
-        host: drive
-        backend: {name: drive-static, port: 8080}
-        paths: [/custom]
-
       - name: media
-        host: drive
         backend: {name: drive-media-proxy, port: 8080}
         # /media/preview is under /media and needs identical traffic treatment; the proxy
         # is what tells them apart.
@@ -57,10 +49,7 @@ spec:
     # French government's service list, both compiled into the frontend bundle. It is hidden
     # (release.yaml) and replaced with ours, served from Drive's own origin through the only
     # hook the page offers, FRONTEND_JS_URL (apps/README.md, The switcher).
-    staticFiles:
-      enabled: true
-      filesConfigMap: drive-switcher
-      servicesConfigMap: office-services
+    staticFiles: {enabled: true, filesConfigMap: drive-switcher}
 
     networkPolicy:
       egress:

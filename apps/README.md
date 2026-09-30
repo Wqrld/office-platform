@@ -47,7 +47,8 @@ app carries its own three, in the upstream chart's own values shape, and nothing
 
 ```
 apps/<app>/sizes/<size>.yaml            the app's release: replicas, resources, concurrency
-apps/<app>/sizes/platform-<size>.yaml   the surround: the disruption budgets
+apps/<app>/sizes/platform-large.yaml    the surround: the disruption budgets (small and medium
+                                        have none: ../sizes-no-pdb.yaml, shared)
 apps/<app>/kustomization.yaml           configMapGenerator: <app>-sizes, one key per file
 release.yaml / surround.yaml            valuesFrom: {name: <app>-sizes, valuesKey: "${SIZE}"}
 ```

@@ -6,15 +6,14 @@ spec:
   interval: 30m
   dependsOn: [{name: meet}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: meet-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: meet
     baseDomain: ${BASE_DOMAIN}
 
     routes:
-      - host: meet
-        backend: {name: meet-frontend, port: 80}
+      - backend: {name: meet-frontend, port: 80}
         paths: [/]
 
       # The same four prefixes upstream's Ingress objects route to the backend: the API,
@@ -22,13 +21,11 @@ spec:
       # LiveKit's webhook (/api/v1.0/rooms/webhooks-livekit/) and the summary service's
       # hook arrive through this route too, from inside the cluster (tokens.yaml says why).
       - name: api
-        host: meet
         backend: {name: meet-backend, port: 80}
         paths: [/api, /external-api, /admin, /static]
         timeout: 120s
 
       - name: media
-        host: meet
         backend: {name: meet-media-proxy, port: 8080}
         paths: [/media]
         timeout: 300s

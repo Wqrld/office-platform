@@ -1,9 +1,10 @@
 {{- $app := include "platform.app" . }}
 {{- $base := .Values.baseDomain }}
-{{- range $route := .Values.routes }}
+{{- range $route := (include "platform.app.routes" . | fromYaml).routes }}
 {{- $name := include "platform.app.routeName" (list $app $route) }}
 {{/*
-`hostname` wins over `host`; `host` is the short form joined to baseDomain. Written as an
+`hostname` wins over `host`; `host` is the short form joined to baseDomain, and defaults
+to the app's name. Written as an
 if/else rather than `$route.hostname | default (...)` because Go templates evaluate a
 function's arguments eagerly: inside `default`, the `required` fired even when `hostname`
 was set, which made the documented full-hostname form unusable.
@@ -12,7 +13,7 @@ was set, which made the documented full-hostname form unusable.
 {{- if $route.hostname }}
 {{- $hostname = $route.hostname }}
 {{- else }}
-{{- $hostname = printf "%s.%s" (required (printf "route %q needs host or hostname" $name) $route.host) (required "baseDomain is required when a route uses `host`" $base) }}
+{{- $hostname = printf "%s.%s" ($route.host | default $app) (required "baseDomain is required when a route uses `host`" $base) }}
 {{- end }}
 ---
 apiVersion: gateway.networking.k8s.io/v1

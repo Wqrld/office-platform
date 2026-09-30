@@ -8,7 +8,7 @@ spec:
   interval: 30m
   dependsOn: [{name: projects}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-<size>.yaml).
+  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: projects-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: projects
@@ -16,14 +16,12 @@ spec:
 
     routes:
       # The SPA, attachments, avatars and background images.
-      - host: projects
-        backend: {name: projects-backend, port: 80}
+      - backend: {name: projects-backend, port: 80}
         paths: [/]
         timeout: 300s               # a large attachment download is slow, not hung
 
       # Every upload is a POST under /api: attachments, avatars, background images.
       - name: api
-        host: projects
         backend: {name: projects-backend, port: 80}
         paths: [/api]
         requestBuffer: 100Mi
@@ -32,20 +30,11 @@ spec:
       # The realtime channel. Most of the UI's reads and writes go over it too, not only
       # the live updates, so a dropped socket is a UI that stops saving.
       - name: socket
-        host: projects
         backend: {name: projects-backend, port: 80}
         paths: [/socket.io]
         websocket: true
 
-      - name: static
-        host: projects
-        backend: {name: projects-static, port: 8080}
-        paths: [/custom]
-
-    staticFiles:
-      enabled: true
-      filesConfigMap: projects-gaufre
-      servicesConfigMap: office-services
+    staticFiles: {enabled: true}
 
     # `external: 443` is OIDC discovery and token exchange over the public issuer
     # (deps.yaml) — openid-client is given no internal endpoint to use instead.

@@ -1,0 +1,4 @@
+# The surround at `small` and `medium`, for every app: one replica of everything, so no
+# budget — on one replica a PDB can only block a drain. `large` is per app
+# (apps/<app>/sizes/platform-large.yaml), since which components get one is the app's.
+pdb: {enabled: false}

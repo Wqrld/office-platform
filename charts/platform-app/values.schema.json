@@ -35,7 +35,7 @@
             "type": "string"
           },
           "host": {
-            "description": "Short form: <host>.<baseDomain>. Mutually exclusive with `hostname`, which wins.",
+            "description": "Short form: <host>.<baseDomain>, defaulting to the app. `hostname`, if set, wins.",
             "type": "string"
           },
           "hostname": {"type": "string"},
@@ -61,10 +61,6 @@
           "timeout": {"type": "string"},
           "websocket": {"type": "boolean"}
         },
-        "anyOf": [
-          {"required": ["host"]},
-          {"required": ["hostname"]}
-        ],
         "allOf": [
           {
             "if": {"properties": {"websocket": {"const": true}}, "required": ["websocket"]},

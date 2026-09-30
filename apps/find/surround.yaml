@@ -12,15 +12,14 @@ spec:
   interval: 30m
   dependsOn: [{name: find}]
   chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
-  # The disruption budget comes with the size (sizes/platform-<size>.yaml).
+  # The disruption budget comes with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: find-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: find
     baseDomain: ${BASE_DOMAIN}
 
     routes:
-      - host: find
-        backend: {name: find-backend, port: 80}
+      - backend: {name: find-backend, port: 80}
         paths: [/api/v1.0/documents/]
 
     networkPolicy:

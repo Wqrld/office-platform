@@ -1,7 +1,7 @@
 {{- if .Values.staticFiles.enabled }}
 {{- $f := .Values.staticFiles }}
 {{- $name := printf "%s-static" (include "platform.app" .) }}
-{{- $files := required "staticFiles.filesConfigMap names the ConfigMap holding the files" $f.filesConfigMap }}
+{{- $files := $f.filesConfigMap | default (printf "%s-gaufre" (include "platform.app" .)) }}
 {{- /*
 A few files served from the application's own origin, for upstream frontends that take a
 URL rather than content (Drive's `FRONTEND_JS_URL`). The files come from a ConfigMap made
@@ -25,7 +25,7 @@ projected into the same directory: two ConfigMaps, one /srv, and still updated i
     types { application/javascript js; text/css css; image/svg+xml svg; application/json json; }
   }
 }` $f.path $f.maxAge }}
-# The `/custom` route's backend, or wherever `staticFiles.path` points.
+# The implied `static` route's backend (platform.app.routes), at `staticFiles.path`.
 {{ include "platform.nginx" (dict "root" . "name" $name "confName" (printf "%s-conf" $name) "conf" $conf "w" $f
      "volumes" (list (dict "name" "files" "projected" (dict "sources" $sources)))
      "mounts" (list (dict "name" "files" "mountPath" "/srv"))) }}
