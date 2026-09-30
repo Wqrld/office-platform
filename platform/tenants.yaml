@@ -1,6 +1,10 @@
-# Everything the platform provisions per application — charts/platform-tenants/values.yaml
-# is the list. In office-data because that is where the datastores are; the OIDC client
-# secrets, the realm and its reconcile Job land in office-identity.
+# Everything the platform provisions per application: every app's provisioning fields in
+# charts/control-plane/apps.yaml, handed over by the control plane as TENANTS_JSON — every
+# app, enabled or not (adr/0107). Block style on purpose: a flow map cannot hold a plain
+# `${}`, and substituted into a block the one-line JSON is read back as a map. It also
+# renders the Valkey instances' ACL users (platform/valkey/). In office-data because that
+# is where the datastores are; the OIDC client secrets, the realm and its reconcile Job
+# land in office-identity.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: tenants, namespace: office-data}
@@ -19,3 +23,4 @@ spec:
   values:
     domain: ${BASE_DOMAIN}
     objectStore: ${S3_MODE}
+    apps: ${TENANTS_JSON}

@@ -13,6 +13,10 @@ spec:
       chart: valkey
       version: "0.12.0"
       sourceRef: {kind: HelmRepository, name: valkey, namespace: flux-system}
+  # `auth.aclUsers`: one per app with a password here, rendered by the tenants release
+  # from charts/control-plane/apps.yaml (charts/platform-tenants/templates/valkey.yaml).
+  valuesFrom:
+    - {kind: ConfigMap, name: valkey-cache-acl-values}
   install: {disableWaitForJobs: true}
   upgrade: {disableWaitForJobs: true}
   values:
@@ -26,19 +30,3 @@ spec:
     auth:
       enabled: true
       usersExistingSecret: valkey-cache-acl
-      aclUsers:
-        # No ambient access: with no NetworkPolicy enforcement on this cluster
-        # (adr/0103), these ACLs are the only isolation between applications.
-        default:   {permissions: "off -@all"}
-        docs:      {permissions: "~* &* +@all -@dangerous +flushdb"}
-        drive:     {permissions: "~* &* +@all -@dangerous +flushdb"}
-        find:      {permissions: "~* &* +@all -@dangerous +flushdb"}
-        calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}
-        meet:      {permissions: "~* &* +@all -@dangerous +flushdb"}
-        # +info: node_redis (Sails' sessions and socket.io adapter) sends INFO as its ready
-        # check, and INFO is @dangerous — without it the client never becomes ready.
-        projects:  {permissions: "~* &* +@all -@dangerous +flushdb +info"}
-        # Django's cache and, through the same URL, rspamd (apps/messages): Bayes, reputation
-        # and ratelimit state, loaded as Lua scripts — @scripting, which this line allows.
-        # Tested against exactly these permissions; eviction costs rspamd retraining, not mail.
-        messages:  {permissions: "~* &* +@all -@dangerous +flushdb"}

@@ -16,10 +16,13 @@ instances. The per-user ACLs are therefore load-bearing, not defence in depth. `
 
 ## Adding an application
 
-`charts/platform-tenants/values.yaml` (`cache: [cache, broker]`) generates the password
-and assembles the ACL Secret; the *permissions* are the Valkey chart's own values, so each
-instance here still takes one line under `auth.aclUsers`. Six apps in, that is the one
-place "one line per app" does not hold; an operator with a per-user CRD would close it.
+Nothing here. The app's entry in `charts/control-plane/apps.yaml` (`cache: [cache, broker]`)
+reaches the tenants chart as TENANTS_JSON, which generates the password, assembles the ACL
+Secret and renders the permissions: `valkey-<instance>-acl-values`, a ConfigMap holding
+`auth.aclUsers` that each HelmRelease here reads through `valuesFrom`. Every app gets the
+instance's shared line (`valkeyAcl` in `charts/platform-tenants/values.yaml`); an app that
+needs a command on top says so in its entry, `acl: {broker: +keys}` — Calendars' `+keys` and
+Projects' `+info` are the two today, each explained there.
 
 `+flushdb` is granted on the cache because Django's `cache.clear()` calls it and fails with
 `ConnectionInterrupted` when it is disabled. It is *not* granted on the broker.

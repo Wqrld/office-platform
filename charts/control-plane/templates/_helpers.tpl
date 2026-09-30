@@ -4,16 +4,23 @@
 {{- end }}
 
 {{/*
-The apps this cluster runs, sorted by name: every app switched on, plus every
-internal app something switched on requires. Refuses a selection whose dependencies are
+The apps this cluster runs, sorted by name: every app switched on — by the values, or by
+its `default` in the table when the values do not name it — plus every internal app
+something switched on requires. Refuses a name the table does not have or an internal app
+(the schema only knows the values are booleans), and a selection whose dependencies are
 off, by name, so the failure is a message on the HelmRelease and not a Job that retries
 against a Service that does not exist.
 */}}
 {{- define "platform.enabledApps" -}}
 {{- $table := include "platform.apps" . | fromYaml }}
+{{- range $name, $_ := .Values.apps }}
+  {{- if not (hasKey $table $name) }}{{ fail (printf "apps.%s is not an application: charts/control-plane/apps.yaml lists them" $name) }}
+  {{- else if (index $table $name).internal }}{{ fail (printf "apps.%s is not chosen: it runs when something that requires it does" $name) }}{{ end }}
+{{- end }}
 {{- $on := list }}
 {{- range $name, $app := $table }}
-  {{- if and (not $app.internal) (index $.Values.apps $name) }}{{ $on = append $on $name }}{{ end }}
+  {{- $want := ternary (index $.Values.apps $name) $app.default (hasKey $.Values.apps $name) }}
+  {{- if and (not $app.internal) $want }}{{ $on = append $on $name }}{{ end }}
 {{- end }}
 {{- range $name, $app := $table }}
   {{- if has $name $on }}
@@ -110,6 +117,20 @@ one thing this value must not carry through YAML quoting twice.
 {{- end }}
 {{- $services = append $services (dict "name" "Account" "url" (printf "https://id.%s/realms/office/account" .Values.domain) "maturity" "stable") }}
 {{- dict "services" $services | toJson }}
+{{- end }}
+
+{{/*
+What the platform provisions per application, as one line of JSON: every app in the table,
+enabled or not (a disabled app keeps its data, adr/0107), with only the fields
+platform-tenants reads. Substituted whole into platform/tenants.yaml's `apps:` — a one-line
+value starting with `{` is read back as a map, which is what it is here for.
+*/}}
+{{- define "platform.tenantsJson" -}}
+{{- $out := dict }}
+{{- range $name, $app := include "platform.apps" . | fromYaml }}
+  {{- $_ := set $out $name (pick $app "postgres" "cache" "acl" "oidc" "search" "bucket") }}
+{{- end }}
+{{- $out | toJson }}
 {{- end }}
 
 {{/*

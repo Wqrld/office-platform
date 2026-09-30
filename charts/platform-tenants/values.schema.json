@@ -34,6 +34,20 @@
             },
             "minItems": 1
           },
+          "acl": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "cache": {
+                "type": "string",
+                "minLength": 1
+              },
+              "broker": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
           "oidc": {
             "type": "object",
             "additionalProperties": false,
@@ -82,6 +96,29 @@
             },
             "minItems": 1
           }
+        }
+      }
+    },
+    "valkeyAcl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default",
+        "cache",
+        "broker"
+      ],
+      "properties": {
+        "default": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cache": {
+          "type": "string",
+          "minLength": 1
+        },
+        "broker": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

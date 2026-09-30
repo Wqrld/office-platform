@@ -7,7 +7,7 @@ posture — plugin on, TLS on the REST layer, per-app internal user scoped to an
 ## What isolates one app from another
 
 The **index pattern**, not a request parameter. Each app's `search` entry in
-`charts/platform-tenants/values.yaml` becomes an internal user whose role grants
+`charts/control-plane/apps.yaml` becomes an internal user whose role grants
 `indices_all` on exactly those patterns — `find-*` for Find, `messages` for Messages — so an
 app reaching for another's index gets a 403 from the server rather than a filtered result.
 `platform-deps`' `opensearch` kind emits the same prefix into the app's environment.

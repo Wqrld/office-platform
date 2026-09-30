@@ -293,6 +293,67 @@ data:
     - nl
     waitIncrementSeconds: 60
 ---
+# Source: platform-tenants/templates/valkey.yaml
+# The instance's `auth.aclUsers`, read by its HelmRelease through `valuesFrom`
+# (platform/valkey/): the permissions are the Valkey chart's values, so they are rendered
+# here from the same table as the passwords and a new app is one entry, not one line per
+# instance. Nothing here waits on Valkey, so reading it from there is no cycle. The watch
+# label makes helm-controller reconcile the instance when this changes, not at its interval.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-cache-acl-values
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+    reconcile.fluxcd.io/watch: Enabled
+data:
+  values.yaml: |
+    auth:
+      aclUsers:
+        default: {permissions: "off -@all"}
+        calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        docs: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        drive: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        find: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        meet: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        messages: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        projects: {permissions: "~* &* +@all -@dangerous +flushdb +info"}
+---
+# Source: platform-tenants/templates/valkey.yaml
+# The instance's `auth.aclUsers`, read by its HelmRelease through `valuesFrom`
+# (platform/valkey/): the permissions are the Valkey chart's values, so they are rendered
+# here from the same table as the passwords and a new app is one entry, not one line per
+# instance. Nothing here waits on Valkey, so reading it from there is no cycle. The watch
+# label makes helm-controller reconcile the instance when this changes, not at its interval.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-broker-acl-values
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+    reconcile.fluxcd.io/watch: Enabled
+data:
+  values.yaml: |
+    auth:
+      aclUsers:
+        default: {permissions: "off -@all"}
+        calendars: {permissions: "~* &* +@all -@dangerous +keys"}
+        docs: {permissions: "~* &* +@all -@dangerous"}
+        drive: {permissions: "~* &* +@all -@dangerous"}
+        livekit: {permissions: "~* &* +@all -@dangerous"}
+        meet: {permissions: "~* &* +@all -@dangerous"}
+        messages: {permissions: "~* &* +@all -@dangerous"}
+---
 # Source: platform-tenants/templates/keycloak.yaml
 apiVersion: batch/v1
 kind: Job

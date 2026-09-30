@@ -18,7 +18,7 @@ client or relay needed a script run by hand on every cluster. The realm now live
 `platform-tenants` chart instead:
 
 - `charts/platform-tenants/files/realm.yaml` — every realm setting, commented;
-- one client per `oidc` entry in `charts/platform-tenants/values.yaml`, from three shapes
+- one client per `oidc` entry in `charts/control-plane/apps.yaml`, from three shapes
   (`lasuite`, `login`, `resource-server`) rather than a copied block per app;
 - a `realm-<hash>` Job in this namespace that runs keycloak-config-cli with both. The name
   is a hash of what it applies, so any change is a new Job, which runs once.

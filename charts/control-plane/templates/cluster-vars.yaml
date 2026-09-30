@@ -20,3 +20,4 @@ data:
   S3_MODE: {{ .Values.objectStore.mode | quote }}
   TLS_HOSTS: {{ include "platform.tlsHosts" . | quote }}
   SERVICES_JSON: {{ include "platform.servicesJson" . | quote }}
+  TENANTS_JSON: {{ include "platform.tenantsJson" . | quote }}

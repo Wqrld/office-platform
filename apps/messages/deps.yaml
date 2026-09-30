@@ -13,7 +13,7 @@ spec:
     baseDomain: ${BASE_DOMAIN}
 
     # `unaccent` is created by a migration, which only a superuser may do; the tenants
-    # chart creates it first (charts/platform-tenants/values.yaml).
+    # chart creates it first (charts/control-plane/apps.yaml).
     postgres: {enabled: true}
 
     # REDIS_URL — Django's cache, and rspamd's state through the same URL (release.yaml,

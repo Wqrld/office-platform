@@ -1,0 +1,7 @@
+# expect: apps.dcos is not an application
+# The schema only knows the toggles are booleans; the app table knows the names, so a
+# misspelt app is refused there rather than silently left at its default.
+domain: example.org
+gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
+apps: {dcos: true}
+registry: {url: oci://registry.example.org/office}

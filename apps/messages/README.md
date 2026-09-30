@@ -43,7 +43,7 @@ Django, so most of the `lasuite` family; two profiles are new (`env: messages`,
 **OpenSearch verifies the server**, unlike Find, so the platform's private CA is copied into
 `messages-opensearch-ca` (`opensearch.caSecret`) and mounted where `OPENSEARCH_CA_CERTS`
 says. The index name is fixed in the code (`messages`), so the role
-(`search: [messages]` in `charts/platform-tenants/values.yaml`) pins the name rather than a prefix.
+(`search: [messages]` in `charts/control-plane/apps.yaml`) pins the name rather than a prefix.
 
 ## How mail flows
 

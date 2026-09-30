@@ -28,6 +28,7 @@ measure) need network.
 from __future__ import annotations
 
 import functools
+import json
 import os
 import pathlib
 import re
@@ -105,10 +106,20 @@ def case(name: str) -> dict:
 def render_case(name: str) -> str:
     """One case as `helm template` prints it: chart, release and namespace from the index,
     never defaulted — both land in the output, and a defaulted namespace is whatever the
-    operator's kubectl context happens to be."""
+    operator's kubectl context happens to be. `tenantsFrom: <cluster case>` layers that
+    cluster's TENANTS_JSON on as `apps`, the way platform/tenants.yaml does, so the tenants
+    golden renders the real table and not a copy of it."""
     c = case(name)
-    return helm_template_text(ROOT / "charts" / c["chart"], c["release"], c["namespace"],
-                              CASES / f"{name}.yaml")
+    args = (ROOT / "charts" / c["chart"], c["release"], c["namespace"], CASES / f"{name}.yaml")
+    if not (src := c.get("tenantsFrom")):
+        return helm_template_text(*args)
+    apps = json.loads(variables(CASES / f"{src}.yaml")["TENANTS_JSON"])
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+        yaml.safe_dump({"apps": apps}, f)
+    try:
+        return helm_template_text(*args, ["--values", f.name])
+    finally:
+        pathlib.Path(f.name).unlink()
 
 
 # ---------------------------------------------------------------- flux
@@ -178,18 +189,45 @@ def merge(base: dict, over: dict) -> dict:
     return out
 
 
+@functools.lru_cache(maxsize=None)
+def _rendered_configmaps(released: str) -> tuple[dict, ...]:
+    """The ConfigMaps one of our own charts renders — cached on the release as YAML, since
+    every sized check asks for the same layer three times over."""
+    rel = yaml.safe_load(released)
+    ns = rel["metadata"]["namespace"]
+    out = helm_template(local_chart(rel), rel["metadata"]["name"], ns, values_of(rel, []))
+    return tuple(d | {"metadata": {"namespace": ns} | d["metadata"]} for d in out if d.get("kind") == "ConfigMap")
+
+
+def layer_configmap(objects: list[dict], name: str, ns: str) -> dict | None:
+    """A ConfigMap the layer applies, directly or — only when it has none by that name —
+    through a release of one of our charts in it: the Valkey instances read their ACL users
+    from the tenants release this way. Only local charts, so no upstream fetch, and only
+    releases without a `valuesFrom` of their own, which keeps this from recursing."""
+    def find(cms):
+        return next((d for d in cms if d.get("kind") == "ConfigMap" and d["metadata"]["name"] == name
+                     and d["metadata"].get("namespace") == ns), None)
+    if (cm := find(objects)) is not None:
+        return cm
+    for rel in objects:
+        if rel.get("kind") == "HelmRelease" and local_chart(rel) and not rel["spec"].get("valuesFrom"):
+            if (cm := find(_rendered_configmaps(yaml.safe_dump(rel)))) is not None:
+                return cm
+    return None
+
+
 def values_of(rel: dict, objects: list[dict]) -> dict:
     """A HelmRelease's values as helm-controller computes them: each `valuesFrom` entry in
-    order, then `spec.values` on top. Only ConfigMaps in the same built layer are resolved
-    — that is where the sizes live — and a missing ConfigMap or key is an error, as it is
+    order, then `spec.values` on top. Only ConfigMaps the same built layer applies are
+    resolved — that is where the sizes live, and where the tenants release renders the
+    Valkey ACLs (`layer_configmap`) — and a missing ConfigMap or key is an error, as it is
     on the cluster (no `optional: true` here, on purpose)."""
     spec, ns = rel["spec"], rel["metadata"]["namespace"]
     values: dict = {}
     for ref in spec.get("valuesFrom") or []:
         if ref.get("kind") != "ConfigMap":
             raise RuntimeError(f"{ns}/{rel['metadata']['name']}: valuesFrom {ref.get('kind')} is not resolved here")
-        cm = next((d for d in objects if d.get("kind") == "ConfigMap"
-                   and d["metadata"]["name"] == ref["name"] and d["metadata"].get("namespace") == ns), None)
+        cm = layer_configmap(objects, ref["name"], ns)
         if cm is None:
             raise RuntimeError(f"{ns}/{rel['metadata']['name']}: valuesFrom ConfigMap {ref['name']} is not in the build")
         key = ref.get("valuesKey", "values.yaml")

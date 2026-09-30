@@ -51,3 +51,10 @@ hand-written files until the `platform-tenants` chart replaced them).
   means "the platform layer already provisioned it" rather than "this release provisions it".
 - If Valkey ever grows an ACL source outside its own values — a Secret or a file — revisit
   the cache half. CNPG would still need the foreign-namespace decision made separately.
+- *Amended 2026-09-30:* the platform-layer cost above is now zero lines. Each app's
+  provisioning fields live in its entry in `charts/control-plane/apps.yaml`, which the
+  control plane hands to `platform-tenants` as TENANTS_JSON — every app, enabled or not, so
+  this ADR's "provisioned regardless" holds by construction. The ACL users still live in the
+  Valkey releases' values, but those values are now a ConfigMap the tenants chart renders and
+  each instance reads through `valuesFrom`: the seam stays where this ADR drew it (the
+  platform layer owns `aclUsers`), it is just no longer hand-written.

@@ -39,32 +39,8 @@
     },
     "apps": {
       "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "docs": {
-          "type": "boolean"
-        },
-        "drive": {
-          "type": "boolean"
-        },
-        "collabora": {
-          "type": "boolean"
-        },
-        "find": {
-          "type": "boolean"
-        },
-        "calendars": {
-          "type": "boolean"
-        },
-        "projects": {
-          "type": "boolean"
-        },
-        "messages": {
-          "type": "boolean"
-        },
-        "meet": {
-          "type": "boolean"
-        }
+      "additionalProperties": {
+        "type": "boolean"
       }
     },
     "objectStore": {

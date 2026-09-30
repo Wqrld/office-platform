@@ -1,20 +1,17 @@
-# One entry per application. Provisioned whether the app is enabled or not, so a disabled
-# app comes back with its data (adr/0107). Adding an app: an entry here, plus its ACL
-# permissions in platform/valkey/{cache,broker}.yaml, which are the Valkey charts' values.
-# Nothing to run by hand afterwards: the realm and OpenSearch reconcile Jobs pick it up.
+# One entry per application, in the spelling charts/control-plane/apps.yaml documents: that
+# table is the registry, and the control plane hands this chart every app's provisioning
+# fields as TENANTS_JSON (platform/tenants.yaml, `apps: ${TENANTS_JSON}`). Helm merges them
+# over the one entry here, Keycloak's own database — no app, so in no app table.
+# Provisioned whether an app is enabled or not, so a disabled app comes back with its data
+# (adr/0107). The shapes, in one line each:
 #
 #   postgres: {extensions: [...]}  a role and a database on the shared cluster
-#   cache: [cache, broker]         one generated password per Valkey instance
+#   cache: [cache, broker]         one generated password per Valkey instance, and an ACL
+#                                  user there with `valkeyAcl` below (templates/valkey.yaml)
+#   acl: {<instance>: "+cmd ..."}  added to that instance's shared line for this app
 #   oidc: {...}                    a client in the realm, its secret generated here and read
-#                                  back by the app (templates/keycloak.yaml):
-#       shape: lasuite             the default — a confidential browser client with the
-#                                  lasuite back- and front-channel logout at /api/v1.0/logout/
-#       shape: login               a browser client without logout endpoints; `redirect` is
-#                                  its one callback path
-#       shape: resource-server     no browser, no flow: it only introspects tokens
-#       description, name          what the admin console shows; name defaults to the app's
-#       accessTokenLifespan        seconds, per client; the realm default is 300
-#       audiences: [client]        clients added to this one's access-token `aud`
+#                                  back by the app (templates/keycloak.yaml); `shape`
+#                                  lasuite (default), login or resource-server
 #   search: [pattern, ...]         an OpenSearch user whose role grants exactly these index
 #                                  patterns (templates/opensearch.yaml) — the tenant boundary
 #   bucket: true                   may create a bucket and a key on the platform's Garage
@@ -22,82 +19,17 @@ apps:
   keycloak:
     postgres: {}
 
-  docs:
-    postgres: {extensions: [pg_trgm, unaccent]}
-    cache: [cache, broker]
-    bucket: true
-    oidc:
-      description: Docs — samen werken aan documenten
-      # It MUST exceed 900. At login mozilla-django-oidc sets `oidc_id_token_expiration =
-      # now + OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS`, whose default is 900s and which Docs does
-      # not expose — so the refresh middleware does nothing for the first 15 minutes. At the
-      # realm's 300s the token dies at minute 5 and search silently falls back to titles
-      # until minute 15. After the first refresh lasuite tracks the real `expires_in`, so
-      # only the first window is wrong.
-      accessTokenLifespan: 1200
-      # Puts `find` in the access token's `aud`. Without it Keycloak refuses to introspect a
-      # Docs token for Find and returns `active: false` — Find 400s, and Docs swallows that
-      # into the title-only search fallback. Verified: a freshly minted token introspects as
-      # inactive until this mapper exists.
-      audiences: [find]
-
-  # Collabora is NOT a client: it never talks to Keycloak. Drive hands it a short-lived WOPI
-  # access token, and it authenticates back to Drive with that token alone.
-  drive:
-    postgres: {extensions: [ltree, pg_trgm, unaccent]}
-    cache: [cache, broker]
-    bucket: true
-    oidc: {description: Drive — bestanden delen en samen bewerken}
-
-  # A resource SERVER: it only introspects access tokens other clients issued, so no
-  # browser reaches it and it needs no grant — a confidential client authenticates to the
-  # introspection endpoint with its secret alone. Its name is also the audience Find
-  # resolves its searchable indices from, so it stays `find` (apps/find/deps.yaml,
-  # OIDC_RS_CLIENT_ID).
-  find:
-    postgres: {}
-    cache: [cache]
-    oidc: {shape: resource-server, description: Find — zoeken over alle applicaties}
-    # `find-*` and nothing else: cluster_composite_ops comes with every role, for the bulk
-    # indexing path — without it `manage.py index` fails on the first batch.
-    search: [find-*]
-
-  # One database, two schemas: Django's `public`, SabreDAV's `sabre`. Its initdb Job opens
-  # `postgres` first, so the role needs CONNECT there — PUBLIC has it on a stock cluster.
-  # Dramatiq's result backend shares the `cache` credential: same instance, same user.
-  calendars:
-    postgres: {}
-    cache: [cache, broker]
-    oidc: {description: Calendars — agenda's delen en vergaderingen plannen}
-
-  # DATABASE_URL is assembled unescaped, which is why the generator has no symbols.
-  # No back- or front-channel logout URL: Projects has neither endpoint. Its logout sends the
-  # browser to Keycloak's end_session endpoint, so a logout started here ends both; one
-  # started in another app leaves this session alive until its token expires.
-  projects:
-    postgres: {}
-    cache: [cache]
-    bucket: true
-    oidc: {shape: login, redirect: /oidc-callback, description: "Projects — borden, lijsten en kaarten voor projectbeheer"}
-
-  meet:
-    postgres: {extensions: [pg_trgm]}
-    cache: [cache, broker]
-    bucket: true
-    oidc: {description: Meet — videovergaderen}
-
-  messages:
-    postgres: {extensions: [unaccent]}
-    cache: [cache, broker]
-    bucket: true
-    oidc: {description: Messages — gedeelde mailboxen}
-    # The index is named `messages`, fixed in its code (search/mapping.py) — no prefix to
-    # configure, so the pattern pins the name itself.
-    search: [messages]
-
-  # Room state and the egress queue: broker only, since a lost room record is a dropped call.
-  livekit:
-    cache: [broker]
+# Each Valkey instance's ACL line for every app that has a password there, before the
+# app's own `acl` extras. Rendered as `valkey-<instance>-acl-values`, the ConfigMap the
+# instance's HelmRelease reads its `auth.aclUsers` from (platform/valkey/).
+valkeyAcl:
+  # No ambient access: with no NetworkPolicy enforcement on this cluster (adr/0103), these
+  # ACLs are the only isolation between applications.
+  default: "off -@all"
+  # `+flushdb` on the cache only: Django's `cache.clear()` calls it and fails with
+  # `ConnectionInterrupted` without it. Queued work lives on the broker, which never gets it.
+  cache: "~* &* +@all -@dangerous +flushdb"
+  broker: "~* &* +@all -@dangerous"
 
 # Valkey passwords drawn before generation was per app live in `valkey-<instance>-users`
 # next to `default`. Live, and a re-draw logs every user out, so they stay there.

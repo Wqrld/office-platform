@@ -66,3 +66,27 @@ spec:
     {{- end }}
     {{- end }}{{ end }}
 {{- end }}
+{{- range $inst := list "cache" "broker" }}
+---
+# The instance's `auth.aclUsers`, read by its HelmRelease through `valuesFrom`
+# (platform/valkey/): the permissions are the Valkey chart's values, so they are rendered
+# here from the same table as the passwords and a new app is one entry, not one line per
+# instance. Nothing here waits on Valkey, so reading it from there is no cycle. The watch
+# label makes helm-controller reconcile the instance when this changes, not at its interval.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: valkey-{{ $inst }}-acl-values
+  namespace: {{ $.Values.namespaces.data }}
+  labels:
+    {{- include "tenants.labels" $ | nindent 4 }}
+    reconcile.fluxcd.io/watch: Enabled
+data:
+  values.yaml: |
+    auth:
+      aclUsers:
+        default: {permissions: {{ $.Values.valkeyAcl.default | quote }}}
+        {{- range $app, $t := $.Values.apps }}{{ if has $inst $t.cache }}
+        {{ $app }}: {permissions: {{ trim (printf "%s %s" (index $.Values.valkeyAcl $inst) (get ($t.acl | default dict) $inst)) | quote }}}
+        {{- end }}{{ end }}
+{{- end }}

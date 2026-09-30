@@ -1,0 +1,6 @@
+# expect: apps.livekit is not chosen
+# LiveKit runs when Meet does; a toggle of its own could only disagree with that.
+domain: example.org
+gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
+apps: {livekit: true}
+registry: {url: oci://registry.example.org/office}

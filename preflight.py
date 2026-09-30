@@ -159,7 +159,8 @@ def main():
     check_loadbalancer(cluster["loadBalancer"])
     check_dns(path)
     check_smtp(v.get("smtp", defaults["smtp"])["configured"])
-    check_hf(v.get("apps", {}).get("meet", defaults["apps"]["meet"]))
+    table = yaml.safe_load((HERE / "charts/control-plane/apps.yaml").read_text())
+    check_hf(v.get("apps", {}).get("meet", table["meet"]["default"]))
     print("\nFAIL — fix the above before applying" if failed else "\nready")
     return int(failed)
 

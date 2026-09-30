@@ -55,7 +55,7 @@ unconditionally, so the `services` M2M stays empty.
 Find must exist before Docs' flag Job and reindex run — `docs: {requires: [find]}` in the
 control plane's app table makes `app-docs` wait for `app-find`. Its realm client
 and OpenSearch user are the tenants chart's (`oidc` and `search` in
-`charts/platform-tenants/values.yaml`), applied by its reconcile Jobs.
+`charts/control-plane/apps.yaml`), applied by its reconcile Jobs.
 
 ## Known limitations, recorded not fixed
 

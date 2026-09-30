@@ -8,6 +8,8 @@
 #              `platform.name`, so it is part of the output and must be pinned per case,
 #              not defaulted from the filename
 #   namespace  release namespace; several templates emit it
+#   tenantsFrom  platform-tenants only: the cluster case whose TENANTS_JSON fills `apps`,
+#              as platform/tenants.yaml does — the golden renders the real table
 #
 # `release` and `namespace` mirror what apps/<app>/*.yaml actually installs. A case
 # whose release name drifts from the HelmRelease is testing a shape nothing deploys.
@@ -117,6 +119,7 @@ cases:
     chart: platform-tenants
     release: tenants
     namespace: office-data
+    tenantsFrom: cluster-full
     description: Every app's platform-side objects, on Garage. What platform/tenants.yaml installs.
 
   # ---- the minimal and maximal ends of each chart --------------------------------------

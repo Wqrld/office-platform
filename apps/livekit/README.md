@@ -44,8 +44,8 @@ as `env[0]` and the same port names; check egress's `EGRESS_CONFIG_BODY` likewis
 - API key `office` / secret from `meet-service-tokens` (`platform/secrets/service-tokens.yaml`,
   key `livekit`). LiveKit, egress and Meet's backend read the same value; the same pair
   signs the webhooks LiveKit sends Meet.
-- Valkey user `livekit` on the broker instance, db 1 (`charts/platform-tenants/values.yaml`,
-  `platform/valkey/broker.yaml`).
+- Valkey user `livekit` on the broker instance, db 1 (`cache: [broker]` in
+  `charts/control-plane/apps.yaml`).
 - Egress holds **no S3 credentials**: Meet's backend passes bucket, endpoint and keys in
   each egress request.
 

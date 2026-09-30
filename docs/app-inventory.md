@@ -6,8 +6,9 @@ apps that run are also on the values they explain.
 
 ## Runs on this platform
 
-`apps/<name>/` exists, the control plane knows it (`charts/control-plane/apps.yaml`), the
-platform provisions for it (`charts/platform-tenants/values.yaml`).
+`apps/<name>/` exists and it has an entry in `charts/control-plane/apps.yaml`, which is both
+what the control plane knows of it and what the platform provisions for it. Keycloak is the
+exception: no app, so its database is `charts/platform-tenants/values.yaml`'s own entry.
 
 | App | Workloads | PG | Cache | S3 | Search | OIDC | Chart | Hostname |
 |---|---|:-:|:-:|:-:|:-:|:-:|---|---|

@@ -10,9 +10,10 @@ control plane itself. Nothing is hardcoded: the layers, their paths, their size 
 and the enabled apps are all read from the rendered chart, so a cluster that turns an app
 off or runs external S3 is built exactly as it would reconcile.
 
-Two invariants ride along. The application table in charts/control-plane/templates/
-_helpers.tpl and the directories under apps/ must agree exactly — an app in one and not
-the other is either undeployable or unmentionable. And the check that pays for this script
+Two invariants ride along. The application table, charts/control-plane/apps.yaml, and
+the directories under apps/ must agree exactly — an app in one and not the other is either
+undeployable or unmentionable — and examples/cluster.yaml, the file an organisation copies,
+must name every app it can choose. And the check that pays for this script
 on its own: **no ${VAR} may survive**. A typo'd `${BASE_DOMIAN}` is an error nowhere —
 Flux leaves an unknown variable alone, kustomize is happy, the API server accepts it, and
 the app comes up serving "docs.${BASE_DOMIAN}", which resolves for nobody.
@@ -38,7 +39,16 @@ def app_table_agrees() -> list[str]:
     table, dirs = set(apps), set(render.APPS)
     problems = [f"in the app table but not under apps/: {sorted(table - dirs)}"] * bool(table - dirs) + \
                [f"under apps/ but not in the app table: {sorted(dirs - table)}"] * bool(dirs - table)
+    example = next(d for d in yaml.safe_load_all((render.ROOT / "examples" / "cluster.yaml").read_text())
+                   if d and d["kind"] == "HelmRelease")
+    chosen = set(example["spec"]["values"]["apps"])
+    choosable = {n for n, a in apps.items() if not a.get("internal")}
+    if chosen != choosable:
+        problems.append(f"examples/cluster.yaml `apps` should name exactly {sorted(choosable)}, "
+                        f"names {sorted(chosen)}")
     for name, app in sorted(apps.items()):
+        if app.get("internal") == ("default" in app):
+            problems.append(f"{name}: an internal app has no `default`, every other app has one")
         entry = app.get("switcher")
         if (name in NO_SWITCHER) != (entry is None):
             problems.append(f"{name}: a switcher entry is {'not ' if entry else ''}expected (tests/build.py NO_SWITCHER)")

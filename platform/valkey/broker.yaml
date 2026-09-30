@@ -9,6 +9,9 @@ spec:
       chart: valkey
       version: "0.12.0"
       sourceRef: {kind: HelmRepository, name: valkey, namespace: flux-system}
+  # `auth.aclUsers`, as on the cache (cache.yaml).
+  valuesFrom:
+    - {kind: ConfigMap, name: valkey-broker-acl-values}
   install: {disableWaitForJobs: true}
   upgrade: {disableWaitForJobs: true}
   values:
@@ -24,24 +27,3 @@ spec:
     auth:
       enabled: true
       usersExistingSecret: valkey-broker-acl
-      aclUsers:
-        default:   {permissions: "off -@all"}
-        docs:      {permissions: "~* &* +@all -@dangerous"}
-        drive:     {permissions: "~* &* +@all -@dangerous"}
-        # `+keys` on top of the shared shape, and ONLY here. Dramatiq's dispatch is a Lua
-        # script that calls KEYS, which lives in @dangerous — so the worker fails with
-        # `ACL failure in script: User calendars has no permissions to run the 'keys'
-        # command` and retries forever, three seconds at a time. Celery never calls KEYS,
-        # which is why Docs and Drive have never needed this.
-        #
-        # It grants no reach these users do not already have: every pattern here is `~*`.
-        # It does make the case for narrowing those patterns sharper, since KEYS turns
-        # "can read any key" into "can enumerate every key" — see README.md.
-        calendars: {permissions: "~* &* +@all -@dangerous +keys"}
-        # Meet's summary service (Celery) — the transcript queue.
-        meet:      {permissions: "~* &* +@all -@dangerous"}
-        # Messages' Celery: inbound delivery, outbound sending, imports, reindexing.
-        messages:  {permissions: "~* &* +@all -@dangerous"}
-        # LiveKit: room state, node registry and the egress request queue. Its Redis client
-        # also SUBSCRIBEs, which `&*` covers.
-        livekit:   {permissions: "~* &* +@all -@dangerous"}

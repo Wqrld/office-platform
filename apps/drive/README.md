@@ -67,7 +67,7 @@ an item stuck in `analyzing`. Worth a one-line PR upstream (`.get("ContentType")
 ## Postgres needs three extensions, and only two are visible from the migrations
 
 `django_ltree.0001` and `core.00006` both run `CREATE EXTENSION IF NOT EXISTS`, which the
-non-superuser `drive` role cannot do — so `charts/platform-tenants/values.yaml` pre-creates
+non-superuser `drive` role cannot do — so its `postgres` entry in `charts/control-plane/apps.yaml` pre-creates
 `ltree` and `pg_trgm` and those migrations become no-ops.
 
 `unaccent` has **no migration at all**. `core/api/filters.py` filters on

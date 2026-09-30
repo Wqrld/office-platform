@@ -21,6 +21,16 @@ Kustomization.
 no policy controller. The egress graph is written down so it starts working the day a
 policy-capable CNI arrives; do not cite it as segmentation.
 
+## Adding an application
+
+A directory here, and one entry in `charts/control-plane/apps.yaml` — its default, hosts,
+dependencies, switcher entry and everything the platform provisions for it (database, cache
+users and their ACLs, OIDC client, bucket, search user); that file's header is the field
+reference. Outside both, only what pins and tests it: its source in
+`charts/control-plane/templates/sources.yaml`, its `updatecli/updatecli.d/` file, its test
+case, and its line in `examples/cluster.yaml`. `tests/build.py` asserts the table, this
+directory and the example agree.
+
 ## The switcher
 
 One service list, one panel, four buttons. `charts/control-plane/apps.yaml` gives each
