@@ -8,12 +8,26 @@ the Gateway, the object store route, or either application. It needs a realm use
 DOMAIN=example.org E2E_USER=<user> E2E_PASSWORD=<password> ./e2e.py
 ```
 
-Upstream chart at git tag `v0.21.2`, path `src/helm/drive`. Drive's shape is close to
+The fork's chart at git tag `v0.23.0-office.1`, path `src/helm/drive` (see The fork). Drive's shape is close to
 Docs' with three differences: uploads go from the browser straight to the object store
 (presigned, so `s3.<domain>` is published and the bucket has CORS — `deps.yaml`), the chart
 has no `envFrom` (a `postRenderers` patch adds it — `release.yaml`, `tests/check-secrets.py`),
 and collaborative editing is WOPI to Collabora. How each value is wired is commented on the
 value itself; below is what is not visible from the files.
+
+## The fork
+
+Drive runs from `github.com/Wqrld/drive`: upstream `main` (after `v0.23.0`) plus document
+thumbnails in the right panel, a celery task that posts each ready file to Collabora's
+`/cool/convert-to/png` and stores the first page beside it (`WOPI_COLLABORA_OPTIONS`,
+`ConvertServiceUrl`). The feature is on branch `feature/wopi-thumbnails`, meant for upstream;
+the `office` branch adds one fork-only commit, `.github/workflows/ghcr.yml`, which publishes
+`ghcr.io/wqrld/drive-backend` and `-frontend` on every `v*-office.*` tag. One tag pins chart
+and both images. Once upstream releases the feature, point `sources.yaml` back at
+`suitenumerique/drive` and drop the image `repository` lines in `release.yaml`.
+
+Thumbnails exist for files that became ready after the deploy. Older ones get theirs with
+`kubectl -n office-drive exec deploy/drive-backend -- python manage.py generate_thumbnails`.
 
 ## The WOPI client configuration lives in an evicting cache
 

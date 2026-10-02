@@ -1,19 +1,19 @@
-# Drive, the same shape as docs.yaml: La Suite publishes no Helm repository (adr/0104), so
-# one git tag pins the chart AND the images. The chart declares `appVersion: latest`, which
-# pins nothing, so the image tags are set explicitly and must move with it.
+# Drive: one git tag of the FORK pins the chart AND both images, like Projects. The fork is
+# upstream main plus document thumbnails (apps/drive/README.md, The fork); its `office`
+# branch publishes ghcr.io/wqrld/drive-{backend,frontend} on every `v*-office.*` tag, and the
+# images carry the git tag unchanged. Pointing this back at `suitenumerique/drive` before
+# upstream releases thumbnails would silently drop them.
 name: "La Suite Drive"
 
 sources:
   drive:
-    name: "latest Drive release"
+    name: "latest Drive office release"
     kind: gittag
     spec:
-      url: "https://github.com/suitenumerique/drive"
+      url: "https://github.com/Wqrld/drive"
       versionfilter:
-        kind: semver
-        # A floor, not a ceiling. Drive also publishes `-preprod` tags on the same commits;
-        # semver treats a prerelease as lower than the release, so they are not offered.
-        pattern: ">=0.21.0"
+        kind: regex
+        pattern: '^v\d+\.\d+\.\d+-office\.\d+$'
 
 targets:
   chart:
@@ -22,8 +22,8 @@ targets:
     sourceid: drive
     spec:
       file: "charts/control-plane/templates/sources.yaml"
-      matchpattern: 'url: https://github\.com/suitenumerique/drive\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
-      replacepattern: 'url: https://github.com/suitenumerique/drive\n  ref: {tag: {{ source "drive" }}}'
+      matchpattern: 'url: https://github\.com/Wqrld/drive\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+\}'
+      replacepattern: 'url: https://github.com/Wqrld/drive\n  ref: {tag: {{ source "drive" }}}'
 
   # Two tags in release.yaml — the backend takes the top-level `image`, the frontend
   # overrides it. One pattern rather than two yamlpath keys because they must never hold
@@ -34,5 +34,5 @@ targets:
     sourceid: drive
     spec:
       file: "apps/drive/release.yaml"
-      matchpattern: '(image: \{tag: |image:\n(?:[ \t]*#.*\n)*[ \t]+tag: )v[0-9]+\.[0-9]+\.[0-9]+'
+      matchpattern: '(tag: )v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+'
       replacepattern: '${1}{{ source "drive" }}'
