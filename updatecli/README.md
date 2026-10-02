@@ -19,7 +19,7 @@ Run both from the repository root — target paths are relative to the working d
 | valkey chart ×2 | `platform/valkey/{cache,broker}.yaml` | chart repo index |
 | Docs chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/docs` git tags |
 | Docs image tags ×3 | `apps/docs/release.yaml` | the same git tag |
-| Drive chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/drive` git tags |
+| Drive chart tag | `charts/control-plane/templates/sources.yaml` | `Wqrld/drive` `v*-office.*` git tags |
 | Drive image tags ×2 | `apps/drive/release.yaml` | the same git tag |
 | collabora-online chart | `apps/collabora/release.yaml` | chart repo index |
 | Meet chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/meet` git tags |

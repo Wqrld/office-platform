@@ -41,14 +41,17 @@ spec:
     /*
     !/src/helm
 ---
-# Chart lives in-tree at src/helm/drive; the git tag is the pin.
+# Drive. Chart lives in-tree at src/helm/drive. Until the thumbnails PR lands upstream,
+# chart and images come from the FORK's git tag — the same tag publishes
+# ghcr.io/wqrld/drive-{backend,frontend} (apps/drive/README.md, The fork), so one pin moves
+# all three. When it lands, only the url changes back to suitenumerique/drive.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-{{ include "platform.metadata" "suitenumerique-drive" }}
+{{ include "platform.metadata" "wqrld-drive" }}
 spec:
   interval: 24h
-  url: https://github.com/suitenumerique/drive
-  ref: {tag: v0.21.2}
+  url: https://github.com/Wqrld/drive
+  ref: {tag: v0.23.0-office.1}
   ignore: |
     /*
     !/src/helm
