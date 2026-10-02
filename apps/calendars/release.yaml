@@ -21,9 +21,8 @@ spec:
   dependsOn: [{name: calendars-deps}]
   chart:
     spec:
-      chart: calendars
-      version: "0.1.0"
-      sourceRef: {kind: HelmRepository, name: calendars, namespace: flux-system}
+      chart: src/helm/calendars
+      sourceRef: {kind: GitRepository, name: wqrld-calendars, namespace: flux-system}
   install:
     # The three Jobs below are Helm hooks, which Helm waits on itself. This covers the
     # chart's own `ttlSecondsAfterFinished: 30`, which otherwise races Flux's Job wait.
