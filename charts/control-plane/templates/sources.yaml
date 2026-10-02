@@ -76,30 +76,21 @@ spec:
   interval: 24h
   url: https://collaboraonline.github.io/online
 ---
-# Calendars. The chart is written IN the application's own repo (src/helm/calendars) the way
-# adr/0104 expects, but it is not in any upstream tag yet — v0.1.0 predates it and the
-# upstreaming PR is open. Rather than pin a moving branch (which policy/pins.rego denies,
-# correctly) or make a second commit-pin exception of Find's, that chart is packaged and
-# published to our own Helm repository, and consumed here as an ordinary versioned chart.
-#
-# When the PR lands this becomes a GitRepository on suitenumerique/calendars at a tag, and
-# apps/calendars/release.yaml's `chart.spec` is the only other thing that changes.
-#
-# The IMAGES come from the same fork, and have to. `dockerflow`, which serves the
-# `/__heartbeat__` and `/__lbheartbeat__` probes this chart configures, was added after
-# upstream's `v0.1.0`, and upstream's own `:main` tag was last built months before it — so
-# every published upstream image 404s the chart's default probes. The fork's `v0.1.1`
-# carries the chart commit plus the CI fix that makes those images run non-root.
-#
-# The chart version and the image tags stay independent pins: the chart declares
-# `appVersion: latest`, and the images are tagged from git tags with the `v` stripped
-# (`v0.1.1` publishes `…-backend:0.1.1`). See updatecli/updatecli.d/calendars.yaml.
+# Calendars. The same arrangement as Projects: the chart is src/helm/calendars in the fork,
+# not in any upstream tag yet (v0.1.0 predates it; the upstreaming PR is open), and the
+# fork's tag also publishes the images. Those have to be the fork's: upstream's images
+# predate the `dockerflow` endpoints behind this chart's probes, and the fork's tags also
+# carry the CI fix that makes them run non-root. When the PR lands, only the url changes.
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-{{ include "platform.metadata" "calendars" }}
+kind: GitRepository
+{{ include "platform.metadata" "wqrld-calendars" }}
 spec:
   interval: 24h
-  url: https://gh.haaijer.dev
+  url: https://github.com/Wqrld/calendars
+  ref: {tag: v0.1.1}
+  ignore: |
+    /*
+    !/src/helm
 ---
 # Projects. suitenumerique/projects ships no chart; ours is written in the application's
 # own repo (src/helm/projects, copied from Docs' so it reads as theirs) and the upstreaming

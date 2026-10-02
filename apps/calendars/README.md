@@ -24,18 +24,11 @@ how the values are wired — `PG*` names, the two schemas, Dramatiq's three URLs
 
 The chart is written in the application's own repo at `src/helm/calendars`, which is exactly
 what `adr/0104` expects. It is **not in any upstream tag**: `v0.1.0` predates it and the
-upstreaming PR is open. So it is packaged and served from our own Helm repository
-(`https://gh.haaijer.dev`, `charts/control-plane/templates/sources.yaml`) and consumed as an ordinary
-versioned chart.
+upstreaming PR is open. So, like Projects and Messages, it comes from the fork's git tag —
+the same tag that publishes the images — and one pin moves both.
 
-The alternatives were worse. Pinning `suitenumerique/calendars` at `main` is denied by
-`policy/pins.rego`, correctly. Pinning a commit is Find's exception and should stay an
-exception of one. Vendoring the chart into `charts/` means maintaining it in two
-places for the length of the review.
-
-**When the PR lands:** the `HelmRepository` becomes a `GitRepository` on
-`github.com/suitenumerique/calendars` at a tag with `ignore: !/src/helm`, and
-`release.yaml`'s `chart.spec` becomes `chart: src/helm/calendars`. Nothing else changes.
+**When the PR lands:** the `wqrld-calendars` GitRepository's url becomes
+`github.com/suitenumerique/calendars` at the tag that carries the chart. Nothing else changes.
 
 ## Pins
 
