@@ -36,7 +36,7 @@ spec:
     image:
       repository: ghcr.io/wqrld/drive-backend
       # The chart declares appVersion: latest, which is useless as a pin.
-      tag: v0.23.0-office.3
+      tag: v0.23.0-office.4
 
     # Routing is ours — surround.yaml. Already false at this tag; stated anyway so a
     # default flip upstream cannot quietly publish a second path to the application.
@@ -164,7 +164,7 @@ spec:
         enabled: true
 
     frontend:
-      image: {repository: ghcr.io/wqrld/drive-frontend, tag: v0.23.0-office.3}
+      image: {repository: ghcr.io/wqrld/drive-frontend, tag: v0.23.0-office.4}
       pdb: {enabled: false}
       securityContext:
         allowPrivilegeEscalation: false
