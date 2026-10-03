@@ -33,6 +33,7 @@ spec:
       data:
         REDIS_URL: "redis://messages:{{ .cache }}@valkey-cache.office-data.svc.cluster.local:6379/1"
         CELERY_BROKER_URL: "redis://messages:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+        DJANGO_CELERY_BROKER_TRANSPORT_OPTIONS: '{"global_keyprefix": "messages:"}'
   data:
     - {secretKey: cache, remoteRef: {key: valkey-cache-acl, property: messages}}
     - {secretKey: broker, remoteRef: {key: valkey-broker-acl, property: messages}}

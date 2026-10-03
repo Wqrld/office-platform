@@ -24,6 +24,7 @@ spec:
       data:
         REDIS_URL: "redis://drive:{{ .cache }}@valkey-cache.office-data.svc.cluster.local:6379/1"
         DJANGO_CELERY_BROKER_URL: "redis://drive:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+        DJANGO_CELERY_BROKER_TRANSPORT_OPTIONS: '{"global_keyprefix": "drive:"}'
   data:
     - {secretKey: cache, remoteRef: {key: valkey-cache-acl, property: drive}}
     - {secretKey: broker, remoteRef: {key: valkey-broker-acl, property: drive}}
