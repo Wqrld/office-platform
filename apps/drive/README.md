@@ -8,7 +8,7 @@ the Gateway, the object store route, or either application. It needs a realm use
 DOMAIN=example.org E2E_USER=<user> E2E_PASSWORD=<password> ./e2e.py
 ```
 
-The fork's chart at git tag `v0.23.0-office.5`, path `src/helm/drive` (see The fork). Drive's shape is close to
+The fork's chart at git tag `v0.23.0-office.6`, path `src/helm/drive` (see The fork). Drive's shape is close to
 Docs' with three differences: uploads go from the browser straight to the object store
 (presigned, so `s3.<domain>` is published and the bucket has CORS — `deps.yaml`), the chart
 has no `envFrom` (a `postRenderers` patch adds it — `release.yaml`, `tests/check-secrets.py`),
