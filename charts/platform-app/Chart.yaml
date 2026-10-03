@@ -2,4 +2,4 @@ apiVersion: v2
 name: platform-app
 description: The surround — routes, traffic policies, disruption budgets and policy objects around a workload another chart created.
 type: application
-version: 2.2.7
+version: 2.2.8
