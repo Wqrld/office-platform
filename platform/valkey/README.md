@@ -36,6 +36,14 @@ The credential is the isolation, and that is the decision: tightening to key pat
 verifying per app that the upstream chart exposes a key prefix and that Celery's own keys
 honour it, and a pattern an app does not use is a cache that silently denies every write.
 
+A credential does not keep tasks apart, though. Docs, Drive and Messages share the broker's
+db 0, and Docs and Drive both use Celery's default `celery` queue, so each worker took the
+other's tasks and discarded them as unregistered. Every Celery app therefore gets
+`DJANGO_CELERY_BROKER_TRANSPORT_OPTIONS={"global_keyprefix": "<app>:"}` (the profile's
+`brokerOptions`, charts/platform-deps/templates/cache.yaml), which prefixes all of Kombu's
+keys. That is also the prefix the broker's key patterns can be narrowed to, once Celery's
+pub/sub channels are confirmed to carry it.
+
 Never add a `dataFrom` entry to `valkey-{cache,broker}-users`. That was the original shape
 and it does not work; the file's header comment has the full account. Short version, all
 three measured against this cluster:

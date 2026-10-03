@@ -33,6 +33,7 @@ spec:
       data:
         REDIS_URL: "redis://full:{{ .cache }}@valkey-cache.office-data.svc.cluster.local:6379/1"
         DJANGO_CELERY_BROKER_URL: "redis://full:{{ .broker }}@valkey-broker.office-data.svc.cluster.local:6379/0"
+        DJANGO_CELERY_BROKER_TRANSPORT_OPTIONS: '{"global_keyprefix": "full:"}'
   data:
     - {secretKey: cache, remoteRef: {key: valkey-cache-acl, property: full}}
     - {secretKey: broker, remoteRef: {key: valkey-broker-acl, property: full}}

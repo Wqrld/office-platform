@@ -44,10 +44,14 @@ objectstore:
 
 # Cache is addressed as a URL, not as parts: every consumer we have takes a connection
 # string. The profile therefore names the env var per USE (cache, broker), not per concept.
+# `brokerOptions` prefixes every Celery key with the app name: the apps share the broker's db
+# and Celery's default queue name, so without it each worker takes, and discards, the
+# others' tasks.
 cache:
   django:
     cache: REDIS_URL
     broker: DJANGO_CELERY_BROKER_URL
+    brokerOptions: DJANGO_CELERY_BROKER_TRANSPORT_OPTIONS
   # Dramatiq, not Celery. The third URL is what earns this its own profile: Dramatiq keeps
   # task results in a SECOND store, and that URL carries the password, so it cannot be
   # composed in the app's own values. Which instance `results` points at is the app's
@@ -56,6 +60,7 @@ cache:
   celery:
     cache: REDIS_URL
     broker: CELERY_BROKER_URL
+    brokerOptions: DJANGO_CELERY_BROKER_TRANSPORT_OPTIONS
   dramatiq:
     cache: REDIS_URL
     broker: DRAMATIQ_BROKER_URL

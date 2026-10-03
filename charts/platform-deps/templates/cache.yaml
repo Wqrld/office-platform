@@ -27,6 +27,9 @@ spec:
         {{- if not $envName }}{{ fail (printf "cache profile %q has no env name for use %q" $c.env $use) }}{{ end }}
         {{ $envName }}: "redis://{{ $app }}:{{ printf "{{ .%s }}" $use }}@{{ $inst.host }}:{{ $inst.port }}/{{ $inst.db }}"
         {{- end }}
+        {{- if and (has "broker" $c.uses) $keys.brokerOptions }}
+        {{ $keys.brokerOptions }}: '{"global_keyprefix": "{{ $app }}:"}'
+        {{- end }}
   data:
     {{- range $use := $c.uses }}
     {{- $inst := index $c.instances $use }}
