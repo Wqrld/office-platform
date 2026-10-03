@@ -36,7 +36,7 @@ spec:
     image:
       repository: ghcr.io/wqrld/drive-backend
       # The chart declares appVersion: latest, which is useless as a pin.
-      tag: v0.23.0-office.1
+      tag: v0.23.0-office.2
 
     # Routing is ours — surround.yaml. Already false at this tag; stated anyway so a
     # default flip upstream cannot quietly publish a second path to the application.
@@ -112,7 +112,7 @@ spec:
         WOPI_DISABLE_CHAT: "1"          # unmoderated side channel inside the editor
         # Document thumbnails: a Celery task posts each ready file to Collabora's
         # convert-to, in-cluster, and stores the first page next to the file.
-        WOPI_COLLABORA_OPTIONS: '{"ConvertServiceUrl": "http://collabora-online.office-collabora.svc.cluster.local:9980/cool/convert-to"}'
+        WOPI_COLLABORA_OPTIONS: '{"ThumbnailServiceUrl": "http://collabora-online.office-collabora.svc.cluster.local:9980/cool/convert-to"}'
         # Every ten minutes, not nightly. The client configuration lives in the Django
         # cache, which is `allkeys-lru` and does not survive a Valkey restart — and on a
         # miss `get_wopi_configuration()` returns an empty default, so every document
@@ -164,7 +164,7 @@ spec:
         enabled: true
 
     frontend:
-      image: {repository: ghcr.io/wqrld/drive-frontend, tag: v0.23.0-office.1}
+      image: {repository: ghcr.io/wqrld/drive-frontend, tag: v0.23.0-office.2}
       pdb: {enabled: false}
       securityContext:
         allowPrivilegeEscalation: false
