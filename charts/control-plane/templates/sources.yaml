@@ -51,7 +51,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/Wqrld/drive
-  ref: {tag: v0.23.0-office.2}
+  ref: {tag: v0.23.0-office.3}
   ignore: |
     /*
     !/src/helm

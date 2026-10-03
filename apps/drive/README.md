@@ -8,7 +8,7 @@ the Gateway, the object store route, or either application. It needs a realm use
 DOMAIN=example.org E2E_USER=<user> E2E_PASSWORD=<password> ./e2e.py
 ```
 
-The fork's chart at git tag `v0.23.0-office.2`, path `src/helm/drive` (see The fork). Drive's shape is close to
+The fork's chart at git tag `v0.23.0-office.3`, path `src/helm/drive` (see The fork). Drive's shape is close to
 Docs' with three differences: uploads go from the browser straight to the object store
 (presigned, so `s3.<domain>` is published and the bucket has CORS — `deps.yaml`), the chart
 has no `envFrom` (a `postRenderers` patch adds it — `release.yaml`, `tests/check-secrets.py`),
@@ -29,7 +29,9 @@ and both images. Once upstream releases the feature, point `sources.yaml` back a
 Thumbnails exist for files that became ready after the deploy. Older ones get theirs with
 `kubectl -n office-drive exec deploy/drive-backend -- python manage.py generate_thumbnails`.
 Run it again after an upgrade that changes how thumbnails are stored: `v0.23.0-office.2`
-versions their keys, so every file started without one.
+versions their keys, so every file started without one. `v0.23.0-office.3` renders every
+format a client opens (PDF included), known after the next discovery: run
+`python manage.py trigger_wopi_configuration` first, then `generate_thumbnails`.
 
 ## The WOPI client configuration lives in an evicting cache
 
