@@ -20,8 +20,8 @@ data:
   TLS_ISSUER: "letsencrypt-gateway"
   ACME_EMAIL: "wereld03@gmail.com"
   S3_MODE: "garage"
-  TLS_HOSTS: "[\"id.demo.haaijer.dev\",\"s3.demo.haaijer.dev\",\"calendars.demo.haaijer.dev\",\"collabora.demo.haaijer.dev\",\"docs.demo.haaijer.dev\",\"drive.demo.haaijer.dev\",\"find.demo.haaijer.dev\",\"livekit.demo.haaijer.dev\",\"meet.demo.haaijer.dev\",\"projects.demo.haaijer.dev\"]"
-  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.demo.haaijer.dev/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.demo.haaijer.dev\"},{\"logo\":\"https://docs.demo.haaijer.dev/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.demo.haaijer.dev\"},{\"logo\":\"https://drive.demo.haaijer.dev/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.demo.haaijer.dev\"},{\"logo\":\"https://meet.demo.haaijer.dev/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.demo.haaijer.dev\"},{\"logo\":\"https://projects.demo.haaijer.dev/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.demo.haaijer.dev\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.demo.haaijer.dev/realms/office/account\"}]}"
+  TLS_HOSTS: "[\"id.demo.haaijer.dev\",\"s3.demo.haaijer.dev\",\"calendars.demo.haaijer.dev\",\"collabora.demo.haaijer.dev\",\"docs.demo.haaijer.dev\",\"drive.demo.haaijer.dev\",\"find.demo.haaijer.dev\",\"livekit.demo.haaijer.dev\",\"meet.demo.haaijer.dev\",\"messages.demo.haaijer.dev\",\"projects.demo.haaijer.dev\"]"
+  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.demo.haaijer.dev/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.demo.haaijer.dev\"},{\"logo\":\"https://docs.demo.haaijer.dev/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.demo.haaijer.dev\"},{\"logo\":\"https://drive.demo.haaijer.dev/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.demo.haaijer.dev\"},{\"logo\":\"https://meet.demo.haaijer.dev/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.demo.haaijer.dev\"},{\"logo\":\"https://messages.demo.haaijer.dev/images/pwa/icons/ios/32.png\",\"maturity\":\"alpha\",\"name\":\"Messages\",\"url\":\"https://messages.demo.haaijer.dev\"},{\"logo\":\"https://projects.demo.haaijer.dev/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.demo.haaijer.dev\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.demo.haaijer.dev/realms/office/account\"}]}"
   TENANTS_JSON: "{\"calendars\":{\"acl\":{\"broker\":\"+keys\"},\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Calendars — agenda's delen en vergaderingen plannen\"},\"postgres\":{}},\"collabora\":{},\"docs\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"accessTokenLifespan\":1200,\"audiences\":[\"find\"],\"description\":\"Docs — samen werken aan documenten\"},\"postgres\":{\"extensions\":[\"pg_trgm\",\"unaccent\"]}},\"drive\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Drive — bestanden delen en samen bewerken\"},\"postgres\":{\"extensions\":[\"ltree\",\"pg_trgm\",\"unaccent\"]}},\"find\":{\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Find — zoeken over alle applicaties\",\"shape\":\"resource-server\"},\"postgres\":{},\"search\":[\"find-*\"]},\"livekit\":{\"cache\":[\"broker\"]},\"meet\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Meet — videovergaderen\"},\"postgres\":{\"extensions\":[\"pg_trgm\"]}},\"messages\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Messages — gedeelde mailboxen\"},\"postgres\":{\"extensions\":[\"unaccent\"]},\"search\":[\"messages\"]},\"projects\":{\"acl\":{\"cache\":\"+info\"},\"bucket\":true,\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Projects — borden, lijsten en kaarten voor projectbeheer\",\"redirect\":\"/oidc-callback\",\"shape\":\"login\"},\"postgres\":{}}}"
 ---
 # Source: control-plane/templates/sources.yaml
@@ -389,6 +389,26 @@ spec:
     - {name: app-livekit}
   postBuild:
     substitute: {"APP":"meet"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: app-messages
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/messages
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"messages"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---
 # Source: control-plane/templates/apps.yaml
