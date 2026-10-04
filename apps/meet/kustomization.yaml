@@ -22,6 +22,7 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
+      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
 
   # The two switcher scripts (one level up — Drive's too; apps/README.md, The switcher),
   # plus the nginx config that injects them, mounted over the frontend image's own

@@ -20,6 +20,7 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
+      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
 
   # The switcher panel `LaGaufreV2` loads by URL (release.yaml's FRONTEND_LAGAUFRE_*),
   # shared with every app; the service list beside it is `../services.yaml`.

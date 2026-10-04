@@ -20,6 +20,7 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
+      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
 
   # The switcher panel. Projects' LaGaufreButton loads `<widgetPath>lagaufre.js` — a
   # directory plus a fixed filename — so the key is `lagaufre.js`, not the file's own name.
