@@ -11,6 +11,7 @@ gateway:
   ip: ""                          # the shared Gateway's address — a MetalLB pool address
   tlsIssuer: letsencrypt-gateway  # ClusterIssuer for the one SAN certificate
   acmeEmail: ""                   # Let's Encrypt's contact for the certificate
+  extraCertificates: []           # TLS Secrets in office-system for hosts routed outside the platform
 # Size: small (5-50 people, one node), medium (50-500, the measured one), large
 # (500-5,000, HA — a shape, not a measurement). apps/README.md (Sizing) is what each one
 # means; every app carries its three sizes in apps/<app>/sizes/.

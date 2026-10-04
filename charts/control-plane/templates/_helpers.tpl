@@ -98,6 +98,15 @@ follow the selection when a Kustomization cannot drop a list item.
 {{- end }}
 
 {{/*
+The Gateway's certificateRefs as JSON: office-tls, then `gateway.extraCertificates`.
+*/}}
+{{- define "platform.gatewayCerts" -}}
+{{- $refs := list }}
+{{- range prepend .Values.gateway.extraCertificates "office-tls" | uniq }}{{ $refs = append $refs (dict "kind" "Secret" "name" .) }}{{ end }}
+{{- $refs | toJson }}
+{{- end }}
+
+{{/*
 The service list every app switcher shows, as one line of JSON in the lagaufre widget's
 schema — `{services: [{name, url, logo, maturity}]}`: each enabled app's `switcher` entry
 from the table, by name, then the account page. Substituted into `apps/services.yaml`

@@ -27,6 +27,14 @@
         "acmeEmail": {
           "type": "string",
           "format": "email"
+        },
+        "extraCertificates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
         }
       }
     },
