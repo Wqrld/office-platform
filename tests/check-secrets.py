@@ -12,7 +12,6 @@ import pathlib
 import re
 import sys
 
-import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
@@ -44,7 +43,7 @@ def check(app: str, srcs: dict) -> bool:
                 t = p["target"]
                 if re.fullmatch(t["kind"], d["kind"]) and re.fullmatch(t["name"], d["metadata"]["name"]):
                     hit[i] += 1
-                    want += [op["value"] for op in yaml.safe_load(p["patch"]) if op["path"].endswith("/envFrom")][0]
+                    want += [op["value"] for op in render.load(p["patch"]) if op["path"].endswith("/envFrom")][0]
             good = got == want
             ok &= good
             print(f"{'ok  ' if good else 'FAIL'} {d['kind']:<11} {d['metadata']['name']:<48} "

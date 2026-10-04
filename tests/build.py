@@ -22,7 +22,6 @@ import pathlib
 import sys
 import tempfile
 
-import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
@@ -35,11 +34,11 @@ NO_SWITCHER = {"collabora", "find", "livekit"}
 
 
 def app_table_agrees() -> list[str]:
-    apps = yaml.safe_load((render.CHART / "apps.yaml").read_text())
+    apps = render.load((render.CHART / "apps.yaml").read_text())
     table, dirs = set(apps), set(render.APPS)
     problems = [f"in the app table but not under apps/: {sorted(table - dirs)}"] * bool(table - dirs) + \
                [f"under apps/ but not in the app table: {sorted(dirs - table)}"] * bool(dirs - table)
-    example = next(d for d in yaml.safe_load_all((render.ROOT / "examples" / "cluster.yaml").read_text())
+    example = next(d for d in render.load_all((render.ROOT / "examples" / "cluster.yaml").read_text())
                    if d and d["kind"] == "HelmRelease")
     chosen = set(example["spec"]["values"]["apps"])
     choosable = {n for n, a in apps.items() if not a.get("internal")}
@@ -77,7 +76,7 @@ def main() -> int:
             return 1
         (out / cluster).mkdir(parents=True, exist_ok=True)
         for name, objects in layers.items():
-            (out / cluster / f"{name}.yaml").write_text(yaml.safe_dump_all(objects, sort_keys=False))
+            (out / cluster / f"{name}.yaml").write_text(render.dump_all(objects, sort_keys=False))
             print(f"   {name:16} {len(objects):3} objects")
             leftover += [f"{cluster}/{name}: ${{{v}}}" for v in sorted(render.unresolved(objects))]
 
