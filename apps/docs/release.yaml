@@ -37,6 +37,12 @@ spec:
   # Sizing — replicas, resources, concurrency — comes from sizes/<size>.yaml, one key of
   # the `docs-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.
   valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
+  postRenderers:
+    - kustomize:
+        patches:
+          - target: {kind: Deployment, name: docs-celery-worker}
+            patch: |
+              - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
   values:
     image:
       # The chart declares appVersion: latest, which is useless as a pin. Every image tag
@@ -65,6 +71,12 @@ spec:
 
     backend:
       pdb: {enabled: false}          # the surround owns budgets, at every size
+
+      # Each probe is a 1.5s Django import; at the chart's 10s this cost 310m. No Service
+      # selects workers, so no readiness; liveness every 5m via postRenderers (no chart value).
+      celery:
+        probes: {readiness: null, liveness: {timeoutSeconds: 30}}
+
       envFrom:
         - {secretRef: {name: docs-postgres}}
         - {secretRef: {name: docs-cache}}
