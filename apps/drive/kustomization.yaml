@@ -20,6 +20,7 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
+      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
 
   # The two switcher scripts (apps/README.md, The switcher), real .js files rather than
   # block scalars inside a HelmRelease; the surround serves them (`staticFiles`). Neither

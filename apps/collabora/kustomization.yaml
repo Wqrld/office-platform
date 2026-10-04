@@ -16,3 +16,4 @@ configMapGenerator:
       - large=sizes/large.yaml
     options:
       disableNameSuffixHash: true
+      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
