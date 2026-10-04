@@ -61,7 +61,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: realm-be0a9a1f20
+  name: realm-6bb3aba5c4
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -255,6 +255,14 @@ data:
       standardFlowEnabled: true
       webOrigins:
       - https://projects.haaijer.dev
+    components:
+      org.keycloak.userprofile.UserProfileProvider:
+      - config:
+          kc.user.profile.config:
+          - '{"attributes":[{"displayName":"${username}","multivalued":false,"name":"username","permissions":{"edit":["admin","user"],"view":["admin","user"]},"validations":{"length":{"max":255,"min":3},"up-username-not-idn-homograph":{},"username-prohibited-characters":{}}},{"displayName":"${email}","multivalued":false,"name":"email","permissions":{"edit":["admin"],"view":["admin","user"]},"required":{"roles":["user"]},"validations":{"email":{},"length":{"max":255}}},{"displayName":"${firstName}","multivalued":false,"name":"firstName","permissions":{"edit":["admin","user"],"view":["admin","user"]},"required":{"roles":["user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}},{"displayName":"${lastName}","multivalued":false,"name":"lastName","permissions":{"edit":["admin","user"],"view":["admin","user"]},"required":{"roles":["user"]},"validations":{"length":{"max":255},"person-name-prohibited-characters":{}}}],"groups":[{"displayDescription":"Attributes,
+            which refer to user metadata","displayHeader":"User metadata","name":"user-metadata"}]}'
+        providerId: declarative-user-profile
+        subComponents: {}
     defaultLocale: nl
     defaultSignatureAlgorithm: RS256
     displayName: Office
@@ -358,7 +366,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: realm-be0a9a1f20
+  name: realm-6bb3aba5c4
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -438,7 +446,7 @@ spec:
             - {name: config, mountPath: /config, readOnly: true}
             - {name: tmp, mountPath: /tmp}
       volumes:
-        - {name: config, configMap: {name: realm-be0a9a1f20}}
+        - {name: config, configMap: {name: realm-6bb3aba5c4}}
         - {name: tmp, emptyDir: {}}
 ---
 # Source: platform-tenants/templates/opensearch.yaml
