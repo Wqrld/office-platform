@@ -7,5 +7,6 @@ gateway:
   ip: 45.136.141.166
   acmeEmail: wereld03@gmail.com
 size: small
+apps: {messages: true}                 # Messages runs on demo only: not production-ready
 registry: {url: oci://harbor.mijnbureau.haaijer.dev/office}
 smtp: {configured: true}
