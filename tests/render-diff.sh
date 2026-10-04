@@ -51,12 +51,15 @@ cp "$HERE"/tests/*.py "$WORK/base/tests/"
 
 # The base is allowed to fail to build — it might predate a layer this commit adds — and
 # that is reported rather than treated as this change's fault.
-if ! "$WORK/base/tests/build.py" "$WORK/before" >"$WORK/base.log" 2>&1; then
+# Both builds at once: each writes only its own worktree and output directory.
+"$WORK/base/tests/build.py" "$WORK/before" >"$WORK/base.log" 2>&1 & base_pid=$!
+head_ok=1; "$HERE/tests/build.py" "$WORK/after" >"$WORK/head.log" 2>&1 || head_ok=0
+if ! wait "$base_pid"; then
   echo "the base commit does not build; diffing what it managed to produce"
   sed 's/^/   /' "$WORK/base.log" | tail -5
   echo
 fi
-"$HERE/tests/build.py" "$WORK/after" >"$WORK/head.log" 2>&1 || {
+(( head_ok )) || {
   echo "FAIL — this commit does not build. tests/build.py has the detail:"; sed 's/^/   /' "$WORK/head.log"; exit 1; }
 
 # dyff understands multi-document Kubernetes YAML: it pairs objects by name and kind rather

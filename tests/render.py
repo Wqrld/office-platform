@@ -36,6 +36,14 @@ import tempfile
 
 import yaml
 
+# libyaml's parser and emitter; the pure-Python ones were four fifths of a build.
+_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+_DUMPER = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
+def load(text): return yaml.load(text, Loader=_LOADER)
+def load_all(text): return yaml.load_all(text, Loader=_LOADER)
+def dump(data, stream=None, **kw): return yaml.dump(data, stream, Dumper=_DUMPER, **kw)
+def dump_all(docs, **kw): return yaml.dump_all(docs, Dumper=_DUMPER, **kw)
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHART = ROOT / "charts" / "control-plane"
 CASES = ROOT / "tests" / "cases"
@@ -61,7 +69,7 @@ VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 def docs_in(text: str) -> list[dict]:
-    return [d for d in yaml.safe_load_all(text) if d]
+    return [d for d in load_all(text) if d]
 
 
 def run(cmd: list[str], **kw) -> str:
@@ -83,7 +91,7 @@ def helm_template_text(chart: str, release: str, ns: str, values: str | pathlib.
 
 def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[str] = ()) -> list[dict]:
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-        yaml.safe_dump(values, f)
+        dump(values, f)
     try:
         return docs_in(helm_template_text(chart, release, ns, f.name, extra))
     finally:
@@ -91,7 +99,7 @@ def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[s
 
 
 def cases() -> list[dict]:
-    return yaml.safe_load((CASES / "index.yaml").read_text())["cases"]
+    return load((CASES / "index.yaml").read_text())["cases"]
 
 
 def case(name: str) -> dict:
@@ -120,7 +128,7 @@ def flux_build(path: str, components: list[str] = (), name: str = "build") -> li
                    "components": list(components),
                    "sourceRef": {"kind": "OCIRepository", "name": "office-config"}}}
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-        yaml.safe_dump(ks, f)
+        dump(ks, f)
     try:
         # `--path` resolves against the current directory, not the kustomization file.
         out = run(["flux", "build", "kustomization", name, "--path", f"./{path}",
@@ -134,9 +142,9 @@ def substitute(node, variables: dict[str, str]):
     """What postBuild does, the way Flux does it: on the YAML text, so a variable can stand
     in for a whole value (`dnsNames: ${TLS_HOSTS}` becomes a list). Unknown variables are
     left alone; `$${X}` escapes a literal `${X}`, which is how Keycloak's placeholders pass."""
-    text = yaml.safe_dump(node).replace("$${", "\0")
+    text = dump(node).replace("$${", "\0")
     text = VAR.sub(lambda m: variables.get(m.group(1), m.group(0)), text)
-    return yaml.safe_load(text.replace("\0", "${"))
+    return load(text.replace("\0", "${"))
 
 
 def clusters() -> list[pathlib.Path]:
@@ -195,7 +203,7 @@ def values_of(rel: dict, objects: list[dict]) -> dict:
         if key not in (cm.get("data") or {}):
             raise RuntimeError(f"{ns}/{rel['metadata']['name']}: ConfigMap {ref['name']} has no key {key!r} "
                                f"(has {sorted(cm.get('data') or {})})")
-        values = merge(values, yaml.safe_load(cm["data"][key]) or {})
+        values = merge(values, load(cm["data"][key]) or {})
     return merge(values, spec.get("values") or {})
 
 
@@ -222,7 +230,7 @@ def platform(size: str, values: pathlib.Path = PROD) -> list[dict]:
 def unresolved(objects: list[dict], allowed: set[str] = frozenset()) -> set[str]:
     """`${VAR}`s that survived substitution. Flux leaves an unknown one untouched, so it
     reaches the cluster as a literal and the app serves `docs.${BASE_DOMIAN}` to nobody."""
-    return set(VAR.findall(yaml.safe_dump_all(objects))) - set(allowed)
+    return set(VAR.findall(dump_all(objects))) - set(allowed)
 
 
 def keycloak_placeholders() -> set[str]:

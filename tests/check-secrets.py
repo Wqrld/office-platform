@@ -14,7 +14,6 @@ import subprocess
 import sys
 import tempfile
 
-import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
@@ -40,8 +39,8 @@ def check(app: str, srcs: dict) -> bool:
         rendered = render.helm_template(render.chart_for(rel, srcs), name, rel["metadata"]["namespace"],
                                         render.values_of(rel, docs))
         with tempfile.TemporaryDirectory() as work:
-            pathlib.Path(work, "all.yaml").write_text(yaml.safe_dump_all(rendered))
-            pathlib.Path(work, "kustomization.yaml").write_text(yaml.safe_dump({"resources": ["all.yaml"], "patches": patches}))
+            pathlib.Path(work, "all.yaml").write_text(render.dump_all(rendered))
+            pathlib.Path(work, "kustomization.yaml").write_text(render.dump({"resources": ["all.yaml"], "patches": patches}))
             patched = render.docs_in(render.run(["kubectl", "kustomize", work]))
 
         hit = [0] * len(patches)
@@ -51,7 +50,7 @@ def check(app: str, srcs: dict) -> bool:
                 t = p["target"]
                 if re.fullmatch(t["kind"], d["kind"]) and re.fullmatch(t["name"], d["metadata"]["name"]):
                     hit[i] += 1
-                    want += [op["value"] for op in yaml.safe_load(p["patch"]) if op["path"].endswith("/envFrom")][0]
+                    want += [op["value"] for op in render.load(p["patch"]) if op["path"].endswith("/envFrom")][0]
             good = got == want
             ok &= good
             print(f"{'ok  ' if good else 'FAIL'} {d['kind']:<11} {d['metadata']['name']:<48} "

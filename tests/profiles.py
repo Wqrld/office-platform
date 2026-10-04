@@ -39,7 +39,6 @@ import argparse
 import pathlib
 import sys
 
-import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
@@ -122,7 +121,7 @@ def sized_releases() -> list[str]:
                         problems.append(f"{app}: {name} reads {ref['name']}[{want}], which is not in "
                                         f"the build (has {sorted(keys)})")
                         continue
-                    sized |= sizing_keys(yaml.safe_load(keys[want]) or {})
+                    sized |= sizing_keys(render.load(keys[want]) or {})
             for key, value in sizing_keys(rel["spec"].get("values") or {}).items():
                 if key in sized:
                     problems.append(f"{app}: {name} sets `{key}` under spec.values, which beats the "
