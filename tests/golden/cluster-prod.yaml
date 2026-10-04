@@ -21,6 +21,7 @@ data:
   ACME_EMAIL: "wereld03@gmail.com"
   S3_MODE: "garage"
   TLS_HOSTS: "[\"id.haaijer.dev\",\"s3.haaijer.dev\",\"calendars.haaijer.dev\",\"collabora.haaijer.dev\",\"docs.haaijer.dev\",\"drive.haaijer.dev\",\"find.haaijer.dev\",\"livekit.haaijer.dev\",\"meet.haaijer.dev\",\"projects.haaijer.dev\"]"
+  GATEWAY_CERTS: "[{\"kind\":\"Secret\",\"name\":\"office-tls\"}]"
   SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.haaijer.dev/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.haaijer.dev\"},{\"logo\":\"https://docs.haaijer.dev/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.haaijer.dev\"},{\"logo\":\"https://drive.haaijer.dev/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.haaijer.dev\"},{\"logo\":\"https://meet.haaijer.dev/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.haaijer.dev\"},{\"logo\":\"https://projects.haaijer.dev/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.haaijer.dev\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.haaijer.dev/realms/office/account\"}]}"
 ---
 # Source: control-plane/templates/sources.yaml

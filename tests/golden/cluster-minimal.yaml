@@ -21,6 +21,7 @@ data:
   ACME_EMAIL: "ops@example.org"
   S3_MODE: "external"
   TLS_HOSTS: "[\"id.example.org\",\"docs.example.org\",\"find.example.org\"]"
+  GATEWAY_CERTS: "[{\"kind\":\"Secret\",\"name\":\"office-tls\"}]"
   SERVICES_JSON: "{\"services\":[{\"logo\":\"https://docs.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.example.org/realms/office/account\"}]}"
 ---
 # Source: control-plane/templates/sources.yaml

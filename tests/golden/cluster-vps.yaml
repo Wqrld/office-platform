@@ -22,6 +22,7 @@ data:
   ACME_EMAIL: "ops@example.org"
   S3_MODE: "garage"
   TLS_HOSTS: "[\"id.example.org\",\"s3.example.org\",\"calendars.example.org\",\"collabora.example.org\",\"docs.example.org\",\"drive.example.org\",\"find.example.org\",\"livekit.example.org\",\"meet.example.org\",\"projects.example.org\"]"
+  GATEWAY_CERTS: "[{\"kind\":\"Secret\",\"name\":\"office-tls\"}]"
   SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.example.org/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.example.org\"},{\"logo\":\"https://docs.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.example.org\"},{\"logo\":\"https://drive.example.org/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.example.org\"},{\"logo\":\"https://meet.example.org/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.example.org\"},{\"logo\":\"https://projects.example.org/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.example.org/realms/office/account\"}]}"
 ---
 # Source: control-plane/templates/sources.yaml

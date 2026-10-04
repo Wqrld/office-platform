@@ -25,9 +25,8 @@ spec:
       port: 443
       tls:
         mode: Terminate
-        certificateRefs:
-          - kind: Secret
-            name: office-tls
+        # office-tls, then `gateway.extraCertificates`: Envoy picks one by SNI.
+        certificateRefs: ${GATEWAY_CERTS}
       allowedRoutes:
         namespaces:
           from: Selector

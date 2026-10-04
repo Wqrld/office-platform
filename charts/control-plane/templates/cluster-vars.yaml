@@ -19,4 +19,5 @@ data:
   ACME_EMAIL: {{ .Values.gateway.acmeEmail | quote }}
   S3_MODE: {{ .Values.objectStore.mode | quote }}
   TLS_HOSTS: {{ include "platform.tlsHosts" . | quote }}
+  GATEWAY_CERTS: {{ include "platform.gatewayCerts" . | quote }}
   SERVICES_JSON: {{ include "platform.servicesJson" . | quote }}
