@@ -40,7 +40,7 @@ GOLDEN = HERE / "golden"
 
 # platform-app-0.2.4 -> platform-app-<version>. Anchored to our own chart names so an
 # upstream chart label passing through extraObjects is left alone.
-CHART_LABEL = re.compile(r"^(\s*helm\.sh/chart:\s*)(platform-(?:deps|app))-\S+$", re.M)
+CHART_LABEL = re.compile(r"^(\s*helm\.sh/chart:\s*)(platform-(?:deps|app|tenants)|control-plane)-\S+$", re.M)
 VERSION = re.search(r"^version: (\S+)", (HERE.parent / "charts/control-plane/Chart.yaml").read_text(), re.M).group(1)
 
 
