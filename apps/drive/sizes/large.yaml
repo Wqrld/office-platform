@@ -19,25 +19,20 @@ backend:
       resources:
         requests: {cpu: 250m, memory: 768Mi}
         limits: {memory: 2Gi}
+      # No readiness: no Service selects a worker, and each ping costs ~1s CPU.
       probes:
         liveness:
           exec:
             command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
           initialDelaySeconds: 30
-          periodSeconds: 60
-          timeoutSeconds: 15
-          failureThreshold: 3
-        readiness:
-          exec:
-            command: ["/bin/sh", "-c", "celery -A drive.celery_app inspect ping -d drive@$HOSTNAME"]
-          initialDelaySeconds: 20
-          periodSeconds: 30
-          timeoutSeconds: 15
+          periodSeconds: 300
+          timeoutSeconds: 30
           failureThreshold: 3
   # Still one. Two beats is two schedulers firing the same crontab, which for Drive means
   # two WOPI reconfigurations racing each other every ten minutes.
   celeryBeat:
     replicas: 1
+    probes: {liveness: null, readiness: null}   # the chart's ping asks the workers, not beat
     resources:
       requests: {cpu: 25m, memory: 192Mi}
       limits: {memory: 512Mi}

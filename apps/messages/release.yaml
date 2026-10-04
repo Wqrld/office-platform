@@ -32,6 +32,12 @@ spec:
   # `messages-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.
   valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "${SIZE}"}]
 
+  postRenderers:
+    - kustomize:
+        patches:
+          - target: {kind: Deployment, name: messages-celery-worker}
+            patch: |
+              - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
   values:
     # THE FORK'S IMAGES, one tag for all five, until upstream publishes the MPA and merges
     # MTA_OUT_EHLO_HOSTNAME (README.md, Pins). The chart's default is `latest`.
@@ -60,6 +66,11 @@ spec:
       # default says `/__heartbeat__`.
       probes:
         liveness: {path: /__heartbeat__}
+
+      # Each probe is a ~1s Django import; at the chart's 10s this cost 200m. No Service
+      # selects workers, so no readiness; liveness every 5m via postRenderers (no chart value).
+      celery:
+        probes: {readiness: null, liveness: {timeoutSeconds: 30}}
 
       envFrom:
         - {secretRef: {name: messages-postgres}}
