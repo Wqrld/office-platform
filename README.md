@@ -1,4 +1,49 @@
+<div align="center">
+
 # office-platform
+
+**Your own office suite (documents, files, calendars, video calls, mail and project boards)
+on your own domain, on one VPS or your own Kubernetes cluster.**
+
+Built on [La Suite numérique](https://github.com/suitenumerique), the open-source
+collaboration suite built by France's DINUM with European partners, and packaged as a single,
+versioned, tested release you install with one command.
+
+<img src="applications.png" alt="The app switcher: Calendars, Docs, Drive, Meet, Messages, Projects" width="274">
+
+</div>
+
+## What you get
+
+| | App | What it does |
+|---|---|---|
+| 📝 | **Docs** | Collaborative documents and notes, edited live together, with full-text search across them (Find) |
+| 📁 | **Drive** | Files and folders, shared with people or links, with Office documents opened in Collabora Online |
+| 📅 | **Calendars** | Shared calendars and meeting scheduling, plus a CalDAV endpoint for Thunderbird, iOS and Evolution |
+| 🎥 | **Meet** | Video calls on LiveKit, with transcripts written into Docs |
+| ✉️ | **Messages** | Shared and personal mailboxes with a collaborative inbox (optional, needs port 25) |
+| 🗂️ | **Projects** | Boards, lists and cards for project management, with live collaboration |
+
+One login (Keycloak, OIDC) for all of them and one app switcher across them. Each app is a
+single switch in your config, so you can run the whole suite or only Docs and Drive.
+
+## Quick start
+
+On a fresh VPS (one machine with a public address, ≥10 cores, fast disk):
+
+```sh
+git clone https://github.com/Wqrld/office-platform && cd office-platform
+DOMAIN=office.example.org ACME_EMAIL=ops@example.org ./install.sh --k3s
+```
+
+Already have a cluster? Use `GATEWAY_IP=10.0.0.5 ./install.sh --existing` and
+`./preflight.py cluster.yaml` to check it first. The full walk-through, from nothing to a
+serving platform, is [`docs/install.md`](docs/install.md). Create the DNS records before the first
+release (see [DNS](#dns)): one wrong record fails the certificate for every app.
+
+---
+
+## How it is built
 
 The platform, whole: the Flux-reconciled configuration, the charts that render it, and
 the checks that keep both honest. Released as one git tag that carries the config and
@@ -83,4 +128,6 @@ single SAN fails validation, so one mispointed record is an outage for every app
 `--existing` on a cluster you have.
 `docs/releasing.md` — `./release.sh <version>`: one immutable tag for config and charts.
 
-Licence: EUPL-1.2.
+## Licence
+
+[EUPL-1.2](LICENCE). Contributions welcome, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
