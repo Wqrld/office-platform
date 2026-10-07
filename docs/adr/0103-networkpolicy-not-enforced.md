@@ -8,7 +8,7 @@ operational invariant, emitted by `platform-app`.
 
 **This cluster runs Flannel, which ships no NetworkPolicy controller.** Verified empirically
 on 2026-09-02: a `default-deny` ingress policy in a scratch namespace had *no effect* — the
-target pod remained reachable. Every NetworkPolicy in the legacy `flappie` namespace is
+target pod remained reachable. Every NetworkPolicy in the pre-platform namespaces on that cluster is
 therefore decorative and has always been.
 
 ## Decision

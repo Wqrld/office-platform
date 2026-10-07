@@ -25,7 +25,7 @@ metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
   url: oci://harbor.mijnbureau.haaijer.dev/office/charts/control-plane
-  ref: {tag: "2.0.1"}
+  ref: {tag: "2.2.14"}
   secretRef: {name: harbor-auth}       # omit for a public registry
 ---
 # 3. Your choices. charts/control-plane/values.yaml documents each key; the schema rejects

@@ -85,7 +85,7 @@ which is the URL the browser is then told to load. Verified:
 
 ```
 $ curl .../hosting/discovery | grep -o 'urlsrc="[^"]*"' | head -1
-urlsrc="https://collabora.haaijer.dev/browser/cc5614c67e/cool.html?"     # with server_name
+urlsrc="https://collabora.example.org/browser/cc5614c67e/cool.html?"     # with server_name
 urlsrc="https://localhost:9980/browser/4610258811/cool.html?"            # without
 ```
 

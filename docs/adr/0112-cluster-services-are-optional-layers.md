@@ -31,7 +31,7 @@ would have to be published to change a pin; these change like any other `infra/`
 
 ## Consequences
 - `install: false` everywhere is the pre-0112 cluster, byte for byte except the
-  annotation's spelling. Prod and demo stay that way.
+  annotation's spelling.
 - Switching a service off after it is installed leaves it running: the layer Kustomization
   is `keep`, like every other, so a bad edit cannot prune the Gateway the platform runs on.
   Removing it is a deliberate `flux delete ks`.

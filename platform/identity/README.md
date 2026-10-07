@@ -95,15 +95,15 @@ prod's realm, users (with hashes, in the database dump) and every Secret are bac
 
 ## Internal vs external URLs
 
-`hostname.backchannelDynamic: true` is the whole mechanism. Verified on this cluster:
+`hostname.backchannelDynamic: true` is the whole mechanism. Verified on a running cluster:
 
 ```
-$ curl https://id.haaijer.dev/realms/office/.well-known/openid-configuration
-  issuer                 https://id.haaijer.dev/realms/office
-  authorization_endpoint https://id.haaijer.dev/...
+$ curl https://id.example.org/realms/office/.well-known/openid-configuration
+  issuer                 https://id.example.org/realms/office
+  authorization_endpoint https://id.example.org/...
 
 $ curl http://keycloak-service.office-identity.svc:8080/realms/office/.well-known/…
-  issuer                 https://id.haaijer.dev/realms/office
+  issuer                 https://id.example.org/realms/office
   token_endpoint         http://keycloak-service.office-identity.svc:8080/...
 ```
 

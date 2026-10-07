@@ -3,13 +3,13 @@
 The platform, whole: the Flux-reconciled configuration, the charts that render it, and
 the checks that keep both honest. Published by `release.sh` as one version — a config
 artifact and four charts — and installed by an organisation from one file of its own
-(`examples/cluster.yaml`). Design and decisions: `docs/adr/`, history in `docs/history/`.
+(`examples/cluster.yaml`). Design and decisions: `docs/adr/`, the original design set in `docs/history/`.
 
 ```
 charts/
   control-plane/   the chart an organisation installs: renders the Flux control plane —
                    sources, cluster vars, one Kustomization per layer and per ENABLED app —
-                   from ~10 typed, schema-checked values (docs/history/platform-org-split.md)
+                   from ~10 typed, schema-checked values (its values.yaml)
   platform-deps/   everything an app needs BEFORE it starts: datastores + secrets
   platform-app/    the surround: HTTPRoutes, NetworkPolicy, PDB
   platform-tenants/ what the platform provisions per app: database, cache users, OIDC secret, grant
@@ -32,9 +32,9 @@ PriorityClasses, ClusterIssuers) are plain manifests in `platform/`, not a chart
 `docs/adr/0101`.
 
 Nothing per cluster lives here. A cluster is a `cluster.yaml` in the organisation's own
-source — ours are in `../office-clusters/` — and the `cluster-*` cases in `tests/cases/` are the
-values files the checks build: prod's, demo's, a minimal selection on external S3, and a
-fresh VPS as `install.sh` writes it.
+source, and the `cluster-*` cases in `tests/cases/` are the values files the checks build:
+the defaults, the small profile, every app at `large`, a minimal selection on external S3,
+and a fresh VPS as `install.sh` writes it.
 
 ## Checks
 
@@ -65,8 +65,7 @@ is what the cluster applies, sizes and the switcher files included. A new app ne
 case in `tests/cases/index.yaml` for each of its platform releases; nothing checks that.
 
 Nothing here needs a cluster. `./preflight.py cluster.yaml` does: it checks a live cluster
-has what a `cluster.yaml` assumes. Bootstrap-from-scratch nightly is designed in
-`docs/ci-bootstrap.md` and not running yet.
+has what a `cluster.yaml` assumes. An install from scratch is not yet run by CI.
 
 ## DNS
 
@@ -83,6 +82,5 @@ single SAN fails validation, so one mispointed record is an outage for every app
 `docs/install.md` — nothing to a serving platform: `./install.sh --k3s` on a fresh VPS,
 `--existing` on a cluster you have.
 `docs/releasing.md` — `./release.sh <version>`: one immutable number for config and charts.
-`docs/gateway-cutover.md` — moving the public IP off an existing ingress controller.
 
 Licence: EUPL-1.2.

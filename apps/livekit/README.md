@@ -13,7 +13,7 @@ only consumer. Design context: docs/app-inventory.md "livekit — the Gateway AP
 | LiveKit → Meet webhooks, egress → LiveKit | in-cluster Services | nothing in those paths needs to leave the cluster |
 
 DNS: `livekit.${BASE_DOMAIN}` and `turn.${BASE_DOMAIN}` both → Gateway; the wildcard
-covers them. `./dns.py prod --check` knows about both.
+covers them. `./dns.py default --check` knows about both.
 
 **No TURN/TLS.** TURN over TLS wants :443, which Envoy terminates for every app; a
 `turn.` SAN on a listener LiveKit does not own buys nothing. Clients behind a firewall
