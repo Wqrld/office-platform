@@ -9,20 +9,20 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 data:
-  BASE_DOMAIN: "haaijer.dev"
+  BASE_DOMAIN: "example.org"
   # Each app's HelmReleases pick their sizing from `<app>-sizes` by this key
   # (apps/README.md, Sizing); a size the ConfigMap lacks is a HelmRelease that says so.
   SIZE: "large"
   STORAGE_CLASS: "longhorn"
-  GATEWAY_IP: "45.136.141.168"
+  GATEWAY_IP: "192.0.2.10"
   GATEWAY_CLASS: "eg"
-  LB_ANNOTATIONS: "{\"metallb.universe.tf/loadBalancerIPs\":\"45.136.141.168\"}"
+  LB_ANNOTATIONS: "{\"metallb.universe.tf/loadBalancerIPs\":\"192.0.2.10\"}"
   TLS_ISSUER: "letsencrypt-gateway"
-  ACME_EMAIL: "wereld03@gmail.com"
+  ACME_EMAIL: "ops@example.org"
   S3_MODE: "garage"
-  TLS_HOSTS: "[\"id.haaijer.dev\",\"s3.haaijer.dev\",\"calendars.haaijer.dev\",\"collabora.haaijer.dev\",\"docs.haaijer.dev\",\"drive.haaijer.dev\",\"find.haaijer.dev\",\"livekit.haaijer.dev\",\"meet.haaijer.dev\",\"messages.haaijer.dev\",\"projects.haaijer.dev\"]"
+  TLS_HOSTS: "[\"id.example.org\",\"s3.example.org\",\"calendars.example.org\",\"collabora.example.org\",\"docs.example.org\",\"drive.example.org\",\"find.example.org\",\"livekit.example.org\",\"meet.example.org\",\"messages.example.org\",\"projects.example.org\"]"
   GATEWAY_CERTS: "[{\"kind\":\"Secret\",\"name\":\"office-tls\"}]"
-  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.haaijer.dev/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.haaijer.dev\"},{\"logo\":\"https://docs.haaijer.dev/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.haaijer.dev\"},{\"logo\":\"https://drive.haaijer.dev/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.haaijer.dev\"},{\"logo\":\"https://meet.haaijer.dev/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.haaijer.dev\"},{\"logo\":\"https://messages.haaijer.dev/images/pwa/icons/ios/32.png\",\"maturity\":\"alpha\",\"name\":\"Messages\",\"url\":\"https://messages.haaijer.dev\"},{\"logo\":\"https://projects.haaijer.dev/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.haaijer.dev\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.haaijer.dev/realms/office/account\"}]}"
+  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.example.org/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.example.org\"},{\"logo\":\"https://docs.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.example.org\"},{\"logo\":\"https://drive.example.org/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.example.org\"},{\"logo\":\"https://meet.example.org/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.example.org\"},{\"logo\":\"https://messages.example.org/images/pwa/icons/ios/32.png\",\"maturity\":\"alpha\",\"name\":\"Messages\",\"url\":\"https://messages.example.org\"},{\"logo\":\"https://projects.example.org/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.example.org/realms/office/account\"}]}"
   TENANTS_JSON: "{\"calendars\":{\"acl\":{\"broker\":\"+keys\"},\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Calendars — agenda's delen en vergaderingen plannen\"},\"postgres\":{}},\"collabora\":{},\"docs\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"accessTokenLifespan\":1200,\"audiences\":[\"find\"],\"description\":\"Docs — samen werken aan documenten\"},\"postgres\":{\"extensions\":[\"pg_trgm\",\"unaccent\"]}},\"drive\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Drive — bestanden delen en samen bewerken\"},\"postgres\":{\"extensions\":[\"ltree\",\"pg_trgm\",\"unaccent\"]}},\"find\":{\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Find — zoeken over alle applicaties\",\"shape\":\"resource-server\"},\"postgres\":{},\"search\":[\"find-*\"]},\"livekit\":{\"cache\":[\"broker\"]},\"meet\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Meet — videovergaderen\"},\"postgres\":{\"extensions\":[\"pg_trgm\"]}},\"messages\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Messages — gedeelde mailboxen\"},\"postgres\":{\"extensions\":[\"unaccent\"]},\"search\":[\"messages\"]},\"projects\":{\"acl\":{\"cache\":\"+info\"},\"bucket\":true,\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Projects — borden, lijsten en kaarten voor projectbeheer\",\"redirect\":\"/oidc-callback\",\"shape\":\"login\"},\"postgres\":{}}}"
 ---
 # Source: control-plane/templates/sources.yaml
@@ -526,7 +526,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 5m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/config
+  url: oci://registry.example.org/office/config
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -543,7 +543,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
+  url: oci://registry.example.org/office/charts/platform-deps
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -556,7 +556,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  url: oci://registry.example.org/office/charts/platform-app
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -569,6 +569,6 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-tenants
+  url: oci://registry.example.org/office/charts/platform-tenants
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}

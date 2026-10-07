@@ -157,7 +157,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["docs.haaijer.dev"]
+  hostnames: ["docs.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /}}
@@ -181,7 +181,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["docs.haaijer.dev"]
+  hostnames: ["docs.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /api}}
@@ -207,7 +207,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["docs.haaijer.dev"]
+  hostnames: ["docs.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /media}}
@@ -231,7 +231,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["docs.haaijer.dev"]
+  hostnames: ["docs.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /collaboration/ws}}

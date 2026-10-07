@@ -11,7 +11,7 @@ name: pr
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [master, "release-*"]
   workflow_dispatch:
 
 permissions:
@@ -40,8 +40,9 @@ jobs:
       # malformed Chart.yaml into a failure. The cases themselves render in the golden step.
       - name: helm lint
         run: |
-          for c in platform-deps platform-app platform-tenants; do helm lint "charts/$c" --strict; done
-          helm lint charts/control-plane --strict --values tests/cases/cluster-prod.yaml
+          for c in platform-deps platform-tenants; do helm lint "charts/$c" --strict; done
+          helm lint charts/platform-app --strict --values tests/cases/minimal-app.yaml   # `app` is required
+          helm lint charts/control-plane --strict --values tests/cases/cluster-default.yaml
       - name: values schema
         run: ./tests/schema.py
       - name: golden files

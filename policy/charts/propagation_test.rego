@@ -11,7 +11,7 @@ good_route := {
 	}},
 	"spec": {
 		"parentRefs": [{"name": "office", "namespace": "office-system", "sectionName": "https"}],
-		"hostnames": ["docs.haaijer.dev"],
+		"hostnames": ["docs.example.org"],
 		"rules": [{"backendRefs": [{"name": "docs-backend", "port": 80}]}],
 	},
 }

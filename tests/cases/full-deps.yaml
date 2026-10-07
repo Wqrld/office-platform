@@ -9,7 +9,7 @@
 #   * two `generated` Secrets with two draws each — the ordered-list shape from adr/0106
 app: full
 tenant: office
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 postgres:
   enabled: true

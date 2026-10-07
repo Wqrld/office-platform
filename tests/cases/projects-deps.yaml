@@ -6,7 +6,7 @@
 # never passes through Helm), SMTP carries no Django backend class or STARTTLS flag, and
 # S3_FORCE_PATH_STYLE rides in the GarageKey's own Secret.
 app: projects
-baseDomain: haaijer.dev
+baseDomain: example.org
 env: projects
 
 postgres: {enabled: true}

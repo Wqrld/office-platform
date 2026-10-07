@@ -541,7 +541,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["full.haaijer.dev"]
+  hostnames: ["full.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /}}
@@ -565,7 +565,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["full.haaijer.dev"]
+  hostnames: ["full.example.org"]
   rules:
     # Gateway API resolves overlapping matches by specificity, so the longest prefix wins
     # regardless of order here. No backendRef on purpose: if the filter fails to resolve,
@@ -602,7 +602,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["ws.full.haaijer.dev"]
+  hostnames: ["ws.full.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /collaboration/ws}}
@@ -626,7 +626,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["full.haaijer.dev"]
+  hostnames: ["full.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /custom}}

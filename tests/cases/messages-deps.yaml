@@ -6,7 +6,7 @@
 # path the release mounts, and the CA arrives in a Secret of its own, not as a key an
 # `envFrom` would try to turn into an env var.
 app: messages
-baseDomain: haaijer.dev
+baseDomain: example.org
 env: messages
 
 postgres: {enabled: true}

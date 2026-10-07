@@ -9,20 +9,20 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 data:
-  BASE_DOMAIN: "haaijer.dev"
+  BASE_DOMAIN: "small.example.org"
   # Each app's HelmReleases pick their sizing from `<app>-sizes` by this key
   # (apps/README.md, Sizing); a size the ConfigMap lacks is a HelmRelease that says so.
-  SIZE: "medium"
+  SIZE: "small"
   STORAGE_CLASS: "longhorn"
-  GATEWAY_IP: "45.136.141.168"
+  GATEWAY_IP: "192.0.2.20"
   GATEWAY_CLASS: "eg"
-  LB_ANNOTATIONS: "{\"metallb.universe.tf/loadBalancerIPs\":\"45.136.141.168\"}"
+  LB_ANNOTATIONS: "{\"metallb.universe.tf/loadBalancerIPs\":\"192.0.2.20\"}"
   TLS_ISSUER: "letsencrypt-gateway"
-  ACME_EMAIL: "wereld03@gmail.com"
+  ACME_EMAIL: "ops@example.org"
   S3_MODE: "garage"
-  TLS_HOSTS: "[\"id.haaijer.dev\",\"s3.haaijer.dev\",\"calendars.haaijer.dev\",\"collabora.haaijer.dev\",\"docs.haaijer.dev\",\"drive.haaijer.dev\",\"find.haaijer.dev\",\"livekit.haaijer.dev\",\"meet.haaijer.dev\",\"projects.haaijer.dev\"]"
+  TLS_HOSTS: "[\"id.small.example.org\",\"s3.small.example.org\",\"calendars.small.example.org\",\"collabora.small.example.org\",\"docs.small.example.org\",\"drive.small.example.org\",\"find.small.example.org\",\"livekit.small.example.org\",\"meet.small.example.org\",\"messages.small.example.org\",\"projects.small.example.org\"]"
   GATEWAY_CERTS: "[{\"kind\":\"Secret\",\"name\":\"office-tls\"}]"
-  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.haaijer.dev/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.haaijer.dev\"},{\"logo\":\"https://docs.haaijer.dev/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.haaijer.dev\"},{\"logo\":\"https://drive.haaijer.dev/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.haaijer.dev\"},{\"logo\":\"https://meet.haaijer.dev/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.haaijer.dev\"},{\"logo\":\"https://projects.haaijer.dev/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.haaijer.dev\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.haaijer.dev/realms/office/account\"}]}"
+  SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.small.example.org/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.small.example.org\"},{\"logo\":\"https://docs.small.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.small.example.org\"},{\"logo\":\"https://drive.small.example.org/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.small.example.org\"},{\"logo\":\"https://meet.small.example.org/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.small.example.org\"},{\"logo\":\"https://messages.small.example.org/images/pwa/icons/ios/32.png\",\"maturity\":\"alpha\",\"name\":\"Messages\",\"url\":\"https://messages.small.example.org\"},{\"logo\":\"https://projects.small.example.org/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.small.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.small.example.org/realms/office/account\"}]}"
   TENANTS_JSON: "{\"calendars\":{\"acl\":{\"broker\":\"+keys\"},\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Calendars — agenda's delen en vergaderingen plannen\"},\"postgres\":{}},\"collabora\":{},\"docs\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"accessTokenLifespan\":1200,\"audiences\":[\"find\"],\"description\":\"Docs — samen werken aan documenten\"},\"postgres\":{\"extensions\":[\"pg_trgm\",\"unaccent\"]}},\"drive\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Drive — bestanden delen en samen bewerken\"},\"postgres\":{\"extensions\":[\"ltree\",\"pg_trgm\",\"unaccent\"]}},\"find\":{\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Find — zoeken over alle applicaties\",\"shape\":\"resource-server\"},\"postgres\":{},\"search\":[\"find-*\"]},\"livekit\":{\"cache\":[\"broker\"]},\"meet\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Meet — videovergaderen\"},\"postgres\":{\"extensions\":[\"pg_trgm\"]}},\"messages\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Messages — gedeelde mailboxen\"},\"postgres\":{\"extensions\":[\"unaccent\"]},\"search\":[\"messages\"]},\"projects\":{\"acl\":{\"cache\":\"+info\"},\"bucket\":true,\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Projects — borden, lijsten en kaarten voor projectbeheer\",\"redirect\":\"/oidc-callback\",\"shape\":\"login\"},\"postgres\":{}}}"
 ---
 # Source: control-plane/templates/sources.yaml
@@ -396,6 +396,26 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
+  name: app-messages
+  namespace: flux-system
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: OCIRepository, name: office-config}
+  path: ./apps/messages
+  dependsOn:
+    - {name: objectstore}
+  postBuild:
+    substitute: {"APP":"messages"}
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/apps.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
   name: app-projects
   namespace: flux-system
 spec:
@@ -465,7 +485,7 @@ spec:
   wait: true
   sourceRef: {kind: OCIRepository, name: office-config}
   path: ./platform
-  components: ["./overlays/size-medium"]
+  components: ["./overlays/size-small","./overlays/smtp-placeholder"]
   dependsOn:
     - {name: infra}
   postBuild:
@@ -486,7 +506,7 @@ spec:
   wait: true
   sourceRef: {kind: OCIRepository, name: office-config}
   path: ./platform/objectstore
-  components: ["../overlays/size-medium"]
+  components: ["../overlays/size-small"]
   dependsOn:
     - {name: platform}
   postBuild:
@@ -506,7 +526,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 5m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/config
+  url: oci://registry.example.org/office/config
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -523,7 +543,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
+  url: oci://registry.example.org/office/charts/platform-deps
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -536,7 +556,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  url: oci://registry.example.org/office/charts/platform-app
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -549,6 +569,6 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-tenants
+  url: oci://registry.example.org/office/charts/platform-tenants
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}

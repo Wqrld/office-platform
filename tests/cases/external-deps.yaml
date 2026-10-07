@@ -3,7 +3,7 @@
 # ExternalSecret carries the identical key set, publicEndpoint included, read from the
 # hand-applied `object-store` Secret rather than from a GarageKey.
 app: drive
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 postgres:
   enabled: true

@@ -609,7 +609,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 5m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/config
+  url: oci://registry.example.org/office/config
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -626,7 +626,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-deps
+  url: oci://registry.example.org/office/charts/platform-deps
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -639,7 +639,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-app
+  url: oci://registry.example.org/office/charts/platform-app
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---
@@ -652,7 +652,7 @@ metadata:
   annotations: {helm.sh/resource-policy: keep}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/platform-tenants
+  url: oci://registry.example.org/office/charts/platform-tenants
   ref: {tag: "<version>"}
   secretRef: {name: harbor-auth}
 ---

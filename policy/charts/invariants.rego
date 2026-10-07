@@ -38,7 +38,7 @@ deny contains msg if {
 # Pinned, and from a registry we have decided on. A floating tag makes a redeploy a
 # different deployment.
 
-allowed_registries := {"docker.io/", "ghcr.io/", "harbor.mijnbureau.haaijer.dev/", "quay.io/", "registry.k8s.io/"}
+allowed_registries := {"docker.io/", "ghcr.io/", "quay.io/", "registry.k8s.io/"}
 
 containers contains c if {
 	input.kind == "Deployment"

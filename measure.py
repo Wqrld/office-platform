@@ -196,7 +196,7 @@ def main():
     r = sub.add_parser("render")
     r.add_argument("layers", nargs="*", choices=list(LAYERS))
     r.add_argument("--size", default="medium", choices=flux.SIZES)
-    r.add_argument("--cluster", default="prod")
+    r.add_argument("--cluster", default="default")
 
     args = ap.parse_args()
 

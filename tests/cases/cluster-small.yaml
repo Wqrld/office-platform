@@ -1,0 +1,10 @@
+# The small profile, with Messages on and the SMTP placeholder: a second domain and its own
+# address (the Gateway is a cluster-scoped singleton per install, so a second install is a
+# separate cluster — see docs/install.md). Everything else is cluster-default's.
+domain: small.example.org
+gateway:
+  ip: 192.0.2.20
+  acmeEmail: ops@example.org
+size: small
+apps: {messages: true}
+registry: {url: oci://registry.example.org/office}

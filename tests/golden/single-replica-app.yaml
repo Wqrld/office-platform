@@ -58,7 +58,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["single.haaijer.dev"]
+  hostnames: ["single.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /}}

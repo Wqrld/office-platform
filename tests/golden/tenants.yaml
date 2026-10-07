@@ -61,7 +61,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: realm-6bb3aba5c4
+  name: realm-e80a179dcd
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -75,15 +75,15 @@ data:
     bruteForceProtected: true
     bruteForceStrategy: LINEAR
     clients:
-    - adminUrl: https://calendars.haaijer.dev
+    - adminUrl: https://calendars.example.org
       alwaysDisplayInConsole: true
       attributes:
         backchannel.logout.session.required: "true"
-        backchannel.logout.url: https://calendars.haaijer.dev/api/v1.0/logout/
+        backchannel.logout.url: https://calendars.example.org/api/v1.0/logout/
         frontchannel.logout.session.required: "false"
-        frontchannel.logout.url: https://calendars.haaijer.dev/api/v1.0/logout/
-        post.logout.redirect.uris: https://calendars.haaijer.dev/*
-      baseUrl: https://calendars.haaijer.dev
+        frontchannel.logout.url: https://calendars.example.org/api/v1.0/logout/
+        post.logout.redirect.uris: https://calendars.example.org/*
+      baseUrl: https://calendars.example.org
       clientAuthenticatorType: client-secret
       clientId: calendars
       description: Calendars — agenda's delen en vergaderingen plannen
@@ -95,23 +95,23 @@ data:
       protocol: openid-connect
       publicClient: false
       redirectUris:
-      - https://calendars.haaijer.dev/*
-      rootUrl: https://calendars.haaijer.dev
+      - https://calendars.example.org/*
+      rootUrl: https://calendars.example.org
       secret: $(env:CLIENT_SECRET_CALENDARS)
       serviceAccountsEnabled: false
       standardFlowEnabled: true
       webOrigins:
-      - https://calendars.haaijer.dev
-    - adminUrl: https://docs.haaijer.dev
+      - https://calendars.example.org
+    - adminUrl: https://docs.example.org
       alwaysDisplayInConsole: true
       attributes:
         access.token.lifespan: "1200"
         backchannel.logout.session.required: "true"
-        backchannel.logout.url: https://docs.haaijer.dev/api/v1.0/logout/
+        backchannel.logout.url: https://docs.example.org/api/v1.0/logout/
         frontchannel.logout.session.required: "false"
-        frontchannel.logout.url: https://docs.haaijer.dev/api/v1.0/logout/
-        post.logout.redirect.uris: https://docs.haaijer.dev/*
-      baseUrl: https://docs.haaijer.dev
+        frontchannel.logout.url: https://docs.example.org/api/v1.0/logout/
+        post.logout.redirect.uris: https://docs.example.org/*
+      baseUrl: https://docs.example.org
       clientAuthenticatorType: client-secret
       clientId: docs
       description: Docs — samen werken aan documenten
@@ -131,22 +131,22 @@ data:
         protocolMapper: oidc-audience-mapper
       publicClient: false
       redirectUris:
-      - https://docs.haaijer.dev/*
-      rootUrl: https://docs.haaijer.dev
+      - https://docs.example.org/*
+      rootUrl: https://docs.example.org
       secret: $(env:CLIENT_SECRET_DOCS)
       serviceAccountsEnabled: false
       standardFlowEnabled: true
       webOrigins:
-      - https://docs.haaijer.dev
-    - adminUrl: https://drive.haaijer.dev
+      - https://docs.example.org
+    - adminUrl: https://drive.example.org
       alwaysDisplayInConsole: true
       attributes:
         backchannel.logout.session.required: "true"
-        backchannel.logout.url: https://drive.haaijer.dev/api/v1.0/logout/
+        backchannel.logout.url: https://drive.example.org/api/v1.0/logout/
         frontchannel.logout.session.required: "false"
-        frontchannel.logout.url: https://drive.haaijer.dev/api/v1.0/logout/
-        post.logout.redirect.uris: https://drive.haaijer.dev/*
-      baseUrl: https://drive.haaijer.dev
+        frontchannel.logout.url: https://drive.example.org/api/v1.0/logout/
+        post.logout.redirect.uris: https://drive.example.org/*
+      baseUrl: https://drive.example.org
       clientAuthenticatorType: client-secret
       clientId: drive
       description: Drive — bestanden delen en samen bewerken
@@ -158,13 +158,13 @@ data:
       protocol: openid-connect
       publicClient: false
       redirectUris:
-      - https://drive.haaijer.dev/*
-      rootUrl: https://drive.haaijer.dev
+      - https://drive.example.org/*
+      rootUrl: https://drive.example.org
       secret: $(env:CLIENT_SECRET_DRIVE)
       serviceAccountsEnabled: false
       standardFlowEnabled: true
       webOrigins:
-      - https://drive.haaijer.dev
+      - https://drive.example.org
     - alwaysDisplayInConsole: false
       clientAuthenticatorType: client-secret
       clientId: find
@@ -178,15 +178,15 @@ data:
       secret: $(env:CLIENT_SECRET_FIND)
       serviceAccountsEnabled: false
       standardFlowEnabled: false
-    - adminUrl: https://meet.haaijer.dev
+    - adminUrl: https://meet.example.org
       alwaysDisplayInConsole: true
       attributes:
         backchannel.logout.session.required: "true"
-        backchannel.logout.url: https://meet.haaijer.dev/api/v1.0/logout/
+        backchannel.logout.url: https://meet.example.org/api/v1.0/logout/
         frontchannel.logout.session.required: "false"
-        frontchannel.logout.url: https://meet.haaijer.dev/api/v1.0/logout/
-        post.logout.redirect.uris: https://meet.haaijer.dev/*
-      baseUrl: https://meet.haaijer.dev
+        frontchannel.logout.url: https://meet.example.org/api/v1.0/logout/
+        post.logout.redirect.uris: https://meet.example.org/*
+      baseUrl: https://meet.example.org
       clientAuthenticatorType: client-secret
       clientId: meet
       description: Meet — videovergaderen
@@ -198,22 +198,22 @@ data:
       protocol: openid-connect
       publicClient: false
       redirectUris:
-      - https://meet.haaijer.dev/*
-      rootUrl: https://meet.haaijer.dev
+      - https://meet.example.org/*
+      rootUrl: https://meet.example.org
       secret: $(env:CLIENT_SECRET_MEET)
       serviceAccountsEnabled: false
       standardFlowEnabled: true
       webOrigins:
-      - https://meet.haaijer.dev
-    - adminUrl: https://messages.haaijer.dev
+      - https://meet.example.org
+    - adminUrl: https://messages.example.org
       alwaysDisplayInConsole: true
       attributes:
         backchannel.logout.session.required: "true"
-        backchannel.logout.url: https://messages.haaijer.dev/api/v1.0/logout/
+        backchannel.logout.url: https://messages.example.org/api/v1.0/logout/
         frontchannel.logout.session.required: "false"
-        frontchannel.logout.url: https://messages.haaijer.dev/api/v1.0/logout/
-        post.logout.redirect.uris: https://messages.haaijer.dev/*
-      baseUrl: https://messages.haaijer.dev
+        frontchannel.logout.url: https://messages.example.org/api/v1.0/logout/
+        post.logout.redirect.uris: https://messages.example.org/*
+      baseUrl: https://messages.example.org
       clientAuthenticatorType: client-secret
       clientId: messages
       description: Messages — gedeelde mailboxen
@@ -225,18 +225,18 @@ data:
       protocol: openid-connect
       publicClient: false
       redirectUris:
-      - https://messages.haaijer.dev/*
-      rootUrl: https://messages.haaijer.dev
+      - https://messages.example.org/*
+      rootUrl: https://messages.example.org
       secret: $(env:CLIENT_SECRET_MESSAGES)
       serviceAccountsEnabled: false
       standardFlowEnabled: true
       webOrigins:
-      - https://messages.haaijer.dev
-    - adminUrl: https://projects.haaijer.dev
+      - https://messages.example.org
+    - adminUrl: https://projects.example.org
       alwaysDisplayInConsole: true
       attributes:
-        post.logout.redirect.uris: https://projects.haaijer.dev/*
-      baseUrl: https://projects.haaijer.dev
+        post.logout.redirect.uris: https://projects.example.org/*
+      baseUrl: https://projects.example.org
       clientAuthenticatorType: client-secret
       clientId: projects
       description: Projects — borden, lijsten en kaarten voor projectbeheer
@@ -248,13 +248,13 @@ data:
       protocol: openid-connect
       publicClient: false
       redirectUris:
-      - https://projects.haaijer.dev/oidc-callback
-      rootUrl: https://projects.haaijer.dev
+      - https://projects.example.org/oidc-callback
+      rootUrl: https://projects.example.org
       secret: $(env:CLIENT_SECRET_PROJECTS)
       serviceAccountsEnabled: false
       standardFlowEnabled: true
       webOrigins:
-      - https://projects.haaijer.dev
+      - https://projects.example.org
     components:
       org.keycloak.userprofile.UserProfileProvider:
       - config:
@@ -366,7 +366,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: realm-6bb3aba5c4
+  name: realm-e80a179dcd
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -446,7 +446,7 @@ spec:
             - {name: config, mountPath: /config, readOnly: true}
             - {name: tmp, mountPath: /tmp}
       volumes:
-        - {name: config, configMap: {name: realm-6bb3aba5c4}}
+        - {name: config, configMap: {name: realm-e80a179dcd}}
         - {name: tmp, emptyDir: {}}
 ---
 # Source: platform-tenants/templates/opensearch.yaml

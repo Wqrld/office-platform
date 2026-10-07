@@ -1,0 +1,11 @@
+# The defaults on a cluster that already has its Gateway controller, cert-manager and load
+# balancer: every app that is on by default, Garage, the medium profile.
+domain: example.org
+storageClass: longhorn
+gateway:
+  ip: 192.0.2.10
+  acmeEmail: ops@example.org
+  tlsIssuer: letsencrypt-gateway
+size: medium
+registry: {url: oci://registry.example.org/office}
+smtp: {configured: true}

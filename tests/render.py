@@ -50,9 +50,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 CHART = ROOT / "charts" / "control-plane"
 CASES = ROOT / "tests" / "cases"
 CACHE = ROOT / ".charts"
-PROD = CASES / "cluster-prod.yaml"
-# Prod with every app on, off-by-default ones included — what the per-app checks render,
-# so an app no production cluster enables yet is still checked rather than silently absent.
+DEFAULT = CASES / "cluster-default.yaml"
+# cluster-default with every app on, off-by-default ones included — what the per-app checks render,
+# so an app off by default is still checked rather than silently absent.
 FULL = CASES / "cluster-full.yaml"
 SIZES = ("small", "medium", "large")
 # Every application directory. The control-plane chart carries the same list with each
@@ -60,7 +60,7 @@ SIZES = ("small", "medium", "large")
 APPS = sorted(d.name for d in (ROOT / "apps").iterdir() if (d / "kustomization.yaml").is_file())
 
 # Pinned so a render never consults a live cluster: a golden that changes with whatever
-# cluster the operator points at is not a golden. Keep in step with production.
+# cluster the operator points at is not a golden. Keep in step with the clusters you run.
 KUBE_VERSION = os.environ.get("KUBE_VERSION", "1.34.2")
 # The CRD groups the cluster has. A chart that gates an object on
 # `.Capabilities.APIVersions.Has` must see here what it sees there.
@@ -170,13 +170,13 @@ def control_plane(values: pathlib.Path, extra: tuple[str, ...] = ()) -> list[dic
     return docs_in(helm_template_text(CHART, "platform", "flux-system", values, list(extra)))
 
 
-def variables(values: pathlib.Path = PROD, extra: tuple[str, ...] = ()) -> dict[str, str]:
+def variables(values: pathlib.Path = DEFAULT, extra: tuple[str, ...] = ()) -> dict[str, str]:
     """The cluster's `cluster-vars`, as the control plane renders them."""
     return next(d["data"] for d in control_plane(values, extra)
                 if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
 
 
-def sources(values: pathlib.Path = PROD) -> dict[str, dict]:
+def sources(values: pathlib.Path = DEFAULT) -> dict[str, dict]:
     """name -> source object: the pins live in the control plane and nowhere else."""
     return {d["metadata"]["name"]: d for d in control_plane(values)
             if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
@@ -261,7 +261,7 @@ def apps(size: str, names: list[str] = APPS, values: pathlib.Path = FULL) -> lis
     return [d for a in names for d in layers.get(f"app-{a}", [])]
 
 
-def platform(size: str, values: pathlib.Path = PROD) -> list[dict]:
+def platform(size: str, values: pathlib.Path = DEFAULT) -> list[dict]:
     layers = cluster(values, ("--set", f"size={size}"))
     return layers["platform"] + layers.get("objectstore", [])
 

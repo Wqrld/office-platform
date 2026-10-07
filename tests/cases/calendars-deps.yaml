@@ -10,7 +10,7 @@
 # channel token undecryptable), and the CalDAV one carries three keys read by two different
 # pods.
 app: calendars
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 postgres:
   enabled: true

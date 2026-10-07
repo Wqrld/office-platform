@@ -1,7 +1,7 @@
 # Docs' dependencies, expressed against platform-deps. Replaces the 174 hand-written lines
 # in apps/docs/{datastores,secrets}.yaml.
 app: docs
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 postgres:
   enabled: true

@@ -87,7 +87,7 @@ spec:
     creationPolicy: Owner
     template:
       data:
-        OIDC_ISSUER: "https://id.haaijer.dev/realms/office"
+        OIDC_ISSUER: "https://id.example.org/realms/office"
         OIDC_CLIENT_ID: "projects"
         OIDC_CLIENT_SECRET: "{{ .secret }}"
         OIDC_SCOPES: "openid email profile"

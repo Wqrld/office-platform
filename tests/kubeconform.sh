@@ -35,8 +35,8 @@ else
   DIRS=("$HERE/tests/golden" "$WORK/built")
 fi
 
-# Only the substitution that reaches chart output; mirrors prod's cluster-vars.
-BASE_DOMAIN="${BASE_DOMAIN:-haaijer.dev}"
+# Only the substitution that reaches chart output; mirrors a cluster's cluster-vars.
+BASE_DOMAIN="${BASE_DOMAIN:-example.org}"
 i=0
 for d in "${DIRS[@]}"; do
   for f in "$d"/*.yaml "$d"/*/*.yaml; do

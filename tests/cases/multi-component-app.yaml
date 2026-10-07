@@ -4,7 +4,7 @@
 # minAvailable on a single replica blocks every drain, so `maxUnavailable, always` is a
 # platform invariant rather than a preference (charts/platform-app/values.yaml).
 app: multi
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 routes:
   - host: multi

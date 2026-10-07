@@ -6,7 +6,7 @@
 # PDB from the components map alone, every drain on this cluster hangs and nothing else in
 # CI notices. `tests/policy` asserts the absence; this case is what it reads.
 app: single
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 routes:
   - host: single

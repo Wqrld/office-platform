@@ -3,10 +3,10 @@
 Print every DNS record a cluster needs, read out of the config that will use them.
 
     ./dns.py                              every cluster case in tests/cases/
-    ./dns.py prod                         one of them
-    ./dns.py ../cluster-prod/cluster.yaml an organisation's own file — values or HelmRelease
-    ./dns.py prod --check                 and resolve each name, to see what is already true
-    ./dns.py prod --zone                  BIND-format records, nothing else
+    ./dns.py default                         one of them
+    ./dns.py ../my-cluster/cluster.yaml an organisation's own file — values or HelmRelease
+    ./dns.py default --check                 and resolve each name, to see what is already true
+    ./dns.py default --zone                  BIND-format records, nothing else
 
 What comes out is every hostname this Gateway serves: the SAN list on the Certificate the
 Gateway actually references, plus every HTTPRoute hostname — including the ones
@@ -225,7 +225,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Print the DNS records a cluster needs, read out of its own config.")
     parser.add_argument("cluster", nargs="?",
-                        help="a cluster case name (prod, demo, …) or a path to a values / cluster.yaml "
+                        help="a cluster case name (default, small, …) or a path to a values / cluster.yaml "
                              "file; default every cluster case")
     parser.add_argument("--check", action="store_true",
                         help="resolve each name and report what disagrees")

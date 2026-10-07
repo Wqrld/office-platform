@@ -173,7 +173,7 @@ spec:
     - name: office
       namespace: office-system
       sectionName: https
-  hostnames: ["multi.haaijer.dev"]
+  hostnames: ["multi.example.org"]
   rules:
     - matches:
         - {path: {type: PathPrefix, value: /}}

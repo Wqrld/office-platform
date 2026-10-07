@@ -2,7 +2,7 @@
 # template touching a branch no live app uses still has a golden to break.
 app: full
 tenant: office
-baseDomain: haaijer.dev
+baseDomain: example.org
 
 routes:
   - host: full
@@ -20,7 +20,7 @@ routes:
     timeout: 300s
 
   - name: ws
-    hostname: ws.full.haaijer.dev   # a FULL hostname, not the <host>.<baseDomain> form
+    hostname: ws.full.example.org   # a FULL hostname, not the <host>.<baseDomain> form
     backend: {name: full-y-provider, port: 443}
     paths: [/collaboration/ws]
     websocket: true

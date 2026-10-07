@@ -19,17 +19,17 @@ cases:
   # These double as the clusters the build, kubeconform and dns checks run against: the
   # values ARE the cluster (docs/install.md), so a case here is a cluster CI builds end
   # to end, not just a render.
-  - name: cluster-prod
+  - name: cluster-default
     chart: control-plane
     release: platform
     namespace: flux-system
-    description: Production's choices — every app, Garage, the medium profile.
+    description: The defaults — every default app, Garage, the medium profile.
 
-  - name: cluster-demo
+  - name: cluster-small
     chart: control-plane
     release: platform
     namespace: flux-system
-    description: The rehearsal cluster — prod on another domain, small profile.
+    description: The small profile on another domain, with Messages on.
 
   - name: cluster-minimal
     chart: control-plane
@@ -37,8 +37,8 @@ cases:
     namespace: flux-system
     description: >-
       The smallest selection the platform accepts on an organisation's own S3: Docs and
-      Find, nothing that needs Garage, LiveKit or Collabora. Both acceptance criteria of
-      docs/history/platform-org-split.md, asserted on every build.
+      Find, nothing that needs Garage, LiveKit or Collabora. Both halves of the
+      organisation split — apps switched off, another S3 — asserted on every build.
 
   - name: cluster-vps
     chart: control-plane

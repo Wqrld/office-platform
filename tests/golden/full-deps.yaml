@@ -145,12 +145,12 @@ spec:
         OIDC_RP_CLIENT_SECRET: "{{ .secret }}"
         OIDC_RP_SIGN_ALGO: "RS256"
         OIDC_RP_SCOPES: "openid email profile offline_access"
-        OIDC_OP_AUTHORIZATION_ENDPOINT: "https://id.haaijer.dev/realms/office/protocol/openid-connect/auth"
-        OIDC_OP_LOGOUT_ENDPOINT: "https://id.haaijer.dev/realms/office/protocol/openid-connect/logout"
+        OIDC_OP_AUTHORIZATION_ENDPOINT: "https://id.example.org/realms/office/protocol/openid-connect/auth"
+        OIDC_OP_LOGOUT_ENDPOINT: "https://id.example.org/realms/office/protocol/openid-connect/logout"
         OIDC_OP_TOKEN_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token"
         OIDC_OP_USER_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/userinfo"
         OIDC_OP_JWKS_ENDPOINT: "http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/certs"
-        OIDC_REDIRECT_ALLOWED_HOSTS: "https://full.haaijer.dev"
+        OIDC_REDIRECT_ALLOWED_HOSTS: "https://full.example.org"
         OIDC_REDIRECT_REQUIRE_HTTPS: "true"
         OIDC_USE_NONCE: "true"
         OIDC_CREATE_USER: "false"
@@ -363,4 +363,4 @@ spec:
       # The browser cannot reach a cluster Service, so an app that presigns an upload URL
       # has to sign it against the public address — the signature covers the host. Setting
       # this means the bucket IS reachable from the internet; see adr/0110.
-      AWS_S3_DOMAIN_REPLACE: "s3.haaijer.dev"
+      AWS_S3_DOMAIN_REPLACE: "s3.example.org"
