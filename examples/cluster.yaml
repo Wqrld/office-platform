@@ -24,7 +24,7 @@ metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
   url: https://github.com/Wqrld/office-platform   # or your fork; then set `source` below too
-  ref: {tag: v2.3.1}
+  ref: {tag: v2.3.2}
   # secretRef: {name: office-platform-git}       # a private fork: `flux create secret git`
 ---
 # 3. Your choices. charts/control-plane/values.yaml documents each key; the schema rejects

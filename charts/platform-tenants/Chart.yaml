@@ -2,4 +2,4 @@ apiVersion: v2
 name: platform-tenants
 description: What the shared platform provisions per application — database, cache users, OIDC client secret, object-store grant — for every app whether it runs or not.
 type: application
-version: 2.3.1
+version: 2.3.2

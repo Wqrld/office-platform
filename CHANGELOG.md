@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.3.2 — 2026-10-07
+
 - Fix: upgrading `platform-tenants` failed on the `realm-<hash>` Job whenever only the chart
   version changed, since a Job's template is immutable (2.3.1 stalled on it). The realm and
   OpenSearch Job names now hash their whole input and the chart version, so each release
