@@ -14,6 +14,16 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 - Test cases and goldens use `example.org` and documentation addresses; `cluster-prod` and
   `cluster-demo` are now `cluster-default` and `cluster-small`.
+- **Tenants phase 2:** `platform-tenants` alone provisions each app's database, role, cache
+  users, OIDC client Secret and bucket grant; the 197 hand-written objects leave the
+  Kustomizations, all `prune: disabled`. keycloak-config-cli owns the realm through a
+  `realm-<hash>` Job (`platform/identity/README.md`, first rollout on a live realm), and an
+  `opensearch-security-<hash>` Job owns OpenSearch's users and roles.
+- `charts/control-plane/apps.yaml` is the one per-app registry: what each app is provisioned
+  and whether it is on by default.
+- Surrounds: `routes[].host` defaults to the app, `staticFiles.enabled` implies the `/custom`
+  route; one shared no-PDB size file for `small` and `medium`.
+- Identity: email is admin-only in the realm's user profile.
 
 ## 2.2.14 — 2026-10-04
 - `gateway.extraCertificates`: serve hosts routed outside the platform on the shared Gateway.
