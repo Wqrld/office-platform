@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.3.0 — 2026-10-07
+
 - **Breaking: a release is a git tag; there is no registry** (`docs/adr/0114`). The control
   plane reads the config and the platform charts from this repository at `v<version>`.
   `registry: {url, pullSecret}` is replaced by `source: {url, secretRef}`, which defaults
