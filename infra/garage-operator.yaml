@@ -15,7 +15,7 @@ spec:
   chart:
     spec:
       chart: garage-operator
-      version: "0.7.7"
+      version: "0.8.2"
       sourceRef: {kind: HelmRepository, name: garage-operator, namespace: flux-system}
   install: {disableWaitForJobs: true}
   upgrade: {disableWaitForJobs: true}

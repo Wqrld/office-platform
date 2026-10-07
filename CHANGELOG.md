@@ -5,6 +5,12 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Upstream bumps: Meet v1.34.0, Docs v5.7.0, Keycloak operator 26.8.0, garage-operator
+  0.8.2, external-secrets 2.12.0, cloudnative-pg 0.29.1, Collabora 1.3.5, livekit-server
+  v1.13.9, egress v1.15.0.
+- updatecli writes valid pins: multi-line targets no longer insert a literal `\n`, and
+  Find's pin tracks main's HEAD commit instead of a branch name.
+
 ## 2.3.0 — 2026-10-07
 
 - **Breaking: a release is a git tag; there is no registry** (`docs/adr/0114`). The control

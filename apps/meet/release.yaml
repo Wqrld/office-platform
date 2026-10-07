@@ -93,7 +93,7 @@ spec:
     # workloads that carry a tag key: the backend takes the top-level `image` (the Celery
     # backend worker inherits it), everything else overrides. All the same version, always
     # — updatecli/updatecli.d/meet.yaml rewrites them together.
-    image: {tag: v1.31.0}
+    image: {tag: v1.34.0}
 
     # Routing is ours: HTTPRoutes on the shared Gateway, in surround.yaml. All the chart's
     # Ingress objects are off. They are already false by default at this tag; stated so a
@@ -206,7 +206,7 @@ spec:
 
     # ---------------------------------------------------------------- frontend
     frontend:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       pdb: {enabled: false}
       # THE GAUFRE. Meet's frontend has no switcher and no hook for one — the only
       # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
@@ -238,7 +238,7 @@ spec:
     # read `meet-s3` + `meet-summary` (postRenderers) and the same non-secret block below,
     # anchored once because the chart has no shared env for them.
     summary:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       pdb: {enabled: false}
       envVars: &summaryEnv
         # The ONE deliberate env-over-envFrom override. `meet-s3` carries
@@ -266,7 +266,7 @@ spec:
     # `transcribe-queue`: download the recording, ffmpeg it, call whisperx, post to Docs.
     # ffmpeg on an hour of audio is the memory peak of the whole pipeline bar whisperx.
     celeryTranscribe:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       pdb: {enabled: false}
       envVars:
         <<: *summaryEnv
@@ -285,14 +285,14 @@ spec:
 
     # `call-webhook-queue`: tells the backend the job finished. Tiny.
     celerySummaryBackend:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       pdb: {enabled: false}
       envVars: *summaryEnv
 
     # `summarize-queue`: the LLM step. Off (IS_SUMMARY_ENABLED=false), so no worker — a
     # job on this queue would only ever be a misconfiguration.
     celerySummarize:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       replicas: 0
       pdb: {enabled: false}
       envVars: *summaryEnv
@@ -310,10 +310,10 @@ spec:
     # the whisperx diarization already labels speakers; revisit if "Speaker 1" in the
     # transcript is the complaint.
     agentMetadata:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       replicas: 0
       pdb: {enabled: false}
     agentSubtitles:
-      image: {tag: v1.31.0}
+      image: {tag: v1.34.0}
       replicas: 0
       pdb: {enabled: false}

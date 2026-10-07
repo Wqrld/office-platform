@@ -55,7 +55,7 @@ metadata:
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/docs
-  ref: {tag: v5.5.0}
+  ref: {tag: v5.7.0}
   ignore: |
     /*
     !/src/helm
@@ -167,7 +167,7 @@ metadata:
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/meet
-  ref: {tag: v1.31.0}
+  ref: {tag: v1.34.0}
   ignore: |
     /*
     !/src/helm
