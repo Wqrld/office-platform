@@ -24,7 +24,9 @@ What it may do, and what it may not:
 {{- $components := dict "org.keycloak.userprofile.UserProfileProvider" (list $profile) }}
 {{- $realm := .Files.Get "files/realm.yaml" | fromYaml | merge (dict "clients" $clients "components" $components) | toYaml }}
 {{- $k := .Values.keycloak }}
-{{- $hash := printf "%s\n%s" $realm $k.image | sha256sum | trunc 10 }}
+{{- /* Everything the Job's template is made of: a Job's template is immutable, so a
+   changed template under the same name fails the upgrade. */}}
+{{- $hash := printf "%s\n%s\n%s" $realm (toYaml $k) .Chart.Version | sha256sum | trunc 10 }}
 ---
 apiVersion: v1
 kind: ConfigMap

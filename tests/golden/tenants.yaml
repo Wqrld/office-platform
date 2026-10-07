@@ -61,7 +61,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: realm-e80a179dcd
+  name: realm-7ad8cec4df
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -366,7 +366,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: realm-e80a179dcd
+  name: realm-7ad8cec4df
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -446,14 +446,14 @@ spec:
             - {name: config, mountPath: /config, readOnly: true}
             - {name: tmp, mountPath: /tmp}
       volumes:
-        - {name: config, configMap: {name: realm-e80a179dcd}}
+        - {name: config, configMap: {name: realm-7ad8cec4df}}
         - {name: tmp, emptyDir: {}}
 ---
 # Source: platform-tenants/templates/opensearch.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: opensearch-security-36fafa61f4
+  name: opensearch-security-1171d76e05
   namespace: office-data
   labels:
     helm.sh/chart: platform-tenants-<version>

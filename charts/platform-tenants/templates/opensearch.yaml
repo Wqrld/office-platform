@@ -34,7 +34,8 @@ config:
   "action_groups.yml" "_meta: {type: actiongroups, config_version: 2}\n"
   "tenants.yml" "_meta: {type: tenants, config_version: 2}\n" }}
 {{- $o := .Values.opensearch }}
-{{- $hash := printf "%s\n%s" (toYaml $files) $o.image | sha256sum | trunc 10 }}
+{{- /* Everything the Job's template is made of, as in keycloak.yaml. */}}
+{{- $hash := printf "%s\n%s\n%s" (toYaml $files) (toYaml $o) .Chart.Version | sha256sum | trunc 10 }}
 ---
 # What the server mounts as its first-boot config (platform/opensearch/cluster.yaml) and the
 # Job's input: every file but the users' hashes, which only the Job writes. A Secret because
