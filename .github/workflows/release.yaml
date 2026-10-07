@@ -6,6 +6,11 @@ name: release
 on:
   push:
     tags: ["v*"]
+  # For a tag pushed while this workflow was broken: a tag runs the workflow as it was at
+  # that tag, and a release tag is never moved, so the fixed one is run against it by hand.
+  workflow_dispatch:
+    inputs:
+      tag: {description: "release tag, e.g. v2.3.0", required: true}
 
 permissions:
   contents: write
@@ -13,18 +18,24 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with: {ref: "${{ inputs.tag || github.ref }}"}
       - name: tag matches every chart
         run: |
-          v="${GITHUB_REF_NAME#v}"
+          v="${TAG#v}"
+          # every chart's version; appVersion only where a chart has one (the control plane)
           for c in charts/*/Chart.yaml; do
-            grep -qx "version: $v" "$c" && grep -qx "appVersion: \"$v\"" "$c" \
-              || { echo "::error file=$c::does not carry $v"; exit 1; }
+            grep -qx "version: $v" "$c" || { echo "::error file=$c::version is not $v"; exit 1; }
+            if grep -q '^appVersion:' "$c"; then
+              grep -qx "appVersion: \"$v\"" "$c" || { echo "::error file=$c::appVersion is not $v"; exit 1; }
+            fi
           done
       - name: GitHub release from CHANGELOG.md
         env: {GH_TOKEN: "${{ github.token }}"}
         run: |
-          v="${GITHUB_REF_NAME#v}"
+          v="${TAG#v}"
           awk -v v="$v" '/^## /{f = ($2 == v)} f && !/^## /' CHANGELOG.md > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "$v" --notes-file notes.md --verify-tag
+          gh release create "$TAG" --title "$v" --notes-file notes.md --verify-tag
