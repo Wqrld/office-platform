@@ -20,7 +20,7 @@ jobs:
 
       - uses: updatecli/updatecli-action@4b17f4ea784de29f71f85f9bc4955402ba1ae53c   # v2.100.0
         with:
-          version: 0.120.1   # pinned: the tool that manages our pins is itself pinned
+          version: v0.120.1  # pinned: the tool that manages our pins is itself pinned
 
       # Runs first so the log shows what WOULD change even when the apply step then makes
       # it so — the diff is the reviewable artefact when a target unexpectedly fails.
