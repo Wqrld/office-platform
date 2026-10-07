@@ -5,7 +5,14 @@
 # actions to commit SHAs, applied to the toolchain. CI's one place for every install.
 set -euo pipefail
 
-need() { local v="${1^^}_VERSION"; [[ -n "${!v:-}" ]] || { echo "toolchain: $v is not set" >&2; exit 2; }; echo "${!v}"; }
+# Outside CI the pins are read from the workflow's `env:`, so there is one list of them.
+WORKFLOW="$(dirname "$0")/../.github/workflows/pr.yaml"
+need() {
+  local v="${1^^}_VERSION" pin
+  pin="${!v:-$(sed -n "s/^  $v: \"\(.*\)\"$/\1/p" "$WORKFLOW")}"
+  [[ -n "$pin" ]] || { echo "toolchain: $v is not set" >&2; exit 2; }
+  echo "$pin"
+}
 get()  { curl -fsSL "$1" | tar xz -C /tmp "${@:2}"; }
 put()  { sudo install -m755 "/tmp/$1" "/usr/local/bin/$(basename "$1")"; }
 
