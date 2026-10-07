@@ -13,6 +13,11 @@ versioned, tested release you install with one command.
 
 </div>
 
+> [!NOTE]
+> Much of the code in this repository was written with an LLM. Every change still has to
+> pass the [checks](#checks), but read what you deploy and review it before you rely on it
+> in production.
+
 ## What you get
 
 | | App | What it does |
