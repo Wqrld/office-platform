@@ -7,4 +7,3 @@ gateway:
   acmeEmail: ops@example.org
 size: small
 apps: {messages: true}
-registry: {url: oci://registry.example.org/office}

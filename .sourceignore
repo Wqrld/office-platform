@@ -1,5 +1,5 @@
-# Kept out of the Flux OCI artifact: what runs in CI, is published separately, or is run
-# by hand from a checkout. The cluster reads infra/, platform/ and apps/, minus the
+# Kept out of the platform source as Flux fetches it: what runs in CI, or is run by hand
+# from a checkout. The cluster reads infra/, platform/ and apps/, minus the
 # operator scripts and test fixtures listed at the end.
 /.github/
 /updatecli/
@@ -10,8 +10,6 @@
 /policy/
 /docs/
 /examples/
-# The charts are published by release.sh as artifacts of their own.
-/charts/
 # The size-profile measuring tool, the DNS check, and the pinned chart cache. `.charts/`
 # is hundreds of megabytes of upstream Helm charts that must never travel in the artifact.
 /measure.py

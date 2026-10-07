@@ -134,36 +134,31 @@ spec:
   type: oci
   url: oci://ghcr.io/rajsinghtech/charts
 ---
-# Our own charts, at THIS chart's version: release.sh publishes the config artifact and all
-# four charts under one number, so nothing here is ever bumped by hand and a control plane
-# can only ever pair with the platform charts it was released with. The registry is the
-# organisation's one knob in this file.
+# Our own charts, built from the platform source at this chart's version (config.yaml), so a
+# control plane can only ever pair with the platform charts it was released with.
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
+kind: HelmChart
 {{ include "platform.metadata" "platform-deps" }}
 spec:
   interval: 30m
-  url: {{ .Values.registry.url }}/charts/platform-deps
-  ref: {tag: {{ include "platform.version" . | quote }}}
-  {{- include "platform.pullSecret" . | nindent 2 }}
+  chart: ./charts/platform-deps
+  sourceRef: {kind: GitRepository, name: office-config}
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
+kind: HelmChart
 {{ include "platform.metadata" "platform-app" }}
 spec:
   interval: 30m
-  url: {{ .Values.registry.url }}/charts/platform-app
-  ref: {tag: {{ include "platform.version" . | quote }}}
-  {{- include "platform.pullSecret" . | nindent 2 }}
+  chart: ./charts/platform-app
+  sourceRef: {kind: GitRepository, name: office-config}
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
+kind: HelmChart
 {{ include "platform.metadata" "platform-tenants" }}
 spec:
   interval: 30m
-  url: {{ .Values.registry.url }}/charts/platform-tenants
-  ref: {tag: {{ include "platform.version" . | quote }}}
-  {{- include "platform.pullSecret" . | nindent 2 }}
+  chart: ./charts/platform-tenants
+  sourceRef: {kind: GitRepository, name: office-config}
 ---
 # Chart lives in-tree at src/helm/meet; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1

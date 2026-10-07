@@ -6,7 +6,7 @@ metadata: {name: docs-platform, namespace: office-docs}
 spec:
   interval: 30m
   dependsOn: [{name: docs}]
-  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
   # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "platform-${SIZE}"}]
   values:

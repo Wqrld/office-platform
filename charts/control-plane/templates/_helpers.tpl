@@ -57,7 +57,7 @@ spec:
   timeout: {{ $r.timeout }}
   prune: true
   wait: true
-  sourceRef: {kind: OCIRepository, name: office-config}
+  sourceRef: {kind: GitRepository, name: office-config}
   path: {{ .path }}
   {{- with .components }}
   components: {{ toJson . }}
@@ -75,10 +75,6 @@ spec:
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 {{- end }}
 
-{{/* The registry credential, on every source that pulls from our registry. */}}
-{{- define "platform.pullSecret" -}}
-{{- with .Values.registry.pullSecret }}secretRef: {name: {{ . }}}{{ end }}
-{{- end }}
 
 {{/*
 Every hostname this cluster serves, as a JSON list: the identity provider, the published
@@ -166,10 +162,10 @@ when the cluster brings its own.
 {{- end }}
 
 {{/*
-The platform version this control plane reconciles: the config artifact and the platform
-charts are pinned to it. appVersion, NOT .Chart.Version: helm-controller installs an OCI
-chart as `2.0.0+<digest>` and .Chart.Version carries that suffix into every tag, which
-exists nowhere. release.sh sets both to the same number.
+The platform version this control plane reconciles: the platform source is pinned to its
+tag, `v<version>`. appVersion, NOT .Chart.Version: helm-controller can install a chart as
+`2.0.0+<revision>`, and .Chart.Version would carry that suffix into a tag that exists
+nowhere. release.sh sets both to the same number.
 */}}
 {{- define "platform.version" -}}
 {{ .Chart.AppVersion | default .Chart.Version }}

@@ -1,9 +1,16 @@
 # Changelog
 
-One version covers the config artifact and all four charts (`docs/releasing.md`). A cluster
+One version covers the config and all four charts (`docs/releasing.md`). A cluster
 upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
+
+- **Breaking: a release is a git tag; there is no registry** (`docs/adr/0114`). The control
+  plane reads the config and the platform charts from this repository at `v<version>`.
+  `registry: {url, pullSecret}` is replaced by `source: {url, secretRef}`, which defaults
+  to the public repository; in `cluster.yaml` the `platform` OCIRepository becomes a
+  GitRepository and the HelmRelease takes `chart.spec` from it (`examples/cluster.yaml`).
+  `install.sh` takes `SOURCE_URL`/`SOURCE_SECRET` instead of `REGISTRY`/`HARBOR_*`.
 
 - Test cases and goldens use `example.org` and documentation addresses; `cluster-prod` and
   `cluster-demo` are now `cluster-default` and `cluster-small`.

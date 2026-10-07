@@ -5,7 +5,7 @@ metadata: {name: meet-platform, namespace: office-meet}
 spec:
   interval: 30m
   dependsOn: [{name: meet}]
-  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
   # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: meet-sizes, valuesKey: "platform-${SIZE}"}]
   values:

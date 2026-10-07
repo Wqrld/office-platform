@@ -66,11 +66,12 @@ Everything else — database roles, cache passwords, OIDC secrets, the Keycloak 
 keys — is generated in-cluster once. These three come from a provider, so no generator can
 make them. `install.sh` creates them before Flux starts when its variables are set.
 
-**Registry** — only for a private registry (`registry.pullSecret`):
+**Source** — only for a private fork (`SOURCE_URL`, `SOURCE_SECRET`), with a read-only
+deploy key; set the same Secret on the `platform` GitRepository and in `source.secretRef`:
 
 ```sh
-kubectl -n flux-system create secret docker-registry harbor-auth \
-  --docker-server=<registry> --docker-username=<robot> --docker-password=<token>
+flux create secret git office-platform-git -n flux-system \
+  --url=ssh://git@github.com/<org>/office-platform --private-key-file=<deploy-key>
 ```
 
 **Mail** — `SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD SMTP_FROM`, `SMTP_TLS=starttls|ssl`.

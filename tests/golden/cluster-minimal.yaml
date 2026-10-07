@@ -25,6 +25,26 @@ data:
   SERVICES_JSON: "{\"services\":[{\"logo\":\"https://docs.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.example.org/realms/office/account\"}]}"
   TENANTS_JSON: "{\"calendars\":{\"acl\":{\"broker\":\"+keys\"},\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Calendars — agenda's delen en vergaderingen plannen\"},\"postgres\":{}},\"collabora\":{},\"docs\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"accessTokenLifespan\":1200,\"audiences\":[\"find\"],\"description\":\"Docs — samen werken aan documenten\"},\"postgres\":{\"extensions\":[\"pg_trgm\",\"unaccent\"]}},\"drive\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Drive — bestanden delen en samen bewerken\"},\"postgres\":{\"extensions\":[\"ltree\",\"pg_trgm\",\"unaccent\"]}},\"find\":{\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Find — zoeken over alle applicaties\",\"shape\":\"resource-server\"},\"postgres\":{},\"search\":[\"find-*\"]},\"livekit\":{\"cache\":[\"broker\"]},\"meet\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Meet — videovergaderen\"},\"postgres\":{\"extensions\":[\"pg_trgm\"]}},\"messages\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Messages — gedeelde mailboxen\"},\"postgres\":{\"extensions\":[\"unaccent\"]},\"search\":[\"messages\"]},\"projects\":{\"acl\":{\"cache\":\"+info\"},\"bucket\":true,\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Projects — borden, lijsten en kaarten voor projectbeheer\",\"redirect\":\"/oidc-callback\",\"shape\":\"login\"},\"postgres\":{}}}"
 ---
+# Source: control-plane/templates/config.yaml
+# The platform source: this repository at the tag of this chart's version. Every
+# Kustomization this chart emits reads infra/, platform/ and apps/ from it, and the platform
+# charts are built from its charts/ (sources.yaml). One tag, so the organisation's chart pin
+# IS the platform version: there is no second pointer to keep in step (docs/adr/0114).
+# Rendered here rather than shared with the GitRepository the organisation's cluster.yaml
+# installs this chart from, so the config moves only once these templates have: a new
+# layer never reaches the cluster before the cluster-vars it reads.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: office-config
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 5m
+  url: ssh://git@github.com/example-org/office-platform
+  ref: {tag: "v<version>"}
+  secretRef: {name: office-platform-git}
+---
 # Source: control-plane/templates/sources.yaml
 # Chart lives in-tree at src/helm/impress; the git tag is the pin.
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -177,6 +197,44 @@ spec:
     !/egress
 ---
 # Source: control-plane/templates/sources.yaml
+# Our own charts, built from the platform source at this chart's version (config.yaml), so a
+# control plane can only ever pair with the platform charts it was released with.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmChart
+metadata:
+  name: platform-deps
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  chart: ./charts/platform-deps
+  sourceRef: {kind: GitRepository, name: office-config}
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmChart
+metadata:
+  name: platform-app
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  chart: ./charts/platform-app
+  sourceRef: {kind: GitRepository, name: office-config}
+---
+# Source: control-plane/templates/sources.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmChart
+metadata:
+  name: platform-tenants
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  chart: ./charts/platform-tenants
+  sourceRef: {kind: GitRepository, name: office-config}
+---
+# Source: control-plane/templates/sources.yaml
 # Chart sources — every pin the platform runs, in one file. Upstream pins are literal:
 # updatecli rewrites them here (updatecli/README.md). La Suite publishes no Helm
 # repository, so its charts come from pinned git tags — see docs/adr/0104.
@@ -260,7 +318,7 @@ spec:
   timeout: 10m
   prune: true
   wait: true
-  sourceRef: {kind: OCIRepository, name: office-config}
+  sourceRef: {kind: GitRepository, name: office-config}
   path: ./apps/docs
   dependsOn:
     - {name: platform}
@@ -281,7 +339,7 @@ spec:
   timeout: 10m
   prune: true
   wait: true
-  sourceRef: {kind: OCIRepository, name: office-config}
+  sourceRef: {kind: GitRepository, name: office-config}
   path: ./apps/find
   dependsOn:
     - {name: platform}
@@ -322,7 +380,7 @@ spec:
   timeout: 10m
   prune: true
   wait: true
-  sourceRef: {kind: OCIRepository, name: office-config}
+  sourceRef: {kind: GitRepository, name: office-config}
   path: ./infra
   postBuild:
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
@@ -340,71 +398,10 @@ spec:
   timeout: 10m
   prune: true
   wait: true
-  sourceRef: {kind: OCIRepository, name: office-config}
+  sourceRef: {kind: GitRepository, name: office-config}
   path: ./platform
   components: ["./overlays/size-small"]
   dependsOn:
     - {name: infra}
   postBuild:
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
----
-# Source: control-plane/templates/config.yaml
-# The config artifact: infra/, platform/ and apps/, read by every Kustomization this chart
-# emits — at this chart's version, like the charts above. release.sh publishes both under
-# one number, so the organisation's chart pin IS the platform version: there is no second
-# pointer to keep in step and no moving tag anywhere (the old `:latest` / `:X.Y.Z` split
-# existed only because the pointer used to live inside the tree it pointed at).
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
-metadata:
-  name: office-config
-  namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
-spec:
-  interval: 5m
-  url: oci://registry.example.org/office/config
-  ref: {tag: "<version>"}
-  secretRef: {name: harbor-auth}
----
-# Source: control-plane/templates/sources.yaml
-# Our own charts, at THIS chart's version: release.sh publishes the config artifact and all
-# four charts under one number, so nothing here is ever bumped by hand and a control plane
-# can only ever pair with the platform charts it was released with. The registry is the
-# organisation's one knob in this file.
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
-metadata:
-  name: platform-deps
-  namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
-spec:
-  interval: 30m
-  url: oci://registry.example.org/office/charts/platform-deps
-  ref: {tag: "<version>"}
-  secretRef: {name: harbor-auth}
----
-# Source: control-plane/templates/sources.yaml
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
-metadata:
-  name: platform-app
-  namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
-spec:
-  interval: 30m
-  url: oci://registry.example.org/office/charts/platform-app
-  ref: {tag: "<version>"}
-  secretRef: {name: harbor-auth}
----
-# Source: control-plane/templates/sources.yaml
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
-metadata:
-  name: platform-tenants
-  namespace: flux-system
-  annotations: {helm.sh/resource-policy: keep}
-spec:
-  interval: 30m
-  url: oci://registry.example.org/office/charts/platform-tenants
-  ref: {tag: "<version>"}
-  secretRef: {name: harbor-auth}

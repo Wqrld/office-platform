@@ -4,7 +4,7 @@ kind: HelmRelease
 metadata: {name: drive-deps, namespace: office-drive}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-deps, namespace: flux-system}
   values:
     app: drive
     env: lasuite

@@ -1,8 +1,8 @@
 # office-platform
 
 The platform, whole: the Flux-reconciled configuration, the charts that render it, and
-the checks that keep both honest. Published by `release.sh` as one version — a config
-artifact and four charts — and installed by an organisation from one file of its own
+the checks that keep both honest. Released as one git tag that carries the config and
+the four charts (`docs/adr/0114`), and installed by an organisation from one file of its own
 (`examples/cluster.yaml`). Design and decisions: `docs/adr/`, the original design set in `docs/history/`.
 
 ```
@@ -81,6 +81,6 @@ single SAN fails validation, so one mispointed record is an outage for every app
 
 `docs/install.md` — nothing to a serving platform: `./install.sh --k3s` on a fresh VPS,
 `--existing` on a cluster you have.
-`docs/releasing.md` — `./release.sh <version>`: one immutable number for config and charts.
+`docs/releasing.md` — `./release.sh <version>`: one immutable tag for config and charts.
 
 Licence: EUPL-1.2.

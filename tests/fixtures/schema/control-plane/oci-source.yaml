@@ -1,4 +1,4 @@
 # expect: does not match pattern
-# Every source the control plane emits pulls from it; there is no default to fall back to.
 domain: example.org
 gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
+source: {url: oci://registry.example.org/office}

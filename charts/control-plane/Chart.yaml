@@ -2,10 +2,10 @@ apiVersion: v2
 name: control-plane
 description: >-
   The Flux control plane of the office platform, rendered from an organisation's choices.
-  One release of this chart is one version of the platform: the config artifact it points
-  at carries the same version.
+  One release of this chart is one version of the platform: the git tag `v<version>` it
+  reads the config and the platform charts from.
 type: application
 # The platform version. release.sh sets both in all four charts at once; never by hand.
-# Templates read appVersion — helm-controller suffixes `version` with the OCI digest.
-version: 2.2.4
-appVersion: "2.2.4"
+# Templates read appVersion — helm-controller can suffix `version` with the source revision.
+version: 2.2.14
+appVersion: "2.2.14"

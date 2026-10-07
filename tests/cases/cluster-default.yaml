@@ -7,5 +7,4 @@ gateway:
   acmeEmail: ops@example.org
   tlsIssuer: letsencrypt-gateway
 size: medium
-registry: {url: oci://registry.example.org/office}
 smtp: {configured: true}

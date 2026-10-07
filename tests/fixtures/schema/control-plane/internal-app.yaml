@@ -3,4 +3,3 @@
 domain: example.org
 gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
 apps: {livekit: true}
-registry: {url: oci://registry.example.org/office}

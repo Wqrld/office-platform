@@ -11,4 +11,3 @@ cluster:
   gateway: {install: true}
   certManager: {install: true}
   loadBalancer: {kind: metallb, install: true, pool: ["203.0.113.10/32"]}
-registry: {url: oci://registry.example.org/office}

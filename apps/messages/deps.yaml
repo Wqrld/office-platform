@@ -6,7 +6,7 @@ kind: HelmRelease
 metadata: {name: messages-deps, namespace: office-messages}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-deps, namespace: flux-system}
   values:
     app: messages
     env: messages

@@ -68,8 +68,8 @@ Building here first is not a contradiction. It is where the chart can be wrong c
 - **If the PR lands, the app moves from Tier 4 to Tier 1** — it stops being our chart and
   becomes an upstream chart plus a `platform-app` surround. That is a migration we should
   expect, not be surprised by; `platform-app` already exists for it.
-- **Consumption changes with the destination.** A chart in this repo is pulled as an OCI
-  artifact from Harbor; a chart upstream or in a fork is a Flux `GitRepository` pinned to a
+- **Consumption changes with the destination.** A chart in this repo is built from the
+  platform's own git tag (`0114`); a chart upstream or in a fork is a Flux `GitRepository` pinned to a
   tag, per `0104`. The app's HelmRelease changes `chartRef` to `chart.spec` when it moves.
 - **`platform.workload` stays useful either way.** Bureaublad has no upstream to send a
   chart to, so the helper has a consumer regardless of how Messages and Calendars land.

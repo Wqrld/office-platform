@@ -16,17 +16,16 @@ spec:
     networkPolicy: false             # true only if your CNI enforces NetworkPolicy
   # Later, when this file lives in a source of its own — one of:
   # sync: {kind: GitRepository, url: https://github.com/example-org/office-cluster, ref: refs/heads/main, path: .}
-  # sync: {kind: OCIRepository, url: oci://registry.example.org/office/clusters, ref: latest, path: prod, pullSecret: harbor-auth}
 ---
 # 2. The platform version. THIS LINE IS THE UPGRADE, and editing it back is the rollback.
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
+kind: GitRepository
 metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
-  url: oci://harbor.mijnbureau.haaijer.dev/office/charts/control-plane
-  ref: {tag: "2.2.14"}
-  secretRef: {name: harbor-auth}       # omit for a public registry
+  url: https://github.com/Wqrld/office-platform   # or your fork; then set `source` below too
+  ref: {tag: v2.2.14}
+  # secretRef: {name: office-platform-git}       # a private fork: `flux create secret git`
 ---
 # 3. Your choices. charts/control-plane/values.yaml documents each key; the schema rejects
 #    anything else, so a typo is a refused release with a message.
@@ -35,7 +34,10 @@ kind: HelmRelease
 metadata: {name: platform, namespace: flux-system}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform}
+  chart:
+    spec:
+      chart: ./charts/control-plane
+      sourceRef: {kind: GitRepository, name: platform}
   install: {disableWait: true}         # readiness is watched on the Flux objects, not through Helm
   upgrade: {disableWait: true}
   values:
@@ -59,4 +61,4 @@ spec:
       certManager: {install: true}
       loadBalancer: {kind: metallb, install: true, pool: ["10.0.0.5/32", "10.0.0.6/32"]}
     smtp: {configured: false}          # true once the smtp-credentials Secret exists
-    registry: {url: oci://harbor.mijnbureau.haaijer.dev/office, pullSecret: harbor-auth}
+    # source: {url: ssh://git@github.com/example-org/office-platform, secretRef: office-platform-git}

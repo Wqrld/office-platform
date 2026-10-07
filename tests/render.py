@@ -138,7 +138,7 @@ def flux_build(path: str, components: list[str] = (), name: str = "build") -> li
           "metadata": {"name": name, "namespace": "flux-system"},
           "spec": {"interval": "1h", "prune": True, "path": f"./{path}",
                    "components": list(components),
-                   "sourceRef": {"kind": "OCIRepository", "name": "office-config"}}}
+                   "sourceRef": {"kind": "GitRepository", "name": "office-config"}}}
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
         dump(ks, f)
     try:
@@ -276,9 +276,9 @@ def unresolved(objects: list[dict], allowed: set[str] = frozenset()) -> set[str]
 # ---------------------------------------------------------------- upstream charts
 
 def local_chart(rel: dict) -> str | None:
-    """Our own charts, rendered from charts/ rather than pulled from the registry."""
+    """Our own charts, rendered from charts/ as the HelmChart the control plane builds them as."""
     ref = rel["spec"].get("chartRef")
-    if not ref:
+    if not ref or ref["kind"] != "HelmChart":
         return None
     p = ROOT / "charts" / ref["name"]
     return str(p) if p.is_dir() else None

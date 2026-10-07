@@ -5,7 +5,7 @@ metadata: {name: drive-platform, namespace: office-drive}
 spec:
   interval: 30m
   dependsOn: [{name: drive}]
-  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
   # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "platform-${SIZE}"}]
   values:

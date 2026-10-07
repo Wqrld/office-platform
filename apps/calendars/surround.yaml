@@ -7,7 +7,7 @@ metadata: {name: calendars-platform, namespace: office-calendars}
 spec:
   interval: 30m
   dependsOn: [{name: calendars}]
-  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
   # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "platform-${SIZE}"}]
   values:

@@ -2,4 +2,3 @@
 # The ClusterIssuer's contact; Let's Encrypt refuses an empty one at the first order.
 domain: example.org
 gateway: {ip: 10.0.0.5}
-registry: {url: oci://registry.example.org/office}

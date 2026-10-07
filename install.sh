@@ -5,7 +5,8 @@
 #   DOMAIN=... ACME_EMAIL=... GATEWAY_IP=10.0.0.5 ./install.sh --existing
 #
 # Optional: SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD
-# SMTP_FROM SMTP_TLS=starttls|ssl, HF_TOKEN, HARBOR_USER HARBOR_PASSWORD, VERSION, REGISTRY,
+# SMTP_FROM SMTP_TLS=starttls|ssl, HF_TOKEN, VERSION, SOURCE_URL (a fork; public, or with the
+# Flux git Secret SOURCE_SECRET already in flux-system),
 # SIZE=small|medium|large, STORAGE_CLASS, TLS_ISSUER, GATEWAY_CLASS, OUT=cluster.yaml.
 set -euo pipefail
 
@@ -23,7 +24,8 @@ done
 [[ -n "$MODE" ]] || { echo "usage: $0 --k3s|--existing [--no-watch]" >&2; exit 2; }
 : "${DOMAIN:?}" "${ACME_EMAIL:?}"
 OUT="${OUT:-$HERE/cluster.yaml}"
-REGISTRY="${REGISTRY:-oci://harbor.mijnbureau.haaijer.dev/office}"
+SOURCE_URL="${SOURCE_URL:-https://github.com/Wqrld/office-platform}"
+SOURCE_SECRET="${SOURCE_SECRET:-}"
 VERSION="${VERSION:-$(sed -n 's/^appVersion: "\(.*\)"/\1/p' "$HERE/charts/control-plane/Chart.yaml")}"
 
 echo "== 1. cluster ($MODE)"
@@ -44,13 +46,13 @@ fi
 kubectl cluster-info >/dev/null
 
 echo "== 2. $OUT"
-export DOMAIN ACME_EMAIL GATEWAY_IP STORAGE_CLASS INSTALL LB_KIND REGISTRY VERSION OUT
+export DOMAIN ACME_EMAIL GATEWAY_IP STORAGE_CLASS INSTALL LB_KIND SOURCE_URL SOURCE_SECRET VERSION OUT
 python3 - "$HERE/examples/cluster.yaml" <<'PY'
 import os, sys, yaml
 e = os.environ.get
-flux, oci, hr = yaml.safe_load_all(open(sys.argv[1]))
-oci["spec"]["url"] = f"{e('REGISTRY')}/charts/control-plane"
-oci["spec"]["ref"] = {"tag": e("VERSION")}
+flux, git, hr = yaml.safe_load_all(open(sys.argv[1]))
+git["spec"]["url"] = e("SOURCE_URL")
+git["spec"]["ref"] = {"tag": f"v{e('VERSION')}"}
 v = hr["spec"]["values"]
 v.update(domain=e("DOMAIN"), storageClass=e("STORAGE_CLASS"), size=e("SIZE", "small"))
 v["gateway"] = {"ip": e("GATEWAY_IP"), "acmeEmail": e("ACME_EMAIL"), "tlsIssuer": e("TLS_ISSUER", "letsencrypt-gateway")}
@@ -60,12 +62,11 @@ v["cluster"] = {"gateway": {"install": install, "className": e("GATEWAY_CLASS", 
                 "certManager": {"install": install},
                 "loadBalancer": {"kind": e("LB_KIND"), "install": install, "pool": pool}}
 v["smtp"] = {"configured": bool(e("SMTP_HOST"))}
-v["registry"] = {"url": e("REGISTRY")}
-if e("HARBOR_USER"):
-    v["registry"]["pullSecret"] = "harbor-auth"
-else:
-    oci["spec"].pop("secretRef", None)
-yaml.safe_dump_all([flux, oci, hr], open(e("OUT"), "w"), sort_keys=False)
+v["source"] = {"url": e("SOURCE_URL")}
+if e("SOURCE_SECRET"):
+    v["source"]["secretRef"] = e("SOURCE_SECRET")
+    git["spec"]["secretRef"] = {"name": e("SOURCE_SECRET")}
+yaml.safe_dump_all([flux, git, hr], open(e("OUT"), "w"), sort_keys=False)
 PY
 python3 -c 'import sys,yaml; print(yaml.safe_dump(list(yaml.safe_load_all(open(sys.argv[1])))[2]["spec"]["values"]))' "$OUT" > "$OUT.values"
 helm template platform "$HERE/charts/control-plane" --values "$OUT.values" >/dev/null
@@ -76,10 +77,6 @@ echo "== 3. secrets"
 for ns in flux-system office-data; do
   kubectl get ns "$ns" >/dev/null 2>&1 || kubectl create ns "$ns"
 done
-if [[ -n "${HARBOR_USER:-}" ]]; then
-  kubectl -n flux-system create secret docker-registry harbor-auth --docker-server="${REGISTRY#oci://}" \
-    --docker-username="$HARBOR_USER" --docker-password="$HARBOR_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
-fi
 if [[ -n "${SMTP_HOST:-}" ]]; then
   tls=$([[ "${SMTP_TLS:-starttls}" == starttls ]] && echo true || echo false)
   ssl=$([[ "${SMTP_TLS:-starttls}" == ssl ]] && echo true || echo false)

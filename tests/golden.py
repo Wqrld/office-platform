@@ -21,8 +21,8 @@ deletes them:
     Chart.yaml on every release, so an unnormalised golden fails on every single publish.
     That is the fastest way to teach people to run --update without reading the diff.
 
-  * `ref: {tag: "0.2.4"}` on the control plane's own sources — the config artifact and
-    the platform charts are pinned at the chart's version, which moves for the same reason.
+  * `ref: {tag: "v0.2.4"}` on the control plane's own source — the platform source is
+    pinned at the chart's version, which moves for the same reason.
     Only a tag equal to the current chart version is replaced; an upstream pin is not.
 
 The chart NAME is kept. Only the version is replaced.
@@ -46,7 +46,7 @@ VERSION = re.search(r"^version: (\S+)", (HERE.parent / "charts/control-plane/Cha
 
 def normalise(text: str) -> str:
     text = CHART_LABEL.sub(r"\1\2-<version>", text)
-    return text.replace(f'tag: "{VERSION}"', 'tag: "<version>"')
+    return text.replace(f'tag: "v{VERSION}"', 'tag: "v<version>"')
 
 
 def rendered(name: str) -> str:

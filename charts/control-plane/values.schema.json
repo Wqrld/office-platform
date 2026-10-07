@@ -122,15 +122,15 @@
         }
       }
     },
-    "registry": {
+    "source": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "url": {
           "type": "string",
-          "pattern": "^oci://.+"
+          "pattern": "^(https|ssh)://.+"
         },
-        "pullSecret": {
+        "secretRef": {
           "type": "string"
         }
       }

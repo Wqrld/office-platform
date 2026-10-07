@@ -7,7 +7,7 @@ metadata: {name: projects-platform, namespace: office-projects}
 spec:
   interval: 30m
   dependsOn: [{name: projects}]
-  chartRef: {kind: OCIRepository, name: platform-app, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
   # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: projects-sizes, valuesKey: "platform-${SIZE}"}]
   values:

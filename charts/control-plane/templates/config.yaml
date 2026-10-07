@@ -1,13 +1,17 @@
-# The config artifact: infra/, platform/ and apps/, read by every Kustomization this chart
-# emits — at this chart's version, like the charts above. release.sh publishes both under
-# one number, so the organisation's chart pin IS the platform version: there is no second
-# pointer to keep in step and no moving tag anywhere (the old `:latest` / `:X.Y.Z` split
-# existed only because the pointer used to live inside the tree it pointed at).
+# The platform source: this repository at the tag of this chart's version. Every
+# Kustomization this chart emits reads infra/, platform/ and apps/ from it, and the platform
+# charts are built from its charts/ (sources.yaml). One tag, so the organisation's chart pin
+# IS the platform version: there is no second pointer to keep in step (docs/adr/0114).
+# Rendered here rather than shared with the GitRepository the organisation's cluster.yaml
+# installs this chart from, so the config moves only once these templates have: a new
+# layer never reaches the cluster before the cluster-vars it reads.
 apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
+kind: GitRepository
 {{ include "platform.metadata" "office-config" }}
 spec:
   interval: 5m
-  url: {{ .Values.registry.url }}/config
-  ref: {tag: {{ include "platform.version" . | quote }}}
-  {{- include "platform.pullSecret" . | nindent 2 }}
+  url: {{ .Values.source.url }}
+  ref: {tag: {{ printf "v%s" (include "platform.version" .) | quote }}}
+  {{- with .Values.source.secretRef }}
+  secretRef: {name: {{ . }}}
+  {{- end }}

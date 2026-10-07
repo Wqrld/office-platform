@@ -55,4 +55,4 @@ jobs:
             - a Keycloak bump touches five vendored files — diff them against the release
               notes, not just the version comment
             - `./release.sh <next version>` after merge; the bump is not live until the
-              config artifact is re-pushed and the layers report the new revision
+              tag is pushed, a cluster pins it and the layers report the new revision

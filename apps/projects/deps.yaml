@@ -6,7 +6,7 @@ kind: HelmRelease
 metadata: {name: projects-deps, namespace: office-projects}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-deps, namespace: flux-system}
   values:
     app: projects
     env: projects

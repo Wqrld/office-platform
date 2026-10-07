@@ -7,4 +7,5 @@ apps: {drive: false, collabora: false, calendars: false, projects: false, meet: 
 objectStore: {mode: external}
 cluster: {loadBalancer: {kind: none}}   # a cloud LB allocates; nothing is pinned
 smtp: {configured: true}
-registry: {url: oci://registry.example.org/office}
+# A private fork, read with a deploy key: the source is the organisation's choice too.
+source: {url: "ssh://git@github.com/example-org/office-platform", secretRef: office-platform-git}

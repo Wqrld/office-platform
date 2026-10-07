@@ -54,13 +54,12 @@ smtp:
   configured: false
 
 # ---------------------------------------------------------------- platform defaults
-# Where the platform's own artifacts are pulled from: the config artifact, the platform
-# charts and this chart — all at this chart's version, and the same registry `release.sh`
-# publishes to. `pullSecret` is a Secret in flux-system, created at bootstrap; empty for a
-# registry that needs none.
-registry:
-  url: ""
-  pullSecret: harbor-auth
+# Where the platform's source is fetched from, at the tag of this chart's version: this
+# repository, or a fork of it. `secretRef` names a Flux git Secret in flux-system, for a
+# private repository (`flux create secret git`); empty for a public one.
+source:
+  url: https://github.com/Wqrld/office-platform
+  secretRef: ""
 reconcile:
   interval: 30m
   retryInterval: 2m

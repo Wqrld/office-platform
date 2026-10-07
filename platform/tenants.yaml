@@ -10,7 +10,7 @@ kind: HelmRelease
 metadata: {name: tenants, namespace: office-data}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform-tenants, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-tenants, namespace: flux-system}
   # The realm and OpenSearch reconcile Jobs wait on Keycloak and OpenSearch, which start
   # in this same layer and read this release's Secrets: waiting on the Jobs would put this
   # release behind servers that are waiting on it. They retry on their own.

@@ -1,0 +1,30 @@
+# A pushed tag `v<version>` is a release (release.sh, docs/releasing.md). This checks the
+# tag names the version the charts carry — a tag pushed by hand on the wrong commit would
+# otherwise pin clusters to charts of another number — and publishes the CHANGELOG section.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+      - name: tag matches every chart
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          for c in charts/*/Chart.yaml; do
+            grep -qx "version: $v" "$c" && grep -qx "appVersion: \"$v\"" "$c" \
+              || { echo "::error file=$c::does not carry $v"; exit 1; }
+          done
+      - name: GitHub release from CHANGELOG.md
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## /{f = ($2 == v)} f && !/^## /' CHANGELOG.md > notes.md
+          gh release create "$GITHUB_REF_NAME" --title "$v" --notes-file notes.md --verify-tag

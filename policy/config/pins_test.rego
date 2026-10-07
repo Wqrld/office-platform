@@ -62,7 +62,7 @@ test_ocirepository_with_tag_passes if {
 		"apiVersion": "source.toolkit.fluxcd.io/v1",
 		"kind": "OCIRepository",
 		"metadata": {"name": "platform-app"},
-		"spec": {"url": "oci://harbor/office/charts/platform-app", "ref": {"tag": "0.2.4"}},
+		"spec": {"url": "oci://docker.io/envoyproxy/gateway-helm", "ref": {"tag": "0.2.4"}},
 	}
 }
 
@@ -71,7 +71,7 @@ test_ocirepository_unpinned_denied if {
 		"apiVersion": "source.toolkit.fluxcd.io/v1",
 		"kind": "OCIRepository",
 		"metadata": {"name": "platform-app"},
-		"spec": {"url": "oci://harbor/office/charts/platform-app", "ref": {}},
+		"spec": {"url": "oci://docker.io/envoyproxy/gateway-helm", "ref": {}},
 	}
 }
 
@@ -80,7 +80,7 @@ test_ocirepository_semver_denied if {
 		"apiVersion": "source.toolkit.fluxcd.io/v1",
 		"kind": "OCIRepository",
 		"metadata": {"name": "platform-app"},
-		"spec": {"url": "oci://harbor/office/charts/platform-app", "ref": {"semver": ">=0.2.0"}},
+		"spec": {"url": "oci://docker.io/envoyproxy/gateway-helm", "ref": {"semver": ">=0.2.0"}},
 	}
 }
 

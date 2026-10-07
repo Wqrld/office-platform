@@ -5,7 +5,7 @@ kind: HelmRelease
 metadata: {name: collabora-deps, namespace: office-collabora}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-deps, namespace: flux-system}
   values:
     app: collabora
     baseDomain: ${BASE_DOMAIN}

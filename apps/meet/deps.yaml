@@ -4,7 +4,7 @@ kind: HelmRelease
 metadata: {name: meet-deps, namespace: office-meet}
 spec:
   interval: 30m
-  chartRef: {kind: OCIRepository, name: platform-deps, namespace: flux-system}
+  chartRef: {kind: HelmChart, name: platform-deps, namespace: flux-system}
   values:
     app: meet
     env: lasuite

@@ -19,6 +19,7 @@ this implements). Each names what it amends.
 | [0111](0111-opensearch-security-posture.md) | accepted | **OpenSearch runs with the security plugin on** — the index prefix is the tenant boundary |
 | [0112](0112-cluster-services-are-optional-layers.md) | accepted | Gateway, cert-manager and MetalLB are optional Flux layers chosen in `cluster.yaml`; GatewayClass and the address pin are values |
 | [0113](0113-media-through-the-gateway.md) | accepted | LiveKit's media goes through the Gateway's L4 listeners; one address per cluster, `livekit.ip` gone |
+| [0114](0114-releases-are-git-tags.md) | accepted | **A release is a git tag** — clusters read the config and the platform charts from the repository; no registry |
 
 Superseded from the design set: `0002` (library chart per component) → `0104` and the
 three charts in `charts/`; `0012` (upstream La Suite charts) → `0104`; `0013` (Kyverno
