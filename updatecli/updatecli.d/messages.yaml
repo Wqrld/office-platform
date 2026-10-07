@@ -33,8 +33,8 @@ targets:
     sourceid: release
     spec:
       file: "charts/control-plane/templates/sources.yaml"
-      matchpattern: 'url: https://github\.com/Wqrld/messages\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+\}'
-      replacepattern: 'url: https://github.com/Wqrld/messages\n  ref: {tag: {{ source "release" }}}'
+      matchpattern: '(url: https://github\.com/Wqrld/messages\n  ref: \{tag: )v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+\}'
+      replacepattern: '${1}{{ source "release" }}}'
 
   # Every `tag:` in the file: the backend's and the four component images', one release.
   image:

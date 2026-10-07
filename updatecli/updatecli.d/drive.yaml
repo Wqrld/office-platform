@@ -22,8 +22,8 @@ targets:
     sourceid: drive
     spec:
       file: "charts/control-plane/templates/sources.yaml"
-      matchpattern: 'url: https://github\.com/Wqrld/drive\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+\}'
-      replacepattern: 'url: https://github.com/Wqrld/drive\n  ref: {tag: {{ source "drive" }}}'
+      matchpattern: '(url: https://github\.com/Wqrld/drive\n  ref: \{tag: )v[0-9]+\.[0-9]+\.[0-9]+-office\.[0-9]+\}'
+      replacepattern: '${1}{{ source "drive" }}}'
 
   # Two tags in release.yaml — the backend takes the top-level `image`, the frontend
   # overrides it. One pattern rather than two yamlpath keys because they must never hold

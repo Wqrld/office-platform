@@ -10,10 +10,10 @@ name: "La Suite Find"
 sources:
   commit:
     name: "HEAD of find/main"
-    kind: gitbranch
+    # Not `gitbranch`: that returns a branch NAME (the newest one), not a commit.
+    kind: shell
     spec:
-      url: "https://github.com/suitenumerique/find"
-      branch: main
+      command: git ls-remote https://github.com/suitenumerique/find refs/heads/main | cut -f1
 
   digest:
     name: "digest of lasuite/find:main"
@@ -21,6 +21,8 @@ sources:
     spec:
       image: "lasuite/find"
       tag: main
+    transformers:
+      - trimprefix: "main@"  # dockerdigest returns `<tag>@sha256:…`
 
 targets:
   chart:
@@ -29,8 +31,8 @@ targets:
     sourceid: commit
     spec:
       file: "charts/control-plane/templates/sources.yaml"
-      matchpattern: 'url: https://github\.com/suitenumerique/find\n  ref: \{branch: main, commit: [0-9a-f]{40}\}'
-      replacepattern: 'url: https://github.com/suitenumerique/find\n  ref: {branch: main, commit: {{ source "commit" }}}'
+      matchpattern: '(url: https://github\.com/suitenumerique/find\n  ref: \{branch: main, commit: )[0-9a-f]{40}\}'
+      replacepattern: '${1}{{ source "commit" }}}'
 
   image:
     name: "post-renderer image digest"

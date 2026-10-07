@@ -30,13 +30,13 @@ targets:
     sourceid: server
     spec:
       file: "apps/livekit/release.yaml"
-      matchpattern: 'repository: livekit/livekit-server\n      tag: v[0-9]+\.[0-9]+\.[0-9]+'
-      replacepattern: 'repository: livekit/livekit-server\n      tag: {{ source "server" }}'
+      matchpattern: '(repository: livekit/livekit-server\n      tag: )v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: '${1}{{ source "server" }}'
   egress:
     name: "egress image tag"
     kind: file
     sourceid: egress
     spec:
       file: "apps/livekit/release.yaml"
-      matchpattern: 'repository: livekit/egress\n      tag: v[0-9]+\.[0-9]+\.[0-9]+'
-      replacepattern: 'repository: livekit/egress\n      tag: {{ source "egress" }}'
+      matchpattern: '(repository: livekit/egress\n      tag: )v[0-9]+\.[0-9]+\.[0-9]+'
+      replacepattern: '${1}{{ source "egress" }}'

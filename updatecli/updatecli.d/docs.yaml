@@ -31,8 +31,8 @@ targets:
     sourceid: docs
     spec:
       file: "charts/control-plane/templates/sources.yaml"
-      matchpattern: 'url: https://github\.com/suitenumerique/docs\n  ref: \{tag: v[0-9]+\.[0-9]+\.[0-9]+\}'
-      replacepattern: 'url: https://github.com/suitenumerique/docs\n  ref: {tag: {{ source "docs" }}}'
+      matchpattern: '(url: https://github\.com/suitenumerique/docs\n  ref: \{tag: )v[0-9]+\.[0-9]+\.[0-9]+\}'
+      replacepattern: '${1}{{ source "docs" }}}'
 
   # Three tags in release.yaml: the backend takes the top-level `image`, the frontend and
   # y-provider override it. They are one pattern rather than three yamlpath keys because
