@@ -15,7 +15,7 @@ versioned, tested release you install with one command.
 
 > [!NOTE]
 > Much of the code in this repository was written with an LLM. Every change still has to
-> pass the [checks](#checks), but read what you deploy and review it before you rely on it
+> pass the checks CI runs ([`AGENTS.md`](AGENTS.md)), but read what you deploy and review it before you rely on it
 > in production.
 
 ## What you get
@@ -50,72 +50,22 @@ release (see [DNS](#dns)): one wrong record fails the certificate for every app.
 
 ## How it is built
 
-The platform, whole: the Flux-reconciled configuration, the charts that render it, and
-the checks that keep both honest. Released as one git tag that carries the config and
-the four charts (`docs/adr/0114`), and installed by an organisation from one file of its own
-(`examples/cluster.yaml`). Design and decisions: `docs/adr/`, the original design set in `docs/history/`.
+Flux keeps your cluster in sync with this repository. You keep one file of your own,
+`cluster.yaml` (start from [`examples/cluster.yaml`](examples/cluster.yaml)), that picks
+your domain, size and apps, and points at a release of this repository. A release is a
+git tag (`docs/releasing.md`).
 
 ```
-charts/
-  control-plane/   the chart an organisation installs: renders the Flux control plane —
-                   sources, cluster vars, one Kustomization per layer and per ENABLED app —
-                   from ~10 typed, schema-checked values (its values.yaml)
-  platform-deps/   everything an app needs BEFORE it starts: datastores + secrets
-  platform-app/    the surround: HTTPRoutes, NetworkPolicy, PDB
-  platform-tenants/ what the platform provisions per app: database, cache users, OIDC secret, grant
-examples/          cluster.yaml — the one file an organisation keeps, in a source of its own
-cluster/           what the platform installs when the cluster lacks it: Envoy Gateway, MetalLB (adr/0112)
-infra/             operators (CNPG, ESO, the Garage operator; cert-manager when asked)
-platform/          shared stateful layer — gateway, postgres, valkey, search, keycloak, and
-                   the datastores of every app whether enabled or not; objectstore/ is its
-                   own layer so `objectStore.mode: external` can leave it out
-apps/              one directory per application, each its own Flux Kustomization, with
-                   its three sizes in apps/<app>/sizes/ (apps/README.md, Sizing)
-policy/            conftest rules — charts/ over what the charts render, config/ over the sources
-tests/             every check below, and the cases and goldens they share
+charts/     the Helm charts that render the platform from your cluster.yaml
+cluster/    Gateway and load balancer, if your cluster lacks them
+infra/      operators: Postgres, secrets, object storage, certificates
+platform/   shared services: gateway, Postgres, Valkey, search, Keycloak, object store
+apps/       one directory per application
+policy/     and tests/: the checks every change must pass
 ```
 
-Reconcile order: `cluster-*` → `infra` → `platform` → `objectstore` → `app-<name>`, with the dependencies
-between applications as `dependsOn` edges from the table in
-`charts/control-plane/apps.yaml`. Cluster singletons (the Gateway,
-PriorityClasses, ClusterIssuers) are plain manifests in `platform/`, not a chart —
-`docs/adr/0101`.
-
-Nothing per cluster lives here. A cluster is a `cluster.yaml` in the organisation's own
-source, and the `cluster-*` cases in `tests/cases/` are the values files the checks build:
-the defaults, the small profile, every app at `large`, a minimal selection on external S3,
-and a fresh VPS as `install.sh` writes it.
-
-## Checks
-
-Every job in `.github/workflows/pr.yaml` runs one of these, so the check that fails in CI is
-the check you can run here. `tests/cases/index.yaml` is the list of rendered cases every
-chart check iterates; a case added there is picked up by all of them.
-
-| Command | Question it answers |
-|---|---|
-| `./tests/render.py <case>` | what does this case render to? (every chart check renders through it) |
-| `./tests/schema.py` | do the schemas — and the control plane's refusals — still reject a bad values file? |
-| `./tests/golden.py` | did this template change alter the output? `--update`, then read the diff |
-| `./tests/build.py [dir]` | does every layer of every cluster build, with no `${VAR}` left unresolved? |
-| `./tests/kubeconform.sh [dir…]` | is what the charts render and what Flux would apply valid for the API server? |
-| `./tests/render-diff.sh [base]` | what does this change do to what the clusters actually apply? |
-| `./tests/binding.py [app]` | does our surround still attach to what the upstream charts create? |
-| `./tests/profiles.py [size]` | do the three sizes still say what they claim to say — every replica count with its budget, every sized release with every size, no release file overriding one? |
-| `./tests/check-secrets.py [app]` | do the `postRenderers` envFrom patches still hit exactly the workloads they should? |
-| `./tests/startup.py [app]` | will every pod start — can each non-root container run as its image's user, and does every Secret and ConfigMap a release needs come from something it does not wait behind? |
-| `conftest verify --policy policy/charts` (and `policy/config`) | do the static rules still fire, both directions? |
-| `conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/` | does the rendered output satisfy them? |
-| `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ cluster/ tests/golden/` | are the pins and remediation settings still as decided? |
-
-`binding.py`, `profiles.py`, `check-secrets.py` and `startup.py` fetch the pinned upstream charts into `.charts/`
-(`startup.py` also each image's config, from its registry), so they need network. Everything else is offline. All of them render through `tests/render.py` —
-the control plane with `helm template`, each layer with `flux build` — so what a check sees
-is what the cluster applies, sizes and the switcher files included. A new app needs a
-case in `tests/cases/index.yaml` for each of its platform releases; nothing checks that.
-
-Nothing here needs a cluster. `./preflight.py cluster.yaml` does: it checks a live cluster
-has what a `cluster.yaml` assumes. An install from scratch is not yet run by CI.
+How it fits together, and the checks, are in [`AGENTS.md`](AGENTS.md); design decisions are in
+[`docs/adr/`](docs/adr/).
 
 ## DNS
 

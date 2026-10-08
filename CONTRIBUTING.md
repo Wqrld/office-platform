@@ -2,7 +2,7 @@
 
 ## Checks
 
-Everything CI runs is a script you can run locally; `README.md` (Checks) lists what each one
+Everything CI runs is a script you can run locally; `AGENTS.md` (Checks) lists what each one
 answers. `tests/toolchain.sh <tool…>` installs the pinned versions of helm, flux,
 kubeconform, conftest, dyff and gitleaks; the scripts also need Python 3 with PyYAML.
 
