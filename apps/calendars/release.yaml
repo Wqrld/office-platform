@@ -44,8 +44,9 @@ spec:
     backend:
       pdb: {enabled: false}
 
-      # 1001, as Docs' images, so an upstream root image starts too (README.md, Pins).
-      securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
+      # 1001, as Docs' images, so an upstream root image starts too (README.md, Pins). The
+      # frontend merges it.
+      securityContext: &uid1001 {runAsUser: 1001, readOnlyRootFilesystem: true}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
       # Shared with the worker and both backend Jobs: they need the database and CalDAV keys.
@@ -142,8 +143,7 @@ spec:
       # on :8080. Remove when the image drops it (README.md, Gotchas). Caddy writes its XDG
       # dirs even with admin and auto_https off, hence the two emptyDirs.
       securityContext:
-        runAsUser: 1001
-        readOnlyRootFilesystem: true
+        <<: *uid1001
         capabilities:
           add: [NET_BIND_SERVICE]
       persistence:

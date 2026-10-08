@@ -46,7 +46,7 @@ spec:
 
     backend:
       pdb: {enabled: false}
-      securityContext: {readOnlyRootFilesystem: true}
+      securityContext: &readOnly {readOnlyRootFilesystem: true}
       persistence: &tmp {tmp: {type: emptyDir, mountPath: /tmp}}
       envFrom:
         - {secretRef: {name: docs-postgres}}
@@ -205,7 +205,7 @@ spec:
     frontend:
       image: {tag: v5.7.0}
       pdb: {enabled: false}
-      securityContext: {readOnlyRootFilesystem: true}
+      securityContext: *readOnly
       persistence: *tmp
       envVars:
         PORT: "8080"
@@ -216,7 +216,7 @@ spec:
     yProvider:
       image: {tag: v5.7.0}
       pdb: {enabled: false}
-      securityContext: {readOnlyRootFilesystem: true}
+      securityContext: *readOnly
       persistence: *tmp
       envFrom:
         - {secretRef: {name: docs-collaboration}}
@@ -227,6 +227,6 @@ spec:
 
     docSpec:
       enabled: true
-      securityContext: {readOnlyRootFilesystem: true}
+      securityContext: *readOnly
       extraVolumes: [{name: tmp, emptyDir: {}}]
       extraVolumeMounts: [{name: tmp, mountPath: /tmp}]

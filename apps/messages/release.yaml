@@ -43,7 +43,7 @@ spec:
       # `runAsNonRoot` refuses it. 1001 is upstream's test CI user; the entrypoint adds the
       # passwd entry. Drop once the fork's CI passes DOCKER_USER.
       securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
-      persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
+      persistence: &tmp {tmp: {type: emptyDir, mountPath: /tmp}}
 
       # OPENSEARCH_CA_CERTS (messages-opensearch) names this file.
       extraVolumes:
@@ -116,7 +116,7 @@ spec:
         repository: ghcr.io/wqrld/messages-frontend
         tag: "0.9.0-office.1"
       pdb: {enabled: false}
-      securityContext: {readOnlyRootFilesystem: true}
+      securityContext: &readOnly {readOnlyRootFilesystem: true}
       # Caddy keeps its autosave and storage under $HOME.
       persistence: {home: {type: emptyDir, mountPath: /home/nonroot}}
       envVars:
@@ -132,8 +132,8 @@ spec:
         repository: ghcr.io/wqrld/messages-mta-in-py
         tag: "0.9.0-office.1"
       pdb: {enabled: false}
-      securityContext: {readOnlyRootFilesystem: true}
-      persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
+      securityContext: *readOnly
+      persistence: *tmp
       extraVolumes:
         - {name: tls, secret: {secretName: messages-mx-tls}}
       extraVolumeMounts:
@@ -159,7 +159,7 @@ spec:
         repository: ghcr.io/wqrld/messages-mpa
         tag: "0.9.0-office.1"
       pdb: {enabled: false}
-      securityContext: {readOnlyRootFilesystem: true}
+      securityContext: *readOnly
       # rspamd's maps, cache, pid and sockets, nginx's temp paths, start.sh's servers.conf.
       persistence:
         tmp: {type: emptyDir, mountPath: /tmp}
