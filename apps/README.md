@@ -118,7 +118,8 @@ reference. Outside both, only what pins and tests it: its source in
 `charts/control-plane/templates/sources.yaml`, its `updatecli/updatecli.d/` file, a case in
 `tests/cases/index.yaml` for each of its platform releases, and its line in
 `examples/cluster.yaml`. `tests/build.py` asserts the table, this
-directory and the example agree.
+directory and the example agree, and that the release's source is in `sources.yaml` and
+bumped by updatecli. Nothing yet checks the test cases.
 
 ## The switcher
 

@@ -22,7 +22,7 @@ scripts need Python 3 + PyYAML.
 | `./tests/render.py <case>` (`--list` for names) | what does this case render to? (every chart check renders through it) |
 | `./tests/schema.py` | do the schemas — and the control plane's refusals — still reject a bad values file? |
 | `./tests/golden.py [--update]` | did this template change alter the output? `--update`, then read the diff |
-| `./tests/build.py [dir]` | does every layer of every cluster build, with no `${VAR}` left unresolved? (CI: `built`) |
+| `./tests/build.py [dir]` | does every layer of every cluster build, with no `${VAR}` left unresolved, and do the app table, `apps/`, the example and the updatecli pins agree? (CI: `built`) |
 | `./tests/kubeconform.sh [dir…]` | is what the charts render and what Flux would apply valid for the API server? (CI: `tests/golden built`) |
 | `./tests/render-diff.sh [base]` | what does this change do to what the clusters actually apply? (never fails; CI posts it to the job summary) |
 | `./tests/binding.py [app…]` | does our surround still attach to what the upstream charts create? (the only check that notices an upstream rename) |
