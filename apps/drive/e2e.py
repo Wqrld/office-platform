@@ -17,9 +17,9 @@ import pathlib
 import re
 import sys
 import uuid
+from urllib.parse import quote, unquote
 
 import requests
-from urllib.parse import quote, unquote
 
 DOMAIN = os.environ.get("DOMAIN") or sys.exit("DOMAIN is required: the cluster's public DNS suffix")
 DRIVE = f"https://drive.{DOMAIN}"
@@ -132,11 +132,14 @@ if w.status_code == 200:
 # Collabora puts the WOPI source, percent-encoded, INSIDE the websocket path. Envoy
 # must not normalise it; if it does, this 307s instead of upgrading.
 if w.status_code == 200 and src:
-    import base64, socket, ssl, time
+    import base64
+    import socket
+    import ssl
+    import time
     inner = quote(unquote(src.group(1)) + "?access_token=" + wj["access_token"], safe="")
     host = f"collabora.{DOMAIN}"
     line, first = "", b""
-    for attempt in range(12):
+    for _ in range(12):
         req = (f"GET /cool/{inner}/ws?compat=/ws HTTP/1.1\r\nHost: {host}\r\n"
                f"Upgrade: websocket\r\nConnection: Upgrade\r\n"
                f"Sec-WebSocket-Key: {base64.b64encode(os.urandom(16)).decode()}\r\n"

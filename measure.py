@@ -26,8 +26,6 @@ import pathlib
 import re
 import sys
 
-import yaml
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests"))
 import render as flux  # noqa: E402
 

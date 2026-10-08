@@ -1,0 +1,13 @@
+# Lint settings for the checks and helpers; the repo is not a Python package.
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+
+[tool.ruff.lint]
+select = ["F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["render", "startup", "profiles", "measure"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]

@@ -164,7 +164,7 @@ def clusters() -> list[pathlib.Path]:
     return [CASES / f"{c['name']}.yaml" for c in cases() if c["chart"] == "control-plane"]
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def control_plane(values: pathlib.Path, extra: tuple[str, ...] = ()) -> list[dict]:
     """`helm template` the control-plane chart with an organisation's values."""
     return docs_in(helm_template_text(CHART, "platform", "flux-system", values, list(extra)))
@@ -197,7 +197,7 @@ def merge(base: dict, over: dict) -> dict:
     return out
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _rendered_configmaps(released: str) -> tuple[dict, ...]:
     """The ConfigMaps one of our own charts renders — cached on the release as YAML, since
     every sized check asks for the same layer three times over."""

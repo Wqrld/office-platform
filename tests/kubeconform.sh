@@ -73,7 +73,7 @@ echo "== kinds with no schema (validated by nothing above)"
 # files anyway (platform/identity/vendor/ records where each came from).
 skipped="$(grep " skipped$" "$WORK/out.txt" | awk '{print $(NF-1)}' | sort -u | grep -vx CustomResourceDefinition || true)"
 if [[ -n "$skipped" ]]; then
-  echo "$skipped" | sed 's/^/  /'
+  echo "  ${skipped//$'\n'/$'\n'  }"
   echo "FAIL — these kinds were validated by nothing; pin a schema in tests/schemas or bump CATALOG_REV" >&2
   exit 1
 fi

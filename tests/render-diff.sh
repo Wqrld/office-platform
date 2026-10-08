@@ -75,8 +75,8 @@ else
 fi
 
 changed=0
-mapfile -t layers < <(cd "$WORK/after" && ls */*.yaml 2>/dev/null | sort)
-mapfile -t gone < <(cd "$WORK/before" 2>/dev/null && ls */*.yaml 2>/dev/null | sort)
+mapfile -t layers < <(cd "$WORK/after" && find . -mindepth 2 -maxdepth 2 -name '*.yaml' | cut -c3- | sort)
+mapfile -t gone < <(cd "$WORK/before" 2>/dev/null && find . -mindepth 2 -maxdepth 2 -name '*.yaml' | cut -c3- | sort)
 
 for layer in "${gone[@]}"; do
   [[ -f "$WORK/after/$layer" ]] && continue

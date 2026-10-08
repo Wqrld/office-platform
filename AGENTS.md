@@ -29,6 +29,8 @@ scripts need Python 3 + PyYAML.
 | `./tests/profiles.py [size…]` | do the three sizes still say what they claim — every replica count with its budget, every sized release with every size, no release file overriding one? |
 | `./tests/check-secrets.py [app…]` | do the `postRenderers` envFrom patches still hit exactly the workloads they should? |
 | `./tests/startup.py [app…]` | will every pod start — can each non-root container run as its image's user, and does every Secret and ConfigMap a release needs come from something it does not wait behind? |
+| `pytest tests/unit` | do the helpers the checks share (merge, substitute, image refs, selectors, quantities) still behave? |
+| `ruff check .` and `shellcheck install.sh release.sh tests/*.sh …` | is the Python and shell lint-clean? (CI: `lint`) |
 | `conftest verify --policy policy/charts && conftest verify --policy policy/config` | do the static rules still fire, both directions? |
 | `conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/` | does the rendered output satisfy them? |
 | `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ tests/golden/` | are the pins and remediation settings still as decided? |

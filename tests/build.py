@@ -22,10 +22,8 @@ import pathlib
 import sys
 import tempfile
 
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
-
 
 # Apps no user opens by hand, so no switcher entry: Collabora is an iframe inside Drive, Find
 # an API Docs calls, LiveKit media. Every other app is in the switcher, or it is unreachable

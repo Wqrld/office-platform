@@ -39,11 +39,9 @@ import argparse
 import pathlib
 import sys
 
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
 
-HERE = render.ROOT
 WORKLOAD_KINDS = {"Deployment", "StatefulSet"}
 # Operator-owned CRs whose `instances` is the replica count. Their controllers make the pods
 # and their own PDBs, so they are read from the spec rather than rendered.

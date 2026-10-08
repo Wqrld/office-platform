@@ -12,7 +12,6 @@ import pathlib
 import re
 import sys
 
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
 
@@ -29,7 +28,6 @@ def check(app: str, srcs: dict) -> bool:
     ok = True
     docs = render.apps("medium", [app])
     for rel in (d for d in docs if d.get("kind") == "HelmRelease"):
-        name = rel["metadata"]["name"]
         patches = [p for r in rel["spec"].get("postRenderers", []) for p in r["kustomize"].get("patches", [])
                    if "/envFrom" in p["patch"]]
         if not patches:
@@ -48,7 +46,7 @@ def check(app: str, srcs: dict) -> bool:
             ok &= good
             print(f"{'ok  ' if good else 'FAIL'} {d['kind']:<11} {d['metadata']['name']:<48} "
                   f"{','.join(list(e.values())[0]['name'] for e in got) or '(none)'}")
-        for p, n in zip(patches, hit):
+        for p, n in zip(patches, hit, strict=True):
             if not n:
                 ok = False
                 print(f"FAIL patch {p['target']} matches no workload — a silent no-op")
