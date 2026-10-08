@@ -71,6 +71,11 @@ spec:
 
     backend:
       pdb: {enabled: false}          # the surround owns budgets, at every size
+      # Read-only root, as mijn-bureau runs these images; /tmp is all they write (gunicorn,
+      # celery, nginx temp paths, yarn's cache). A map merge with the chart's
+      # securityContext. Also reaches the worker and every Job.
+      securityContext: {readOnlyRootFilesystem: true}
+      persistence: &tmp {tmp: {type: emptyDir, mountPath: /tmp}}
 
       # Each probe is a 1.5s Django import; at the chart's 10s this cost 310m. No Service
       # selects workers, so no readiness; liveness every 5m via postRenderers (no chart value).
@@ -254,6 +259,8 @@ spec:
     frontend:
       image: {tag: v5.7.0}
       pdb: {enabled: false}
+      securityContext: {readOnlyRootFilesystem: true}
+      persistence: *tmp
       envVars:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://docs.${BASE_DOMAIN}
@@ -263,6 +270,8 @@ spec:
     yProvider:
       image: {tag: v5.7.0}
       pdb: {enabled: false}
+      securityContext: {readOnlyRootFilesystem: true}
+      persistence: *tmp
       envFrom:
         - {secretRef: {name: docs-collaboration}}
       envVars:
@@ -272,3 +281,6 @@ spec:
 
     docSpec:
       enabled: true
+      securityContext: {readOnlyRootFilesystem: true}
+      extraVolumes: [{name: tmp, emptyDir: {}}]
+      extraVolumeMounts: [{name: tmp, mountPath: /tmp}]

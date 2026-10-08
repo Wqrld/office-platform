@@ -61,9 +61,10 @@ spec:
     # not help either: it was last built 2026-06-24 from `9bb5200`, before that commit.
     #
     # `0.1.1` is the fork's tag: `fe564fd` plus one CI fix, so these images declare
-    # `USER 1001:127` and run non-root the way Docs' do. Without that fix the chart's own
-    # `runAsNonRoot: true` cannot start them and every pod is a CreateContainerConfigError
-    # with no logs — which is why no securityContext override is needed here. README.md.
+    # `USER 1001:127` and run non-root the way Docs' do. Upstream's CI builds without
+    # DOCKER_USER, so its images run as root and the chart's own `runAsNonRoot: true`
+    # cannot start them — a CreateContainerConfigError with no logs. `runAsUser: 1001` on
+    # backend and frontend below states the user here, so an upstream image starts too.
     # Note the missing `v`: `type=semver,pattern={{version}}` publishes `v0.1.1` as `0.1.1`.
     #
     # All of this collapses when the chart PR lands and upstream cuts a release carrying
@@ -82,6 +83,13 @@ spec:
       # three default to true. The surround owns that kind (tests/binding.py fails on any
       # PDB from an upstream release), at every size.
       pdb: {enabled: false}
+
+      # Non-root whatever the image declares (the image comment above). 1001 is what Docs'
+      # images run as. Covers worker, Jobs and cronjob, which all read backend.securityContext.
+      # A map merge: the rest of the chart's securityContext stands. Read-only root as
+      # mijn-bureau runs it; /tmp is all they write (gunicorn, dramatiq's metrics).
+      securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
+      persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
       # All three Job names are stable — `calendars-backend-migrate`, `-createsuperuser`,
       # `calendars-caldav-initdb` carry no chart version — and a Job's `spec.template` is
@@ -244,11 +252,20 @@ spec:
       # bounding set only so the binary can be executed at all. The real fix is upstream and
       # is `setcap -r /usr/bin/caddy` in the frontend's production stage, which is verified
       # to serve with ALL capabilities dropped and nothing added; Docs avoids the problem
-      # entirely by using `nginx-unprivileged`, which carries no file caps. Delete this
-      # block when the image stops shipping the capability. See README.md.
+      # entirely by using `nginx-unprivileged`, which carries no file caps. Delete the
+      # capability when the image stops shipping it. See README.md.
+      #
+      # runAsUser: as the backend's. Even with `admin off` and `auto_https off` Caddy
+      # writes its XDG dirs (autosave.json, instance.uuid, storage locks), so those two are
+      # emptyDirs under the read-only root.
       securityContext:
+        runAsUser: 1001
+        readOnlyRootFilesystem: true
         capabilities:
           add: [NET_BIND_SERVICE]
+      persistence:
+        config: {type: emptyDir, mountPath: /config/caddy}
+        data: {type: emptyDir, mountPath: /data/caddy}
       # No envVars at all, deliberately. The SPA's API origin is compiled in at build time
       # (`NEXT_PUBLIC_API_ORIGIN`) and falls back to the browser's own origin when it was
       # built empty, which is what the published image is. Same host for page and API, so

@@ -68,11 +68,14 @@ spec:
         helm.sh/hook-delete-policy: before-hook-creation
 
       # Chart default is null; the image runs as uid 1001. Also used by the migrate Job.
+      # Read-only root as mijn-bureau runs it; gunicorn writes only /tmp.
       securityContext:
         allowPrivilegeEscalation: false
         capabilities: {drop: ["ALL"]}
+        readOnlyRootFilesystem: true
         runAsNonRoot: true
         seccompProfile: {type: RuntimeDefault}
+      persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
       # Migrate, then register Docs as a service. Idempotent, because this runs on every
       # upgrade. `client_id` MUST be `docs`, matching the Keycloak client: Find resolves the

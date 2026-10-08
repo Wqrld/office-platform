@@ -57,12 +57,16 @@ spec:
     backend:
       pdb: {enabled: false}          # the surround owns budgets, at every size
       # Chart default is `securityContext: null` — every backend-derived workload (this
-      # Deployment, both celery workloads, both Jobs) reuses this one value verbatim.
-      securityContext:
+      # Deployment, both celery workloads, the Jobs and CronJobs) reuses this one value
+      # verbatim. Read-only root as mijn-bureau runs it; /tmp is all these write
+      # (gunicorn, celery, beat's schedule).
+      securityContext: &restricted
         allowPrivilegeEscalation: false
         capabilities: {drop: ["ALL"]}
+        readOnlyRootFilesystem: true
         runAsNonRoot: true
         seccompProfile: {type: RuntimeDefault}
+      persistence: &tmp {tmp: {type: emptyDir, mountPath: /tmp}}
 
       envVars:
         DJANGO_SETTINGS_MODULE: drive.settings
@@ -166,11 +170,8 @@ spec:
     frontend:
       image: {repository: ghcr.io/wqrld/drive-frontend, tag: v0.23.0-office.6}
       pdb: {enabled: false}
-      securityContext:
-        allowPrivilegeEscalation: false
-        capabilities: {drop: ["ALL"]}
-        runAsNonRoot: true
-        seccompProfile: {type: RuntimeDefault}
+      securityContext: *restricted
+      persistence: *tmp              # nginx's pid and temp paths
       envVars:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://drive.${BASE_DOMAIN}

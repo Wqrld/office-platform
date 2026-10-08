@@ -58,8 +58,9 @@ spec:
       # test CI builds with; the entrypoint adds the passwd entry (group 0 may write it).
       # Covers worker, Jobs and cronjob, which all read backend.securityContext. A map
       # merge: the rest of the chart's securityContext stands. Dropped once the fork's CI
-      # passes DOCKER_USER.
-      securityContext: {runAsUser: 1001}
+      # passes DOCKER_USER. Read-only root as Docs runs; /tmp is all these write.
+      securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
+      persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
       # The chart's liveness path is Docs' `/__lbheartbeat__`, which Messages does not serve:
       # a 404, and the kubelet restarts every backend pod. Dropped once the fork's chart

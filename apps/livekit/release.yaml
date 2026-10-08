@@ -100,9 +100,11 @@ spec:
       runAsNonRoot: true
       runAsUser: 1000
       seccompProfile: {type: RuntimeDefault}
+    # Read-only root as mijn-bureau runs it: the server writes nothing, not even /tmp.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities: {drop: [ALL]}
+      readOnlyRootFilesystem: true
 ---
 # Egress: the recorder. Meet's transcript is a RoomCompositeEgress (audio only, OGG to
 # S3); egress joins the room as a hidden participant through the in-cluster signaling
