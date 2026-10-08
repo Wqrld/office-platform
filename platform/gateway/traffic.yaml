@@ -28,6 +28,13 @@ spec:
   path:
     escapedSlashesAction: KeepUnchanged
     disableMergeSlashes: true
+  # Set on every response, overriding the app's own. No includeSubDomains: each app host
+  # carries it itself, and the base domain may host things that are not ours.
+  headers:
+    lateResponseHeaders:
+      set:
+        - {name: Strict-Transport-Security, value: max-age=31536000}
+        - {name: X-Content-Type-Options, value: nosniff}
   connection:
     bufferLimit: 100Mi
   timeout:

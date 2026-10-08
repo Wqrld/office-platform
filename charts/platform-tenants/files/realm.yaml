@@ -23,6 +23,8 @@ loginWithEmailAllowed: true
 # it on retroactively locks every existing user out until they verify.
 resetPasswordAllowed: true
 duplicateEmailsAllowed: false
+# Checked when a password is set, so existing passwords stay valid until their next change.
+passwordPolicy: "length(12) and notUsername and notEmail and passwordHistory(3)"
 rememberMe: true
 # At least the apps' own sessions (SESSION_COOKIE_AGE, 12h in Docs and Meet), not
 # Keycloak's 30 min idle / 10 h max: Docs refreshes the user's token only when they

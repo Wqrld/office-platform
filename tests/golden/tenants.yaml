@@ -278,6 +278,7 @@ data:
     maxDeltaTimeSeconds: 43200
     maxFailureWaitSeconds: 900
     minimumQuickLoginWaitSeconds: 60
+    passwordPolicy: length(12) and notUsername and notEmail and passwordHistory(3)
     permanentLockout: false
     quickLoginCheckMilliSeconds: 1000
     realm: office

@@ -1,7 +1,7 @@
 # One application's namespace; `${APP}` is set per Kustomization by the control plane.
 # `gateway-access` is the Gateway's allowedRoutes selector: without it a route attaches
-# to nothing and reports no error. PSA `baseline` because Collabora and Calendars' caldav
-# need capabilities `restricted` forbids (their READMEs); `restricted` stays on audit/warn.
+# to nothing and reports no error. PSA `baseline` because Collabora needs capabilities
+# `restricted` forbids (its README); `restricted` stays on audit/warn.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -11,6 +11,15 @@ metadata:
     pod-security.kubernetes.io/enforce: baseline
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
+---
+# Every pod here runs as `default` (no upstream chart creates its own ServiceAccount) and
+# none calls the Kubernetes API, so none needs a token mounted.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: default
+  namespace: office-${APP}
+automountServiceAccountToken: false
 ---
 # `defaultRequest` only, so it can refuse nothing — platform/guardrails.yaml. It is for the
 # container that arrives without requests, which would otherwise land as BestEffort.

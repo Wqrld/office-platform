@@ -5,6 +5,12 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Security: every response carries HSTS (1 year) and `X-Content-Type-Options: nosniff`;
+  realm passwords need 12 characters, not the username or email, and not one of the last
+  3 (checked at the next change); app pods no longer mount a Kubernetes API token.
+- Security: every app pod except Collabora now meets Pod Security `restricted`. Meet and
+  Find drop all capabilities and run non-root; Calendars' caldav runs as `www-data`
+  instead of root; OpenSearch has no root `chown` initContainer.
 - Fix: Docs' full-text search returned 401 once the user had gone 30 minutes without a
   search, until they logged in again. The Keycloak session (SSO idle timeout and max
   lifespan) now lasts 12 hours, as long as the Docs session (`docs/adr/0116`).
