@@ -30,11 +30,12 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || [[ -n "$(git ls-remo
 fi
 grep -q '^## Unreleased$' CHANGELOG.md || { echo "CHANGELOG.md has no '## Unreleased' section" >&2; exit 1; }
 
-for c in charts/*/Chart.yaml; do
-  sed -i "s/^version: .*/version: $VERSION/; s/^appVersion: .*/appVersion: \"$VERSION\"/" "$c"
-done
-sed -i "s/ref: {tag: v[0-9.]*}/ref: {tag: $TAG}/" examples/cluster.yaml
-sed -i "s/^## Unreleased$/## Unreleased\n\n## $VERSION — $(date +%F)/" CHANGELOG.md
+# perl rather than `sed -i`, whose in-place flag and `\n` differ between GNU and BSD/macOS.
+TODAY="$(date +%F)"
+export VERSION TAG TODAY
+perl -pi -e 's/^version: .*/version: $ENV{VERSION}/; s/^appVersion: .*/appVersion: "$ENV{VERSION}"/' charts/*/Chart.yaml
+perl -pi -e 's/ref: \{tag: v[0-9.]*\}/ref: {tag: $ENV{TAG}}/' examples/cluster.yaml
+perl -pi -e 's/^## Unreleased$/## Unreleased\n\n## $ENV{VERSION} — $ENV{TODAY}/' CHANGELOG.md
 
 git commit -qam "🔖 (release) $VERSION"
 git tag -a "$TAG" -m "$VERSION"
