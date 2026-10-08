@@ -137,7 +137,7 @@ upstream's; the images carry the tag without the `v`. updatecli tracks the fork'
 - **Egress address.** SPF and PTR name the nodes' address; a cluster that grows a node
   sends from an address SPF does not list until it is added.
 - **Imports' bucket lifecycle.** Upstream expects a lifecycle rule to reap abandoned
-  uploads (`docs/imports.md`); nothing sets one on Garage.
+  uploads (upstream's `messages/docs/imports.md`); nothing sets one on Garage.
 - **The email claim is trusted.** Autojoin hands out the mailbox named by the Keycloak
   email, and the realm lets users edit their own email unverified — any realm user can
   claim any unowned address on an autojoin domain. Acceptable for a demo; before real use,

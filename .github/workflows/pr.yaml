@@ -62,6 +62,8 @@ jobs:
       - run: pip install --quiet "ruff==${RUFF_VERSION}"
       - name: ruff
         run: ruff check .
+      - name: every named path exists
+        run: ./tests/refs.py
       # shellcheck comes with the runner image.
       - name: shellcheck
         run: shellcheck install.sh release.sh tests/*.sh platform/identity/vendor/keycloak-operator/update.sh

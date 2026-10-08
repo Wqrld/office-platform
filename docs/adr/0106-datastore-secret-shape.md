@@ -10,7 +10,7 @@ and equivalents for cache, objectstore and opensearch.
 Docs, built first, did the opposite. `docs-postgres` carries `DB_HOST`, `DB_NAME`,
 `DB_USER`, `DB_PASSWORD`; `docs-s3` carries `AWS_S3_ACCESS_KEY_ID` and friends. The keys
 *are* the application's env var names, so the chart consumes the whole Secret with one
-`envFrom` line and no value is ever spliced into Helm values. `PROGRESS.md` recorded this
+`envFrom` line and no value is ever spliced into Helm values. The build notes of the time (not kept in this repo) recorded this
 as an open question rather than a decision: "canonical secret keys, or per-app env-shaped
 like `docs-s3`".
 

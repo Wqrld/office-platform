@@ -4,7 +4,7 @@ metadata:
   name: office
   namespace: office-system
 spec:
-  gatewayClassName: ${GATEWAY_CLASS}        # the cluster's, or ours (cluster/config/gateway)
+  gatewayClassName: ${GATEWAY_CLASS}        # the cluster's, or ours (cluster/gateway/config)
   infrastructure:
     parametersRef:
       group: gateway.envoyproxy.io

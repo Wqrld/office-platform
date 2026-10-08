@@ -30,7 +30,7 @@ spec:
     disableWaitForJobs: true
     remediation:
       # A rollback reverts the code and leaves the schema migrated. Also required by
-      # policy/pins.rego for any release carrying a migrate job.
+      # policy/config/pins.rego for any release carrying a migrate job.
       retries: 0
   # Sizing — replicas, resources — comes from sizes/<size>.yaml, one key of the
   # `find-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.

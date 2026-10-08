@@ -49,7 +49,7 @@ spec:
       # is set explicitly and moves only in a reviewed commit.
       tag: v5.7.0
 
-    # Routing is ours: HTTPRoutes on the shared Gateway, in routes.yaml. All five of the
+    # Routing is ours: HTTPRoutes on the shared Gateway, in surround.yaml. All five of the
     # chart's Ingress objects are off. They are already false by default at this tag;
     # they are stated anyway so a default flip upstream cannot quietly publish a second,
     # unauthenticated path to the application.

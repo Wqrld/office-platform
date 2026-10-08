@@ -13,7 +13,7 @@ platform:
 
 # Which spelling of env names this app expects, per kind — templates/_profiles.tpl. A
 # family name here sets every kind; a kind's own `env` overrides it.
-env: ""                            # lasuite | find | calendars | projects
+env: ""                            # lasuite | find | calendars | projects | messages
 
 postgres:
   enabled: false

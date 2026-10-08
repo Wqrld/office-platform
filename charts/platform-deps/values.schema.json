@@ -158,7 +158,7 @@
     },
 
     "smtp": {
-      "description": "The outbound relay. Everything about it — host, port, TLS flags, credentials and the from-address — lives in `credentialSecret`, applied by hand into office-data (docs/bootstrap.md); nothing here names a mail server.",
+      "description": "The outbound relay. Everything about it — host, port, TLS flags, credentials and the from-address — lives in `credentialSecret`, applied by hand into office-data (docs/install.md, Mail); nothing here names a mail server.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

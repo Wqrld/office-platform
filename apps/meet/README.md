@@ -30,8 +30,8 @@ browser: "start transcript"
 ```
 
 - Every hop's token is drawn once in `platform/secrets/service-tokens.yaml` and read at both
-  ends through `ClusterSecretStore office-data` (tokens.yaml here; `apps/docs/meet-token.yaml`;
-  `apps/livekit/secrets.yaml`).
+  ends through `ClusterSecretStore office-data` (`shared:` in `deps.yaml` here and in
+  `apps/docs/deps.yaml`; `apps/livekit/secrets.yaml`).
 - The summary service's Celery runs on the Valkey **broker**; the backend's own Celery is
   off (`CELERY_ENABLED=false`) — nothing in this path uses it.
 - Summaries (the LLM step) are off: `IS_SUMMARY_ENABLED=false`, `celerySummarize` at zero

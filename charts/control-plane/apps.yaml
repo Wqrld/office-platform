@@ -179,7 +179,7 @@ livekit:
   cache: [broker]
 
 # Meet's backend hands the browser LiveKit's address; transcripts are delivered as Docs
-# documents (apps/docs/meet-token.yaml). The broker is its summary service's Celery — the
+# documents (the `docs-meet` Secret, apps/docs/deps.yaml). The broker is its summary service's Celery — the
 # transcript queue.
 meet:
   default: true

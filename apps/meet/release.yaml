@@ -9,7 +9,7 @@
 # SELECTOR IS THE SECURITY BOUNDARY: `meet-backend.*` selects the backend, its Jobs and its
 # CronJobs and NOT `meet-frontend`, which renders for the browser and must never hold the
 # database password. The second selector is the transcript pipeline, which needs the
-# bucket and its own tokens and NOT the OIDC secret. `./check-secrets.sh` asserts all
+# bucket and its own tokens and NOT the OIDC secret. tests/check-secrets.py asserts all
 # of it after a chart bump.
 #
 # A container's `env` beats `envFrom` for the same name. That is relied on ONCE, on
@@ -37,7 +37,7 @@ spec:
     disableWaitForJobs: true
     remediation:
       # A Helm rollback reverts the code and leaves the schema migrated. Fail forward,
-      # loudly. Also required by policy/pins.rego for any release carrying a
+      # loudly. Also required by policy/config/pins.rego for any release carrying a
       # migrate job.
       retries: 0
 
@@ -273,7 +273,7 @@ spec:
         LLM_API_KEY: disabled
         LLM_MODEL: disabled
         # Where transcripts go: a Docs document owned by whoever started the transcript,
-        # created server-to-server (apps/docs/meet-token.yaml is the other end).
+        # created server-to-server (the `docs-meet` Secret in apps/docs/deps.yaml is the other end).
         IS_LASUITE_DOCS_INTEGRATION_ENABLED: "true"
         LASUITE_DOCS_BASE_URL: https://docs.${BASE_DOMAIN}
 

@@ -1,4 +1,4 @@
-# Docs' surround. Compare with the 97 hand-written lines in apps/docs/routes.yaml.
+# Docs' surround, as apps/docs/surround.yaml configures it.
 app: docs
 baseDomain: example.org
 

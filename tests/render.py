@@ -4,7 +4,7 @@
     ./tests/render.py <case>      one case from tests/cases/index.yaml, to stdout
     ./tests/render.py --list      case names
 
-Two mechanisms, both real rather than approximated:
+Three mechanisms, all real rather than approximated:
 
   * `flux_build(path, components)` — kustomize-build one layer with `flux build`, the same
     code kustomize-controller runs: no load restriction (so `apps/drive` can generate a

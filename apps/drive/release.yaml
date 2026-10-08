@@ -2,7 +2,7 @@
 # Wqrld/drive, is upstream main plus document thumbnails (README.md, The fork).
 #
 # The chart has no `envFrom`, so drive-deps' Secrets are attached by the post-renderer at
-# the bottom of this file. README.md has the reasoning; ./check-secrets.sh asserts it.
+# the bottom of this file. README.md has the reasoning; tests/check-secrets.py asserts it.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -182,7 +182,7 @@ spec:
   # THE NAME SELECTOR IS THE SECURITY BOUNDARY. kustomize matches `name` as a FULL-STRING
   # regex: `drive-backend.*` selects ten workloads and NOT `drive-frontend`, which renders
   # for the browser and must never hold the database password or the client secret.
-  # `./check-secrets.sh` asserts both after a chart bump.
+  # tests/check-secrets.py asserts both after a chart bump.
   postRenderers:
     - kustomize:
         patches:

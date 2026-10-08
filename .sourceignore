@@ -20,9 +20,6 @@
 **/README.md
 /apps/drive/e2e.py
 /apps/drive/sample.odt
-/apps/*/check-secrets.sh
-/platform/identity/add-client.sh
-/platform/identity/set-smtp.sh
 /platform/identity/vendor/keycloak-operator/update.sh
 
 # Run by hand from a checkout.

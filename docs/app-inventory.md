@@ -1,29 +1,15 @@
 # Application inventory
 
-What runs on this platform today, and what was surveyed for it. The per-app notes and the
-upstream gotchas below were read out of the applications' repos, not assumed; the ones for
-apps that run are also on the values they explain.
+What was surveyed for this platform. The per-app notes and the upstream gotchas below were
+read out of the applications' repos, not assumed; the ones for apps that run are also on the
+values they explain.
 
 ## Runs on this platform
 
-`apps/<name>/` exists and it has an entry in `charts/control-plane/apps.yaml`, which is both
-what the control plane knows of it and what the platform provisions for it. Keycloak is the
-exception: no app, so its database is `charts/platform-tenants/values.yaml`'s own entry.
-
-| App | Workloads | PG | Cache | S3 | Search | OIDC | Chart | Hostname |
-|---|---|:-:|:-:|:-:|:-:|:-:|---|---|
-| **keycloak** | 1 (StatefulSet) | ● | | | | *is the IdP* | Operator | `id` |
-| **docs** | 5 — backend, frontend, celery, yprovider, docspec | ● | ● | ● | ● | ● | upstream, git tag | `docs` |
-| **drive** | 4 — backend, frontend, celery, celery-beat | ● | ● | ● | | ● | upstream, git tag | `drive` |
-| **calendars** | 4 — backend, frontend, caldav, worker | ● | ● | | | ● | upstream PR, from our Helm repo | `calendars` |
-| **projects** | 1 — backend (Sails: SPA, API, socket.io, files) | ● | ● | ● | | ● | ours in the app's repo, from the fork's git tag | `projects` |
-| **find** | 1 — backend | ● | ● | | ● | ● | upstream, commit pin | `find` |
-| **messages** | 5 — backend, frontend, celery (+beat), mta-in, mpa (rspamd) | ● | ● | ● | ● | ● | ours in the app's repo, from the fork's git tag | `messages`; `mx` → SMTP 25 |
-| **meet** | 5 live (+4 at 0 replicas) + our whisperx | ● | ● | ● | | ● | upstream, git tag | `meet` |
-| **livekit** | 2 — server, egress | | ● | | | | vendor, commit pin | `livekit`; `turn` → its own IP |
-| **collabora** | 1 | | | | | | vendor | `collabora` |
-
-The pins are in `charts/control-plane/templates/sources.yaml` and each `apps/*/release.yaml`.
+`charts/control-plane/apps.yaml` is the list: what the control plane knows of each app and
+what the platform provisions for it (database, cache users, OIDC client, index patterns,
+bucket). What runs, its pins and its gotchas are in each `apps/<app>/README.md`. Keycloak
+has no app; its database is `charts/platform-tenants/values.yaml`'s own entry.
 
 ## Surveyed, not running
 
@@ -60,6 +46,9 @@ These are why `dependsOn` and the egress graph matter. Read as "row depends on c
 tier-1 app plus one egress rule. Do not build it, size it, or carry its signature PVC now.
 
 ## Per-app notes that will cost you a day each if missed
+
+Written in the survey, before each app was built. For an app that runs, its README is
+current and wins where the two disagree.
 
 ### docs — the hardest app, and the right first build
 
@@ -281,7 +270,7 @@ with `field is immutable` until the Job is deleted by hand. It also has
 This is exactly the failure `platform-lib`'s job contract avoids by using Helm hooks with
 `hook-delete-policy: before-hook-creation` (`history/design/04-platform-charts.md`). **Confirmed and applied
 at M6**: the chart threads `backend.migrateJobAnnotations` straight through, so the fix is
-values-only — see `config/apps/find/release.yaml`.
+values-only — see `apps/find/release.yaml`.
 
 ### Keycloak needs split internal/external URLs
 

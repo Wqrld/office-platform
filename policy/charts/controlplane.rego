@@ -2,8 +2,8 @@
 # chart renders lives in flux-system and carries `helm.sh/resource-policy: keep`: a
 # failed first install is an uninstall (helm-controller's remediation), an uninstall
 # deletes what Helm created, and a deleted Kustomization with prune on garbage-collects
-# every namespace it had adopted. That is how production was lost once (PROGRESS.md,
-# 2026-09-16). The annotation is what makes it impossible; this is what keeps it there.
+# every namespace it had adopted. That is how production was lost once, on
+# 2026-09-16 (fixed in 2.0.0, CHANGELOG.md). The annotation is what makes it impossible; this is what keeps it there.
 #
 # Except the per-app Kustomizations: Helm honours `keep` on upgrades too, so with it an
 # app switched off would stay running. Their data lives in the platform layer.
