@@ -67,6 +67,13 @@ spec:
         helm.sh/hook: pre-install,pre-upgrade
         helm.sh/hook-delete-policy: before-hook-creation
 
+      # Chart default is null; the image runs as uid 1001. Also used by the migrate Job.
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities: {drop: ["ALL"]}
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+
       # Migrate, then register Docs as a service. Idempotent, because this runs on every
       # upgrade. `client_id` MUST be `docs`, matching the Keycloak client: Find resolves the
       # searchable indices from the introspected audience, so a mismatch indexes fine and

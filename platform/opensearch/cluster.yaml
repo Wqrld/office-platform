@@ -34,8 +34,17 @@ spec:
       enabled: true
       size: 10Gi
       storageClass: ${STORAGE_CLASS}
-      # The fsgroup-volume initContainer, whose image defaults to `busybox:latest`.
-      imageTag: "1.37.0"
+      # No root initContainer to chown the volume: the chart's `fsGroup: 1000` does it, and
+      # local-path volumes, which fsGroup skips, are created world-writable.
+      enableInitChown: false
+
+    # Merged with the chart's runAsUser/fsGroup 1000, runAsNonRoot and drop ALL: together,
+    # PSA `restricted`.
+    podSecurityContext:
+      fsGroupChangePolicy: OnRootMismatch
+      seccompProfile: {type: RuntimeDefault}
+    securityContext:
+      allowPrivilegeEscalation: false
 
     # sysctlInit would run a privileged initContainer to raise vm.max_map_count, which this
     # namespace's baseline PSA refuses. It is not needed: the node is already at 1048576.

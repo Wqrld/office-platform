@@ -115,6 +115,13 @@ spec:
     # ---------------------------------------------------------------- backend
     backend:
       pdb: {enabled: false}          # the surround owns budgets, at every size
+      # Chart default is `securityContext: null` for every component, and every Meet image
+      # runs as uid 1001. The backend's Jobs and CronJobs reuse this; the rest alias it.
+      securityContext: &restricted
+        allowPrivilegeEscalation: false
+        capabilities: {drop: ["ALL"]}
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
       envVars:
         DJANGO_SETTINGS_MODULE: meet.settings
         DJANGO_CONFIGURATION: Production
@@ -208,6 +215,7 @@ spec:
     frontend:
       image: {tag: v1.34.0}
       pdb: {enabled: false}
+      securityContext: *restricted
       # THE GAUFRE. Meet's frontend has no switcher and no hook for one — the only
       # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
       # to add one <script> tag to every HTML response (`sub_filter`, in default.conf)
@@ -240,6 +248,7 @@ spec:
     summary:
       image: {tag: v1.34.0}
       pdb: {enabled: false}
+      securityContext: *restricted
       envVars: &summaryEnv
         # The ONE deliberate env-over-envFrom override. `meet-s3` carries
         # AWS_S3_ENDPOINT_URL as the full URL Django's storage wants; the summary service
@@ -268,6 +277,7 @@ spec:
     celeryTranscribe:
       image: {tag: v1.34.0}
       pdb: {enabled: false}
+      securityContext: *restricted
       envVars:
         <<: *summaryEnv
         # The worker's call to whisperx has a hard-coded ten-minute read timeout; on CPU
@@ -287,6 +297,7 @@ spec:
     celerySummaryBackend:
       image: {tag: v1.34.0}
       pdb: {enabled: false}
+      securityContext: *restricted
       envVars: *summaryEnv
 
     # `summarize-queue`: the LLM step. Off (IS_SUMMARY_ENABLED=false), so no worker — a
@@ -295,6 +306,7 @@ spec:
       image: {tag: v1.34.0}
       replicas: 0
       pdb: {enabled: false}
+      securityContext: *restricted
       envVars: *summaryEnv
 
     # The BACKEND's Celery worker (Django's, not the summary service's). CELERY_ENABLED
@@ -302,6 +314,7 @@ spec:
     celeryBackend:
       replicas: 0
       pdb: {enabled: false}
+      securityContext: *restricted
 
     # ---------------------------------------------------------------- not deployed
     # Two LiveKit agents the chart also renders. `agentSubtitles` is live captions via
@@ -313,7 +326,9 @@ spec:
       image: {tag: v1.34.0}
       replicas: 0
       pdb: {enabled: false}
+      securityContext: *restricted
     agentSubtitles:
       image: {tag: v1.34.0}
       replicas: 0
       pdb: {enabled: false}
+      securityContext: *restricted
