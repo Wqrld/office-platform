@@ -11,11 +11,12 @@ and the ADR bodies record decisions as they were made, so they are not scanned. 
 from __future__ import annotations
 
 import argparse
+import pathlib
 import re
 import subprocess
 import sys
 
-sys.path.insert(0, __import__("pathlib").Path(__file__).resolve().parent.as_posix())
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import render  # noqa: E402
 
 ROOT = render.ROOT
@@ -74,10 +75,7 @@ def main() -> int:
             for m in LINK.finditer(line) if f.endswith(".md") else ():
                 if not exists((ROOT / f).parent / m.group(1)):
                     missing.append(f"{f}:{n}: {m.group(1)}")
-    for m in missing:
-        print(f"  {m}")
-    print(f"FAIL — {len(missing)} path(s) name nothing" if missing else "OK — every named path exists")
-    return 1 if missing else 0
+    return render.report(missing, "every named path exists", "path(s) name nothing")
 
 
 if __name__ == "__main__":

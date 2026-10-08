@@ -47,30 +47,8 @@ kubectl cluster-info >/dev/null
 
 echo "== 2. $OUT"
 export DOMAIN ACME_EMAIL GATEWAY_IP STORAGE_CLASS INSTALL LB_KIND SOURCE_URL SOURCE_SECRET VERSION OUT
-python3 - "$HERE/examples/cluster.yaml" <<'PY'
-import os, sys, yaml
-e = os.environ.get
-flux, git, hr = yaml.safe_load_all(open(sys.argv[1]))
-git["spec"]["url"] = e("SOURCE_URL")
-git["spec"]["ref"] = {"tag": f"v{e('VERSION')}"}
-v = hr["spec"]["values"]
-v.update(domain=e("DOMAIN"), storageClass=e("STORAGE_CLASS"), size=e("SIZE", "small"))
-v["gateway"] = {"ip": e("GATEWAY_IP"), "acmeEmail": e("ACME_EMAIL"), "tlsIssuer": e("TLS_ISSUER", "letsencrypt-gateway")}
-install = e("INSTALL") == "true"
-pool = [f"{e('GATEWAY_IP')}/32"]
-v["cluster"] = {"gateway": {"install": install, "className": e("GATEWAY_CLASS", "eg")},
-                "certManager": {"install": install},
-                "loadBalancer": {"kind": e("LB_KIND"), "install": install, "pool": pool}}
-v["smtp"] = {"configured": bool(e("SMTP_HOST"))}
-v["source"] = {"url": e("SOURCE_URL")}
-if e("SOURCE_SECRET"):
-    v["source"]["secretRef"] = e("SOURCE_SECRET")
-    git["spec"]["secretRef"] = {"name": e("SOURCE_SECRET")}
-yaml.safe_dump_all([flux, git, hr], open(e("OUT"), "w"), sort_keys=False)
-PY
-python3 -c 'import sys,yaml; print(yaml.safe_dump(list(yaml.safe_load_all(open(sys.argv[1])))[2]["spec"]["values"]))' "$OUT" > "$OUT.values"
-helm template platform "$HERE/charts/control-plane" --values "$OUT.values" >/dev/null
-rm "$OUT.values"
+# examples/cluster.yaml with the answers above; refused values fail here, before any apply.
+python3 "$HERE/tests/render.py" --install "$OUT"
 "$HERE/preflight.py" "$OUT"
 
 echo "== 3. secrets"

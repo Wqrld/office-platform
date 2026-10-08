@@ -1,37 +1,15 @@
 #!/usr/bin/env python3
-"""Freeze what every case renders to, and fail when it changes.
+"""Did this template change alter the output?
 
     ./tests/golden.py            check every case against tests/golden/
     ./tests/golden.py --update   rewrite the goldens, for review in the diff
 
-Goldens answer one question: *did this template change alter the output?* They are the only
-check that notices a change nobody was looking for — a helper that stops emitting a label,
-a `range` that drops its last element, a PDB that appears where none should.
-
-A golden is not a judgement about whether the output is RIGHT. `--update` then reading the
-diff is the intended workflow; the diff is the review.
-
-## What is normalised, and why each one has to be
-
-Nothing else is touched. Every normalisation here is a value that changes without the
-templates changing, and each one would otherwise make the goldens churn until someone
-deletes them:
-
-  * `helm.sh/chart: platform-app-0.2.4` — release.sh rewrites the version in every
-    Chart.yaml on every release, so an unnormalised golden fails on every single publish.
-    That is the fastest way to teach people to run --update without reading the diff.
-
-  * `ref: {tag: "v0.2.4"}` on the control plane's own source — the platform source is
-    pinned at the chart's version, which moves for the same reason.
-    Only a tag equal to the current chart version is replaced; an upstream pin is not.
-
-  * `realm-<hash>` and `opensearch-security-<hash>` — platform-tenants hashes the chart
-    version into these Job names so that every release runs them afresh (2.3.2), so they
-    move on every publish too. What the hash covers is still in the golden in full: the
-    realm ConfigMap's data and both Jobs' specs.
-
-The chart NAME is kept. Only the version is replaced.
+Renders every case in tests/cases/index.yaml and fails on any difference from its golden,
+or on a golden with no case. A golden says nothing about whether the output is right: the
+diff after `--update` is the review. Only values that change on every release without a
+template changing are normalised (below). See `AGENTS.md` (Checks).
 """
+import argparse
 import difflib
 import pathlib
 import re
@@ -43,12 +21,14 @@ import render  # noqa: E402
 HERE = pathlib.Path(__file__).resolve().parent
 GOLDEN = HERE / "golden"
 
-# platform-app-0.2.4 -> platform-app-<version>. Anchored to our own chart names so an
-# upstream chart label passing through extraObjects is left alone.
+# Normalised, because release.sh moves them on every publish and a golden that fails on every
+# release teaches --update without reading. Chart labels: platform-app-0.2.4 -> -<version>,
+# anchored to our own charts so an upstream label passing through extraObjects is kept.
 CHART_LABEL = re.compile(r"^(\s*helm\.sh/chart:\s*)(platform-(?:deps|app|tenants))-\S+$", re.M)
-# The platform-tenants Jobs whose names hash .Chart.Version (templates/keycloak.yaml,
-# templates/opensearch.yaml).
+# The platform-tenants Jobs whose names hash .Chart.Version, to run afresh on every release
+# (templates/keycloak.yaml, templates/opensearch.yaml); what the hash covers is kept in full.
 JOB_HASH = re.compile(r"\b(realm|opensearch-security)-[0-9a-f]{10}\b")
+# The control plane's own source is pinned at the chart version; an upstream pin is kept.
 VERSION = re.search(r"^version: (\S+)", (HERE.parent / "charts/control-plane/Chart.yaml").read_text(), re.M).group(1)
 
 
@@ -66,7 +46,9 @@ def rendered(name: str) -> str:
 
 
 def main() -> int:
-    update = "--update" in sys.argv[1:]
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--update", action="store_true", help="rewrite the goldens, for review in the diff")
+    update = ap.parse_args().update
     GOLDEN.mkdir(exist_ok=True)
 
     names = [c["name"] for c in render.cases()]
@@ -115,13 +97,9 @@ def main() -> int:
     if update:
         print(f"\n{len(names)} goldens written to tests/golden/. Read the diff.")
         return 0
-    if failed:
-        print(f"\nFAIL — {len(failed)} of {len(names)}: {', '.join(failed)}")
-        print("If the change is intended: ./tests/golden.py --update, and put the diff in "
-              "the commit.")
-        return 1
-    print(f"\nOK — {len(names)} cases match their goldens")
-    return 0
+    return render.report(failed, f"{len(names)} cases match their goldens",
+                         f"of {len(names)} changed; if intended: ./tests/golden.py --update, and put "
+                         f"the diff in the commit")
 
 
 if __name__ == "__main__":

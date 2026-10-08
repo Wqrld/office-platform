@@ -1,25 +1,14 @@
 #!/usr/bin/env python3
-"""
-Render a size profile and add up what it asks the scheduler for.
+"""Add up what a size asks the scheduler for.
 
-The 5-to-5,000 claim, and the narrower "a demo fits on a spare node" claim, both rest on
-numbers nobody has ever added up. This adds them up.
+    ./measure.py render --size small [apps|platform] [--cluster default]
 
-    ./measure.py render --size small          # per-namespace request totals, apps + platform
-
-What it does, in order: build every app and the platform layer the way the cluster does
-(tests/render.py: cluster-vars substituted, each HelmRelease's `valuesFrom` sizes merged
-in), `helm template` every HelmRelease against its pinned chart (fetched into .charts/ on
-first use), and sum
-`resources.requests` over every container of every pod-bearing object, multiplied by its
-replica count.
-
-Two things it models rather than renders, because an operator creates their pods and no
-amount of templating will produce them: CNPG `Cluster`, Keycloak `Keycloak` and
-`GarageCluster` (instances x declared resources), and the LimitRange default that a
-container with no requests of its own will be given. Both are marked `~` in the output.
-That is the honest boundary of this tool — it measures what is REQUESTED, which is what the
-scheduler admits on, and it does not predict what will actually be used.
+Renders every app and the platform layer at one size, as the cluster applies them, and sums
+`resources.requests` over every container of every pod-bearing object times its replicas,
+per namespace. Modelled rather than rendered, marked `~`: the pods of operator-owned CRs
+(CNPG `Cluster`, `Keycloak`, `GarageCluster`), and the LimitRange default a container with
+no requests is given. `!NO REQUESTS` is a BestEffort pod: no requests and no LimitRange.
+Requests are what the scheduler admits on, not what will be used. See `AGENTS.md`.
 """
 import argparse
 import pathlib
@@ -27,18 +16,10 @@ import re
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests"))
-import render as flux  # noqa: E402
+import render  # noqa: E402
 
-LAYERS = {"apps": flux.apps, "platform": flux.platform}
-
+LAYERS = {"apps": render.apps, "platform": render.platform}
 POD_KINDS = {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Pod"}
-# Operator-owned CRs: their pods come from a controller, so they are modelled from the
-# spec rather than rendered. Kind -> (replica field, resources field).
-OPERATOR_KINDS = {
-    "Cluster": ("instances", "resources"),
-    "Keycloak": ("instances", "resources"),
-    "GarageCluster": (None, None),
-}
 
 
 def quantity(v):
@@ -55,119 +36,75 @@ def quantity(v):
     return n * mult.get(unit, 1)
 
 
-# ---------------------------------------------------------------- summation
-
-def requests_of(pod_spec):
-    cpu = mem = 0.0
-    unset = 0
-    for c in pod_spec.get("containers", []) + pod_spec.get("initContainers", []):
-        req = (c.get("resources") or {}).get("requests") or {}
-        if not req:
-            unset += 1
-        cpu += quantity(req.get("cpu"))
-        mem += quantity(req.get("memory"))
-    return cpu, mem, unset
-
-
-def walk(doc):
-    """(cpu, memory, replicas, containers-without-requests) for one rendered object."""
-    kind = doc.get("kind")
-    if kind not in POD_KINDS:
-        return None
-    # Helm test hooks only ever run under `helm test`. Counting them inflates every total
-    # by a pod per chart that will never be scheduled by a reconcile.
-    hooks = (doc.get("metadata", {}).get("annotations") or {}).get("helm.sh/hook", "")
-    if "test" in hooks:
-        return None
-    if kind == "CronJob":
-        spec = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]
-        replicas = 1
-    elif kind == "Pod":
-        spec, replicas = doc["spec"], 1
-    else:
-        spec = doc["spec"]["template"]["spec"]
-        replicas = doc["spec"].get("replicas", 1)
-    cpu, mem, unset = requests_of(spec)
-    return cpu * replicas, mem * replicas, replicas, unset
+def operator_pods(doc: dict) -> tuple[int, dict] | None:
+    """(replicas, requests) of an operator-owned CR, whose controller makes its pods."""
+    spec = doc.get("spec") or {}
+    if doc.get("kind") in ("Cluster", "Keycloak"):
+        return spec.get("instances", 1), (spec.get("resources") or {}).get("requests") or {}
+    if doc.get("kind") == "GarageCluster":                 # declares no resources
+        return (spec.get("storage") or {}).get("replicas", 1), {}
+    return None
 
 
 def limitranges(docs):
-    """namespace -> (cpu, memory) defaultRequest, read from the render itself.
-
-    A container with no requests is charged the LimitRange of ITS namespace, or nothing at
-    all if that namespace has none. Guessing one global default would hide the case worth
-    seeing: a namespace with neither requests nor a LimitRange, whose pods are BestEffort
-    and are the first thing the kubelet evicts.
-    """
+    """namespace -> (cpu, memory) defaultRequest. Per namespace, not one global guess: a
+    namespace with neither requests nor a LimitRange runs BestEffort pods, evicted first."""
     out = {}
     for d in docs:
         if d.get("kind") != "LimitRange":
             continue
         for item in d["spec"]["limits"]:
-            if item.get("type") != "Container":
-                continue
-            dr = item.get("defaultRequest") or {}
-            out[d["metadata"]["namespace"]] = (quantity(dr.get("cpu")),
-                                               quantity(dr.get("memory")))
+            if item.get("type") == "Container":
+                dr = item.get("defaultRequest") or {}
+                out[d["metadata"]["namespace"]] = (quantity(dr.get("cpu")), quantity(dr.get("memory")))
     return out
 
 
-def render(layer, size, cluster):
-    values = flux.CASES / f"cluster-{cluster}.yaml"
-    srcs = flux.sources(values)
+def charge(pod: dict, replicas: int, lr) -> tuple[float, float, str]:
+    """(cpu, memory, note) for `replicas` of a pod, each container without requests charged
+    its namespace's LimitRange default `lr`, if there is one."""
+    cpu = mem = 0.0
+    unset = 0
+    for c in pod.get("containers", []) + pod.get("initContainers", []):
+        req = (c.get("resources") or {}).get("requests") or {}
+        unset += not req
+        cpu, mem = cpu + quantity(req.get("cpu")), mem + quantity(req.get("memory"))
+    if unset and lr:
+        cpu, mem = cpu + lr[0] * unset, mem + lr[1] * unset
+    return cpu * replicas, mem * replicas, "" if not unset else ("~limitrange" if lr else "!NO REQUESTS")
+
+
+def pods(objects, lrs, prefix=""):
+    """A row per pod-bearing object; helm test hooks are skipped, a reconcile never runs them."""
+    for d, pod, replicas in render.pod_specs(objects):
+        meta = d.get("metadata", {})
+        if d.get("kind") in POD_KINDS and "test" not in (meta.get("annotations") or {}).get("helm.sh/hook", ""):
+            ns = meta.get("namespace", "default")
+            yield (ns, prefix + meta.get("name", "?"), *charge(pod, replicas, lrs.get(ns)))
+
+
+def measure(layer, size, cluster):
+    """(namespace, name, cpu, memory, note) for everything one layer schedules."""
+    values = render.CASES / f"cluster-{cluster}.yaml"
     docs = LAYERS[layer](size, values=values)
     lrs = limitranges(docs)
-
-    rows = []            # (namespace, name, cpu, memory, note)
+    rows = list(pods([d for d in docs if d.get("kind") != "HelmRelease"], lrs))
+    for rel, out, err in render.releases(docs, render.sources(values), ["--include-crds"]):
+        ns, name = rel["metadata"]["namespace"], rel["metadata"]["name"]
+        if err:
+            rows.append((ns, f"{name} (render FAILED)", 0.0, 0.0, err.strip().splitlines()[-1][:80]))
+        rows += pods(out, lrs, f"{name}/")
     for doc in docs:
-        kind, meta = doc.get("kind"), doc.get("metadata", {})
-        ns = meta.get("namespace", "default")
-        name = meta.get("name", "?")
-
-        if kind == "HelmRelease":
-            try:
-                chart = flux.chart_for(doc, srcs)
-                out = flux.helm_template(chart, name, ns, flux.values_of(doc, docs), ["--include-crds"])
-            except RuntimeError as exc:
-                rows.append((ns, f"{name} (render FAILED)", 0.0, 0.0, str(exc).strip().splitlines()[-1][:80]))
-                continue
-            for sub in out:
-                got = walk(sub)
-                if got:
-                    cpu, mem, reps, unset = got
-                    lr = lrs.get(ns)
-                    if unset and lr:
-                        cpu += lr[0] * reps * unset
-                        mem += lr[1] * reps * unset
-                    note = "" if not unset else ("~limitrange" if lr else "!NO REQUESTS")
-                    rows.append((ns, f"{name}/{sub['metadata']['name']}", cpu, mem, note))
-            continue
-
-        if kind in OPERATOR_KINDS:
-            reps_field, res_field = OPERATOR_KINDS[kind]
-            spec = doc.get("spec", {})
-            reps = spec.get(reps_field, 1) if reps_field else \
-                spec.get("storage", {}).get("replicas", 1)
-            req = ((spec.get(res_field) or {}).get("requests") or {}) if res_field else {}
-            lr = lrs.get(ns)
+        if got := operator_pods(doc):
+            reps, req = got
+            ns, lr = doc["metadata"].get("namespace", "default"), lrs.get(doc["metadata"].get("namespace"))
             if req:
                 cpu, mem, note = quantity(req.get("cpu")), quantity(req.get("memory")), "~operator"
             elif lr:
                 cpu, mem, note = lr[0], lr[1], "~limitrange"
             else:
                 cpu, mem, note = 0.0, 0.0, "!NO REQUESTS"
-            rows.append((ns, f"{name} ({kind})", cpu * reps, mem * reps, note))
-            continue
-
-        got = walk(doc)
-        if got:
-            cpu, mem, reps, unset = got
-            lr = lrs.get(ns)
-            if unset and lr:
-                cpu += lr[0] * reps * unset
-                mem += lr[1] * reps * unset
-            rows.append((ns, name, cpu, mem,
-                         "" if not unset else ("~limitrange" if lr else "!NO REQUESTS")))
+            rows.append((ns, f"{doc['metadata']['name']} ({doc['kind']})", cpu * reps, mem * reps, note))
     return rows
 
 
@@ -188,20 +125,19 @@ def report(rows, label):
     return tc, tm
 
 
-def main():
-    ap = argparse.ArgumentParser()
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    r = sub.add_parser("render")
-    r.add_argument("layers", nargs="*", choices=list(LAYERS))
-    r.add_argument("--size", default="medium", choices=flux.SIZES)
-    r.add_argument("--cluster", default="default")
-
+    r = sub.add_parser("render", help="per-namespace request totals")
+    r.add_argument("layers", nargs="*", choices=list(LAYERS), help="default: both")
+    r.add_argument("--size", default="medium", choices=render.SIZES)
+    r.add_argument("--cluster", default="default", help="a cluster case: tests/cases/cluster-<name>.yaml")
     args = ap.parse_args()
 
     totals = {}
     for layer in args.layers or list(LAYERS):
         label = f"{layer} @ {args.size}"
-        totals[label] = report(render(layer, args.size, args.cluster), label)
+        totals[label] = report(measure(layer, args.size, args.cluster), label)
     if len(totals) > 1:
         print("\n=== profiles ===")
         for label, (cpu, mem) in totals.items():

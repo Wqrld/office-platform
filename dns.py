@@ -1,60 +1,27 @@
 #!/usr/bin/env python3
-"""
-Print every DNS record a cluster needs, read out of the config that will use them.
+"""Print every DNS record a cluster needs, read out of the config that will use them.
 
-    ./dns.py                              every cluster case in tests/cases/
-    ./dns.py default                         one of them
-    ./dns.py ../my-cluster/cluster.yaml an organisation's own file — values or HelmRelease
-    ./dns.py default --check                 and resolve each name, to see what is already true
-    ./dns.py default --zone                  BIND-format records, nothing else
+    ./dns.py                               every cluster case in tests/cases/
+    ./dns.py default                       one of them
+    ./dns.py ../my-cluster/cluster.yaml    an organisation's own file — values or HelmRelease
+    ./dns.py default --check               and resolve each name, to see what is already true
+    ./dns.py default --zone                BIND-format records, nothing else
 
-What comes out is every hostname this Gateway serves: the SAN list on the Certificate the
-Gateway actually references, plus every HTTPRoute hostname — including the ones
-`platform-app` renders from `routes[].host`, which exist nowhere in this repo as a literal
-string.
-
-WHY THIS IS WORTH A SCRIPT. `platform/gateway/certificate.yaml` carries the rule: a
-hostname may be listed there only once its DNS resolves to the Gateway, because Let's
-Encrypt fails the WHOLE certificate if any single SAN fails validation. One mispointed
-record therefore takes down TLS for every application, not for one. So the SAN list is a
-list of records that must already exist, and this prints it in the order you need it: DNS
-first, release second.
-
-It also cross-checks the two sources against each other. A route hostname with no SAN
-terminates TLS with no certificate for that SNI, which is a handshake failure and not a
-404 — the kind of thing that looks like a routing bug for an hour.
-
-Rendered through `tests/render.py`, the way the cluster does it: the control plane from
-the cluster's values, then every layer it emits with its size profile and substitutions.
-A hostname in a file no kustomization lists does not appear, because it would not be
-served either.
+Every hostname the Gateway serves, from the cluster as it would reconcile: the SANs of the
+certificate the Gateway references, every HTTPRoute hostname (platform-app's `routes[].host`
+included), TURN and MX. Fails when a routed name is not on the certificate (a TLS handshake
+failure, not a 404), a SAN is routed nowhere, or with `--check` a name does not resolve to
+the Gateway. Let's Encrypt fails the whole certificate if one SAN fails validation, so every
+record comes before the release that adds it. See `AGENTS.md` and `docs/install.md` (DNS).
 """
 import argparse
-import atexit
 import pathlib
 import re
 import socket
 import sys
-import tempfile
-
-import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "tests"))
 import render  # noqa: E402
-
-ROOT = render.ROOT
-
-
-def values_file(path):
-    """A values file as it is; an organisation's cluster.yaml by its HelmRelease's values."""
-    docs = [d for d in yaml.safe_load_all(path.read_text()) if isinstance(d, dict)]
-    release = next((d for d in docs if d.get("kind") == "HelmRelease"), None)
-    if release is None:
-        return path
-    f = tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False)
-    yaml.safe_dump(release["spec"].get("values") or {}, f)
-    atexit.register(pathlib.Path(f.name).unlink)
-    return pathlib.Path(f.name)
 
 
 def gateway_sans(docs):
@@ -143,8 +110,8 @@ def resolve(hostname):
 
 
 def report(path, args):
-    layers = render.cluster(values_file(path))
-    variables = next(d["data"] for d in layers["control-plane"] if d["kind"] == "ConfigMap")
+    layers = render.cluster(path)
+    variables = render.variables(path)
     base_domain = variables.get("BASE_DOMAIN", "")
     gateway_ip = variables.get("GATEWAY_IP", "")
     docs = [d for name, ds in layers.items() if name != "control-plane" for d in ds]

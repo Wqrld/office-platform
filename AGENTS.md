@@ -45,10 +45,12 @@ gitlint over the commits.
 charts into `.charts/` (`startup.py` also each image's config, from its registry), so they
 need network; everything else is offline. All checks render through `tests/render.py` — the
 control plane with `helm template`, each layer with `flux build`, HelmRelease values merged
-from `valuesFrom` as helm-controller does — so what a check sees is what the cluster applies,
-sizes and switcher files included. `tests/cases/index.yaml` is the list of cases every chart
-check iterates; a case added there is picked up by all of them. The `cluster-*` cases double
-as the clusters `build.py`, kubeconform and `dns.py` run against.
+from `valuesFrom` and `postRenderers` applied as helm-controller does (`render.releases`) —
+so what a check sees is what the cluster applies, sizes and switcher files included.
+`tests/cases/index.yaml` is the list of cases every chart check iterates; a case added there
+is picked up by all of them. The `cluster-*` cases double as the clusters `build.py`,
+kubeconform and `dns.py` run against. Every script takes `--help`, and every check ends with
+its problems and one `OK —` or `FAIL —` line (`render.report`).
 
 Any change to a template or to `tests/cases/` changes a golden: run `./tests/golden.py
 --update` and commit the reviewed diff with the change.

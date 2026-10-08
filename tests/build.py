@@ -1,23 +1,15 @@
 #!/usr/bin/env python3
-"""Build everything a cluster would apply, the way Flux does, and leave it where the other
-checks can read it.
+"""Does every layer of every cluster build, with no `${VAR}` left unresolved?
 
     ./tests/build.py [outdir]        default: a temp dir, printed on the last line
 
-One directory per control-plane case in tests/cases/index.yaml — the clusters — and one
-file per Flux Kustomization the control plane emits, plus `control-plane.yaml` for the
-control plane itself. Nothing is hardcoded: the layers, their paths, their size components
-and the enabled apps are all read from the rendered chart, so a cluster that turns an app
-off or runs external S3 is built exactly as it would reconcile.
-
-Two invariants ride along. The application table, charts/control-plane/apps.yaml, and
-the directories under apps/ must agree exactly — an app in one and not the other is either
-undeployable or unmentionable — and examples/cluster.yaml, the file an organisation copies,
-must name every app it can choose. And the check that pays for this script
-on its own: **no ${VAR} may survive**. A typo'd `${BASE_DOMIAN}` is an error nowhere —
-Flux leaves an unknown variable alone, kustomize is happy, the API server accepts it, and
-the app comes up serving "docs.${BASE_DOMIAN}", which resolves for nobody.
+Builds each cluster case (the control-plane cases in tests/cases/index.yaml) as Flux would,
+into `<outdir>/<cluster>/<kustomization>.yaml`, everything read from the rendered control
+plane. Fails on a build error, on a `${VAR}` that survived substitution (Flux leaves an
+unknown one alone, and the app serves `docs.${BASE_DOMIAN}`), and when the app table, the
+directories under apps/ and examples/cluster.yaml disagree. See `AGENTS.md` (Checks).
 """
+import argparse
 import pathlib
 import sys
 import tempfile
@@ -55,13 +47,15 @@ def app_table_agrees() -> list[str]:
 
 
 def main() -> int:
-    out = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix="built-")).resolve()
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("outdir", nargs="?", type=pathlib.Path, help="default: a temp dir")
+    args = ap.parse_args()
+    out = (args.outdir or pathlib.Path(tempfile.mkdtemp(prefix="built-"))).resolve()
     leftover: list[str] = []
 
     print("== application table")
     if problems := app_table_agrees():
-        print("\n".join(f"   {p}" for p in problems) + "\nFAIL")
-        return 1
+        return render.report(problems, "", "disagreement(s) between apps.yaml, apps/ and examples/cluster.yaml")
     print("   agrees with apps/")
 
     for values in render.clusters():
@@ -79,13 +73,8 @@ def main() -> int:
             leftover += [f"{cluster}/{name}: ${{{v}}}" for v in sorted(render.unresolved(objects))]
 
     print("\n== unresolved substitutions")
-    if leftover:
-        print("\n".join(f"   {hit}" for hit in leftover))
-        print("\nFAIL — a variable is used but the control plane does not emit it into cluster-vars.")
-        print("Flux leaves an unknown ${VAR} untouched, so it reaches the cluster as a literal.")
-        return 1
-    print(f"   none\n\n{out}")
-    return 0
+    return render.report(leftover, f"every cluster builds, nothing unresolved\n{out}",
+                         "variable(s) used but not in cluster-vars: Flux leaves them as literals")
 
 
 if __name__ == "__main__":

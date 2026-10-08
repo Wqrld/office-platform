@@ -1,32 +1,20 @@
 #!/usr/bin/env python3
 """Render this repository the way the cluster does. Every check imports this.
 
-    ./tests/render.py <case>      one case from tests/cases/index.yaml, to stdout
-    ./tests/render.py --list      case names
+    ./tests/render.py <case>          one case from tests/cases/index.yaml, to stdout
+    ./tests/render.py --list          case names
+    ./tests/render.py --install OUT   write install.sh's cluster.yaml, then render its control plane
 
-Three mechanisms, all real rather than approximated:
-
-  * `flux_build(path, components)` — kustomize-build one layer with `flux build`, the same
-    code kustomize-controller runs: no load restriction (so `apps/drive` can generate a
-    ConfigMap from `../switcher.js`), and `spec.components` applied where a layer has them.
-
-  * `values_of(release, objects)` — a HelmRelease's effective values: what helm-controller
-    merges from its `valuesFrom` ConfigMaps (the app's sizes, `apps/<app>/sizes/`) under
-    `spec.values`. Every check that templates a release goes through it, so a size that is
-    not in the ConfigMap fails here the way it fails there.
-
-  * `control_plane(values)` — `helm template` the control-plane chart with an
-    organisation's values, the only thing a cluster reads from this repo directly.
-    `cluster(values)` follows the Kustomizations it emits: builds each at the path and
-    components it declares, substituted from the rendered `cluster-vars` exactly as
-    `postBuild` would. That is the whole cluster from one values file, nothing hardcoded.
-
-Upstream charts (`fetch_upstream`) come from the pins the control plane renders, cached
-under .charts/ — the checks that need them (binding, profiles, check-secrets, startup,
-measure) need network.
+The control plane with `helm template`, each layer it emits with `flux build` and its
+`postBuild` substitutions, each HelmRelease with its `valuesFrom` merged and its
+`postRenderers` applied: what a check sees is what the cluster applies. It is not a package;
+the checks, and dns.py, measure.py and preflight.py at the root, import it by putting
+`tests/` on `sys.path`. See `AGENTS.md` (Checks).
 """
 from __future__ import annotations
 
+import argparse
+import contextlib
 import functools
 import json
 import os
@@ -35,6 +23,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator, Mapping
 
 import yaml
 
@@ -51,8 +40,8 @@ CHART = ROOT / "charts" / "control-plane"
 CASES = ROOT / "tests" / "cases"
 CACHE = ROOT / ".charts"
 DEFAULT = CASES / "cluster-default.yaml"
-# cluster-default with every app on, off-by-default ones included — what the per-app checks render,
-# so an app off by default is still checked rather than silently absent.
+# cluster-default with every app on, off-by-default ones included — what the per-app checks
+# render, and where the pins are read from, so an app off by default is never silently absent.
 FULL = CASES / "cluster-full.yaml"
 SIZES = ("small", "medium", "large")
 # Every application directory. The control-plane chart carries the same list with each
@@ -68,10 +57,34 @@ API_VERSIONS = ["gateway.networking.k8s.io/v1", "cert-manager.io/v1", "external-
                 "postgresql.cnpg.io/v1", "gateway.envoyproxy.io/v1alpha1"]
 
 VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+# Kinds helm applies without a namespace; every other object lands in the release's.
+CLUSTER_SCOPED = {"Namespace", "CustomResourceDefinition", "ClusterRole", "ClusterRoleBinding",
+                  "PriorityClass", "StorageClass", "IngressClass", "GatewayClass", "ClusterIssuer",
+                  "ValidatingWebhookConfiguration", "MutatingWebhookConfiguration", "PersistentVolume"}
 
 
 def docs_in(text: str) -> list[dict]:
     return [d for d in load_all(text) if d]
+
+
+def report(problems: list[str], ok: str, fail: str = "problem(s)") -> int:
+    """How every check ends: its problems, then one FAIL or OK line. Returns the exit status."""
+    print()
+    for p in problems:
+        print(f"   {p}")
+    print(f"\nFAIL — {len(problems)} {fail}" if problems else f"OK — {ok}")
+    return int(bool(problems))
+
+
+@contextlib.contextmanager
+def yaml_file(data) -> Iterator[pathlib.Path]:
+    """`data` as a temporary YAML file, for the tools that take only a path."""
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+        dump(data, f)
+    try:
+        yield pathlib.Path(f.name)
+    finally:
+        pathlib.Path(f.name).unlink()
 
 
 def run(cmd: list[str], **kw) -> str:
@@ -92,12 +105,8 @@ def helm_template_text(chart: str, release: str, ns: str, values: str | pathlib.
 
 
 def helm_template(chart: str, release: str, ns: str, values: dict, extra: list[str] = ()) -> list[dict]:
-    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-        dump(values, f)
-    try:
-        return docs_in(helm_template_text(chart, release, ns, f.name, extra))
-    finally:
-        pathlib.Path(f.name).unlink()
+    with yaml_file(values) as f:
+        return docs_in(helm_template_text(chart, release, ns, f, extra))
 
 
 def cases() -> list[dict]:
@@ -122,32 +131,25 @@ def render_case(name: str) -> str:
     if not (src := c.get("tenantsFrom")):
         return helm_template_text(*args)
     apps = json.loads(variables(CASES / f"{src}.yaml")["TENANTS_JSON"])
-    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-        yaml.safe_dump({"apps": apps}, f)
-    try:
-        return helm_template_text(*args, ["--values", f.name])
-    finally:
-        pathlib.Path(f.name).unlink()
+    with yaml_file({"apps": apps}) as f:
+        return helm_template_text(*args, ["--values", str(f)])
 
 
 # ---------------------------------------------------------------- flux
 
 def flux_build(path: str, components: list[str] = (), name: str = "build") -> list[dict]:
-    """kustomize-build `path` (relative to the repo root) as Flux would, profile included."""
+    """kustomize-build `path` (relative to the repo root) as Flux would, profile included:
+    `flux build` runs kustomize-controller's code, with no load restriction (apps/drive
+    generates a ConfigMap from ../switcher.js) and `spec.components` applied."""
     ks = {"apiVersion": "kustomize.toolkit.fluxcd.io/v1", "kind": "Kustomization",
           "metadata": {"name": name, "namespace": "flux-system"},
           "spec": {"interval": "1h", "prune": True, "path": f"./{path}",
                    "components": list(components),
                    "sourceRef": {"kind": "GitRepository", "name": "office-config"}}}
-    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-        dump(ks, f)
-    try:
+    with yaml_file(ks) as f:
         # `--path` resolves against the current directory, not the kustomization file.
-        out = run(["flux", "build", "kustomization", name, "--path", f"./{path}",
-                   "--kustomization-file", f.name, "--dry-run"], cwd=ROOT)
-    finally:
-        pathlib.Path(f.name).unlink()
-    return docs_in(out)
+        return docs_in(run(["flux", "build", "kustomization", name, "--path", f"./{path}",
+                            "--kustomization-file", str(f), "--dry-run"], cwd=ROOT))
 
 
 def substitute(node, variables: dict[str, str]):
@@ -164,10 +166,42 @@ def clusters() -> list[pathlib.Path]:
     return [CASES / f"{c['name']}.yaml" for c in cases() if c["chart"] == "control-plane"]
 
 
+def org_values(path: str | pathlib.Path) -> dict:
+    """The control plane's values in an organisation's file: the HelmRelease's `spec.values`
+    in a cluster.yaml (examples/cluster.yaml), or the whole file if it is bare values."""
+    docs = [d for d in load_all(pathlib.Path(path).read_text()) if isinstance(d, dict)]
+    rel = next((d for d in docs if d.get("kind") == "HelmRelease"), None)
+    return (rel["spec"].get("values") or {}) if rel else (docs[0] if docs else {})
+
+
+def install_file(env: Mapping[str, str]) -> list[dict]:
+    """The cluster.yaml install.sh writes: examples/cluster.yaml with the answers in `env`,
+    install.sh's variables."""
+    flux, git, hr = [d for d in load_all((ROOT / "examples" / "cluster.yaml").read_text()) if d]
+    e, install = env.get, env.get("INSTALL") == "true"
+    git["spec"]["url"] = e("SOURCE_URL")
+    git["spec"]["ref"] = {"tag": f"v{e('VERSION')}"}
+    v = hr["spec"]["values"]
+    v.update(domain=e("DOMAIN"), storageClass=e("STORAGE_CLASS"), size=e("SIZE", "small"))
+    v["gateway"] = {"ip": e("GATEWAY_IP"), "acmeEmail": e("ACME_EMAIL"),
+                    "tlsIssuer": e("TLS_ISSUER", "letsencrypt-gateway")}
+    v["cluster"] = {"gateway": {"install": install, "className": e("GATEWAY_CLASS", "eg")},
+                    "certManager": {"install": install},
+                    "loadBalancer": {"kind": e("LB_KIND"), "install": install,
+                                     "pool": [f"{e('GATEWAY_IP')}/32"]}}
+    v["smtp"] = {"configured": bool(e("SMTP_HOST"))}
+    v["source"] = {"url": e("SOURCE_URL")}
+    if e("SOURCE_SECRET"):
+        v["source"]["secretRef"] = e("SOURCE_SECRET")
+        git["spec"]["secretRef"] = {"name": e("SOURCE_SECRET")}
+    return [flux, git, hr]
+
+
 @functools.cache
 def control_plane(values: pathlib.Path, extra: tuple[str, ...] = ()) -> list[dict]:
-    """`helm template` the control-plane chart with an organisation's values."""
-    return docs_in(helm_template_text(CHART, "platform", "flux-system", values, list(extra)))
+    """`helm template` the control-plane chart with an organisation's values (`org_values`)."""
+    with yaml_file(org_values(values)) as f:
+        return docs_in(helm_template_text(CHART, "platform", "flux-system", f, list(extra)))
 
 
 def variables(values: pathlib.Path = DEFAULT, extra: tuple[str, ...] = ()) -> dict[str, str]:
@@ -176,7 +210,7 @@ def variables(values: pathlib.Path = DEFAULT, extra: tuple[str, ...] = ()) -> di
                 if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "cluster-vars")
 
 
-def sources(values: pathlib.Path = DEFAULT) -> dict[str, dict]:
+def sources(values: pathlib.Path = FULL) -> dict[str, dict]:
     """name -> source object: the pins live in the control plane and nowhere else."""
     return {d["metadata"]["name"]: d for d in control_plane(values)
             if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
@@ -201,7 +235,7 @@ def merge(base: dict, over: dict) -> dict:
 def _rendered_configmaps(released: str) -> tuple[dict, ...]:
     """The ConfigMaps one of our own charts renders — cached on the release as YAML, since
     every sized check asks for the same layer three times over."""
-    rel = yaml.safe_load(released)
+    rel = load(released)
     ns = rel["metadata"]["namespace"]
     out = helm_template(local_chart(rel), rel["metadata"]["name"], ns, values_of(rel, []))
     return tuple(d | {"metadata": {"namespace": ns} | d["metadata"]} for d in out if d.get("kind") == "ConfigMap")
@@ -219,7 +253,7 @@ def layer_configmap(objects: list[dict], name: str, ns: str) -> dict | None:
         return cm
     for rel in objects:
         if rel.get("kind") == "HelmRelease" and local_chart(rel) and not rel["spec"].get("valuesFrom"):
-            if (cm := find(_rendered_configmaps(yaml.safe_dump(rel)))) is not None:
+            if (cm := find(_rendered_configmaps(dump(rel)))) is not None:
                 return cm
     return None
 
@@ -272,6 +306,17 @@ def unresolved(objects: list[dict], allowed: set[str] = frozenset()) -> set[str]
     return set(VAR.findall(dump_all(objects))) - set(allowed)
 
 
+def pod_specs(objects: list[dict]) -> Iterator[tuple[dict, dict, int]]:
+    """(object, pod spec, replicas) for everything that makes pods: a Pod, a CronJob's job
+    template, and anything else with a `spec.template` (replicas from `spec.replicas`)."""
+    for d in objects:
+        spec = d.get("spec") or {}
+        if d.get("kind") == "Pod":
+            yield d, spec, 1
+        elif tmpl := ((spec.get("jobTemplate") or {}).get("spec") or {}).get("template"):
+            yield d, tmpl["spec"], 1
+        elif isinstance(tmpl := spec.get("template"), dict) and "spec" in tmpl:
+            yield d, tmpl["spec"], spec.get("replicas", 1)
 
 # ---------------------------------------------------------------- upstream charts
 
@@ -331,30 +376,63 @@ def chart_for(rel: dict, srcs: dict) -> str | None:
     return local_chart(rel) if rel["spec"].get("chartRef") else fetch_upstream(rel, srcs)
 
 
-def release(rel: dict, objects: list[dict], srcs: dict) -> list[dict]:
+def release(rel: dict, objects: list[dict], srcs: dict, extra: list[str] = ()) -> list[dict]:
     """What helm-controller applies for one HelmRelease: its chart at the pin, with its
     effective values, then its `postRenderers` — the kustomize patches and image overrides
-    that Drive, Meet, Find and LiveKit use to reach inside upstream charts."""
+    that Drive, Meet, Find and LiveKit use to reach inside upstream charts — and the
+    release's namespace on every namespaced object the chart leaves it off, as helm does."""
     name, ns = rel["metadata"]["name"], rel["metadata"]["namespace"]
     chart = chart_for(rel, srcs)
     if chart is None:
         raise RuntimeError(f"{ns}/{name}: chartRef did not resolve to a chart under charts/")
-    out = helm_template(chart, name, ns, values_of(rel, objects))
+    out = helm_template(chart, name, ns, values_of(rel, objects), extra)
+    # A `kind: CronJobList` (Drive's chart) is applied as its items, by helm and kustomize alike.
+    out = [i for d in out for i in (d["items"] if d.get("kind", "").endswith("List") and "items" in d else [d])]
     for pr in rel["spec"].get("postRenderers") or []:
         k = {key: pr["kustomize"][key] for key in ("patches", "images") if key in pr.get("kustomize", {})}
         if not k:
             continue
         with tempfile.TemporaryDirectory() as work:
-            pathlib.Path(work, "all.yaml").write_text(yaml.safe_dump_all(out))
-            pathlib.Path(work, "kustomization.yaml").write_text(yaml.safe_dump({"resources": ["all.yaml"], **k}))
+            pathlib.Path(work, "all.yaml").write_text(dump_all(out))
+            pathlib.Path(work, "kustomization.yaml").write_text(dump({"resources": ["all.yaml"], **k}))
             out = docs_in(run(["kubectl", "kustomize", work]))
+    for d in out:
+        if d.get("kind") not in CLUSTER_SCOPED:
+            d.setdefault("metadata", {}).setdefault("namespace", ns)
     return out
 
 
-if __name__ == "__main__":
-    if sys.argv[1:] == ["--list"]:
+def releases(objects: list[dict], srcs: dict, extra: list[str] = ()) -> Iterator[tuple[dict, list[dict], str]]:
+    """Every HelmRelease in `objects` through `release`: (release, what it applies, error),
+    the error "" when it rendered and the objects [] when it did not."""
+    for rel in objects:
+        if rel.get("kind") == "HelmRelease":
+            try:
+                yield rel, release(rel, objects, srcs, extra), ""
+            except RuntimeError as e:
+                yield rel, [], str(e)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Render one case the way the cluster does.")
+    what = ap.add_mutually_exclusive_group(required=True)
+    what.add_argument("case", nargs="?", help="a case name from tests/cases/index.yaml")
+    what.add_argument("--list", action="store_true", help="print the case names")
+    what.add_argument("--install", metavar="OUT", type=pathlib.Path,
+                      help="write install.sh's cluster.yaml from the environment, then render it")
+    args = ap.parse_args()
+    if args.list:
         print("\n".join(c["name"] for c in cases()))
-    elif len(sys.argv) == 2:
-        sys.stdout.write(render_case(sys.argv[1]))
+    elif args.install:
+        args.install.write_text(dump_all(install_file(os.environ), sort_keys=False))
+        try:
+            control_plane(args.install)      # values the schema refuses fail here, before any apply
+        except RuntimeError as e:
+            sys.exit(f"{args.install}: {e}")
     else:
-        sys.exit(__doc__.split("\n\n")[1])
+        sys.stdout.write(render_case(args.case))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

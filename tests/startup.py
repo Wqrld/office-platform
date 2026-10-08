@@ -1,29 +1,18 @@
 #!/usr/bin/env python3
-"""Will every pod start? Two failures every other check here renders straight past, both
-paid for on prod:
+"""Will every pod start?
 
-  * nonroot — a container with `runAsNonRoot: true` and no `runAsUser` starts only if its
-    IMAGE names a numeric, non-zero user. The kubelet refuses root and refuses a user name
-    it cannot resolve to a uid ("cannot verify user is non-root"). What the image says is
-    in its registry, not in any chart, so this reads each pinned image's config.
-    (2.2.2: Messages' backend image is built without DOCKER_USER, so it runs as root.)
+    ./tests/startup.py [app ...]      default: every app under apps/
 
-  * waits — every Secret and ConfigMap a release's pod needs must come from something the
-    release does not wait behind: the release itself, a plain object in the app's layer, or
-    a release in its `dependsOn` chain. A plain workload may take its inputs from any
-    release in the layer: nothing waits on it. Produced by any other release, it is ordering luck
-    at best and a deadlock at worst — Helm waits for the pod, the pod waits for the
-    Secret, and the Secret's release waits for Helm. (2.2.3: Messages' STARTTLS
-    certificate was in the surround, which dependsOn the release that mounts it.)
-
-    ./tests/startup.py [app…]      default: every app under apps/
-
-Every app, off-by-default ones included, at `medium`. Needs network: the upstream charts,
-and each image's config, cached by reference in .charts/images.json — pins are exact, so a
-cached answer is the answer until the pin moves.
+Every app at `medium`, as helm-controller applies it, and two assertions per pod template.
+nonroot: a container with `runAsNonRoot` and no `runAsUser` needs an image whose config
+names a numeric, non-zero user, or the kubelet refuses it — read from each pinned image's
+registry, cached in .charts/images.json. waits: every Secret and ConfigMap a release's pod
+needs comes from the release itself, a plain object in the layer, or a release in its
+`dependsOn` chain; anything else is a wait that can deadlock. See `AGENTS.md` (Checks).
 """
 from __future__ import annotations
 
+import argparse
 import json
 import pathlib
 import re
@@ -87,17 +76,6 @@ def image_user(ref: str) -> str:
 
 
 # ---------------------------------------------------------------- pods
-
-def pods(objects: list[dict]):
-    """(object, pod spec) for everything that makes pods."""
-    for d in objects:
-        spec = d.get("spec") or {}
-        tmpl = spec.get("template") or spec.get("jobTemplate", {}).get("spec", {}).get("template")
-        if d.get("kind") == "Pod":
-            yield d, spec
-        elif tmpl:
-            yield d, tmpl["spec"]
-
 
 def containers(pod: dict):
     return (pod.get("initContainers") or []) + (pod.get("containers") or [])
@@ -187,11 +165,11 @@ def check_app(app: str, srcs: dict, users: dict) -> list[str]:
 
     made: dict[str, list[dict]] = {"": plain}          # "" is the layer's own plain objects
     problems = []
-    for r in rels:
-        try:
-            made[r["metadata"]["name"]] = render.release(r, docs, srcs)
-        except RuntimeError as e:
-            problems.append(f"{app}: {e}")
+    for r, out, err in render.releases(docs, srcs):
+        if err:
+            problems.append(f"{app}: {err}")
+        else:
+            made[r["metadata"]["name"]] = out
     producers: dict[tuple[str, str], set[str]] = {}
     for owner, objs in made.items():
         for d in objs:
@@ -201,9 +179,10 @@ def check_app(app: str, srcs: dict, users: dict) -> list[str]:
     n = 0
     for owner, objs in made.items():
         # A plain object is waited on by nothing but its layer, and no release waits on the
-        # layer: it starts whenever its inputs appear. A release is waited on by Helm.
+        # layer: it starts whenever its inputs appear. A release is waited on by Helm: Helm
+        # waits for the pod, the pod for the Secret, and the Secret's release for Helm.
         allowed = set(made) if not owner else {"", owner} | closure(owner, deps)
-        for obj, pod in pods(objs):
+        for obj, pod, _ in render.pod_specs(objs):
             n += 1
             problems += [f"{app}: {x}" for x in check_nonroot(obj, pod, users)]
             for need in sorted(needs(pod)):
@@ -220,19 +199,18 @@ def check_app(app: str, srcs: dict, users: dict) -> list[str]:
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("apps", nargs="*", help="default: every app under apps/")
+    args = ap.parse_args()
     users = json.loads(CACHE.read_text()) if CACHE.exists() else {}
-    srcs = render.sources(render.FULL)
+    srcs = render.sources()
     problems: list[str] = []
-    for app in sys.argv[1:] or render.APPS:
+    for app in args.apps or render.APPS:
         problems += check_app(app, srcs, users)
     CACHE.parent.mkdir(exist_ok=True)
     CACHE.write_text(json.dumps(users, indent=1, sort_keys=True))
-    print()
-    for p in problems:
-        print(f"   {p}")
-    print(f"\nFAIL — {len(problems)} pod(s) that will not start" if problems
-          else "OK — every non-root container can run as its image's user, and nothing waits on what waits on it")
-    return 1 if problems else 0
+    return render.report(problems, "every non-root container can run as its image's user, and nothing "
+                                   "waits on what waits on it", "problem(s): pods that will not start")
 
 
 if __name__ == "__main__":

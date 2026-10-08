@@ -3,10 +3,13 @@
 
     ./preflight.py cluster.yaml        the file install.sh writes, or a bare values file
 
-Checks what the platform assumes and cannot install itself, and skips what
-`cluster.*.install` says it will. Exit 1 on any FAIL. SMTP_HOST/SMTP_PORT and HF_TOKEN
-are read from the environment, as install.sh sets them.
+Checks against the live cluster what the platform assumes and cannot install itself —
+StorageClass, GatewayClass, cert-manager with Gateway API, a LoadBalancer, DNS (`dns.py
+--check`), SMTP, the Hugging Face token Meet needs — and skips what `cluster.*.install`
+says the platform installs. SMTP_HOST/SMTP_PORT and HF_TOKEN come from the environment, as
+install.sh sets them. Exit 1 on any FAIL. See `docs/install.md`.
 """
+import argparse
 import json
 import os
 import pathlib
@@ -17,9 +20,10 @@ import time
 import urllib.error
 import urllib.request
 
-import yaml
-
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / "tests"))
+import render  # noqa: E402
+
 failed = False
 
 
@@ -29,8 +33,8 @@ def say(status, what, detail=""):
     print(f"{status:4} {what}" + (f" — {detail}" if detail else ""))
 
 
-def kubectl(*args, check=False):
-    out = subprocess.run(["kubectl", *args], capture_output=True, text=True)
+def kubectl(*args, check=False, input=None):
+    out = subprocess.run(["kubectl", *args], capture_output=True, text=True, input=input)
     if check and out.returncode:
         raise RuntimeError(out.stderr.strip())
     return out.stdout
@@ -39,12 +43,6 @@ def kubectl(*args, check=False):
 def kget(*args):
     out = kubectl("get", *args, "-o", "json")
     return json.loads(out) if out else {}
-
-
-def values_of(path):
-    docs = [d for d in yaml.safe_load_all(path.read_text()) if d]
-    hr = next((d for d in docs if d.get("kind") == "HelmRelease"), None)
-    return hr["spec"]["values"] if hr else docs[0]
 
 
 def check_flux_operator():
@@ -94,7 +92,7 @@ def check_loadbalancer(c, timeout=60):
         return say("SKIP", "LoadBalancer", "the platform installs MetalLB")
     svc = {"apiVersion": "v1", "kind": "Service", "metadata": {"name": "office-preflight", "namespace": "default"},
            "spec": {"type": "LoadBalancer", "ports": [{"port": 9, "targetPort": 9}]}}
-    subprocess.run(["kubectl", "apply", "-f", "-"], input=json.dumps(svc), text=True, capture_output=True)
+    kubectl("apply", "-f", "-", input=json.dumps(svc))
     try:
         for _ in range(timeout // 2):
             ingress = kget("svc", "-n", "default", "office-preflight").get("status", {}).get("loadBalancer", {}).get("ingress")
@@ -145,12 +143,12 @@ def check_hf(meet):
         say("FAIL", "Hugging Face", f"{e.code}: accept the terms on pyannote/segmentation-3.0 and speaker-diarization-3.1")
 
 
-def main():
-    if len(sys.argv) != 2:
-        sys.exit(__doc__)
-    path = pathlib.Path(sys.argv[1])
-    v = values_of(path)
-    defaults = yaml.safe_load((HERE / "charts/control-plane/values.yaml").read_text())
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("cluster", type=pathlib.Path, help="the file install.sh writes, or a bare values file")
+    path = ap.parse_args().cluster
+    v = render.org_values(path)
+    defaults = render.load((HERE / "charts/control-plane/values.yaml").read_text())
     cluster = {k: defaults["cluster"][k] | v.get("cluster", {}).get(k, {}) for k in defaults["cluster"]}
     kubectl("cluster-info", check=True)
     check_flux_operator()
@@ -160,7 +158,7 @@ def main():
     check_loadbalancer(cluster["loadBalancer"])
     check_dns(path)
     check_smtp(v.get("smtp", defaults["smtp"])["configured"])
-    table = yaml.safe_load((HERE / "charts/control-plane/apps.yaml").read_text())
+    table = render.load((HERE / "charts/control-plane/apps.yaml").read_text())
     check_hf(v.get("apps", {}).get("meet", table["meet"]["default"]))
     print("\nFAIL — fix the above before applying" if failed else "\nready")
     return int(failed)
