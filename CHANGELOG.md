@@ -5,6 +5,11 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Maintenance: nothing a cluster applies changes. `measure.py` now counts Drive's and
+  Meet's CronJobs, which it missed before, so its totals rise (small: 2270m / 16544Mi for
+  the apps). Every script takes `--help`; `release.sh` runs on macOS; the label domain
+  stays as it is (`docs/adr/0117`).
+
 ## 2.3.4 — 2026-10-08
 
 - Security: read-only root filesystems for Docs, Drive, Meet, Find, Calendars (not
