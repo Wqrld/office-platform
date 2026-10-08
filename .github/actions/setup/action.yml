@@ -1,0 +1,31 @@
+# What every pr.yaml job does after checkout: Python with the pinned PyYAML, the pinned tools,
+# and, for the jobs that render upstream charts, the .charts/ cache.
+name: setup
+description: Python, pinned tools and the upstream chart cache for the checks
+inputs:
+  tools:
+    description: tests/toolchain.sh arguments, e.g. "helm flux"
+    default: ""
+  pip:
+    description: extra pip requirements, beside PyYAML
+    default: ""
+  charts:
+    description: restore and save .charts/ (upstream charts and image configs)
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
+      with: {python-version: "3.12"}
+    - shell: bash
+      run: pip install --quiet "pyyaml==${PYYAML_VERSION}" ${{ inputs.pip }}
+    - if: inputs.tools != ''
+      shell: bash
+      run: ./tests/toolchain.sh ${{ inputs.tools }}
+    # Entries are per pin (.charts/<source>/<ref>), so a stale restore only costs a fetch.
+    - if: inputs.charts == 'true'
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830   # v4.3.0
+      with:
+        path: .charts
+        key: charts-${{ hashFiles('charts/control-plane/templates/sources.yaml', 'apps/*/release.yaml') }}
+        restore-keys: charts-

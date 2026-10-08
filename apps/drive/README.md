@@ -5,8 +5,12 @@ through the media proxy, and a real Collabora editing session. Run it after any 
 the Gateway, the object store route, or either application. It needs a realm user:
 
 ```sh
-DOMAIN=example.org E2E_USER=<user> E2E_PASSWORD=<password> ./e2e.py
+pip install requests      # its one dependency
+DOMAIN=example.org E2E_USER=<user> E2E_PASSWORD=<password> apps/drive/e2e.py
 ```
+
+Nothing runs it for you: CI has no cluster (AGENTS.md), so it is a step after a deploy, by
+hand, from any checkout that can reach `drive.<domain>`. It creates one file and deletes it.
 
 The fork's chart at git tag `v0.23.0-office.6`, path `src/helm/drive` (see The fork). Drive's shape is close to
 Docs' with three differences: uploads go from the browser straight to the object store

@@ -29,9 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
-        with: {python-version: "3.12"}
-      - run: pip install --quiet "pyyaml==${PYYAML_VERSION}" "pytest==${PYTEST_VERSION}" && ./tests/toolchain.sh helm
+      - uses: ./.github/actions/setup
+        with: {tools: helm, pip: '"pytest==${PYTEST_VERSION}"'}
       - name: unit tests
         run: pytest -q tests/unit
       - name: helm lint
@@ -49,9 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
-        with: {python-version: "3.12"}
-      - run: pip install --quiet "ruff==${RUFF_VERSION}"
+      - uses: ./.github/actions/setup
+        with: {pip: '"ruff==${RUFF_VERSION}"'}
       - name: ruff
         run: ruff check .
       - name: every named path exists
@@ -64,9 +62,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
-        with: {python-version: "3.12"}
-      - run: pip install --quiet "pyyaml==${PYYAML_VERSION}" && ./tests/toolchain.sh helm flux kubeconform
+      - uses: ./.github/actions/setup
+        with: {tools: helm flux kubeconform}
       # Also fails on any ${VAR} left unsubstituted: nothing else errors on one.
       - name: flux build every layer
         run: ./tests/build.py built
@@ -80,9 +77,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
         with:
           fetch-depth: 0    # both sides of the diff have to exist locally
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
-        with: {python-version: "3.12"}
-      - run: pip install --quiet "pyyaml==${PYYAML_VERSION}" && ./tests/toolchain.sh helm flux dyff
+      - uses: ./.github/actions/setup
+        with: {tools: helm flux dyff}
       # Never fails; it puts the diff in the job summary.
       - name: What this changes about what gets applied
         run: |
@@ -99,9 +95,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
-        with: {python-version: "3.12"}
-      - run: pip install --quiet "pyyaml==${PYYAML_VERSION}" && ./tests/toolchain.sh helm flux
+      - uses: ./.github/actions/setup
+        with: {tools: helm flux, charts: "true"}
       # The one check that notices an upstream rename; the next two reuse its fetched charts.
       - name: binding
         run: ./tests/binding.py
@@ -115,9 +110,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
-        with: {python-version: "3.12"}
-      - run: pip install --quiet "pyyaml==${PYYAML_VERSION}" && ./tests/toolchain.sh helm flux
+      - uses: ./.github/actions/setup
+        with: {tools: helm flux, charts: "true"}
       - name: profiles
         run: ./tests/profiles.py
 
