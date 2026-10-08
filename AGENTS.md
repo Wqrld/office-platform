@@ -131,10 +131,7 @@ Garage replication factor, broker `noeviction`) — see `apps/README.md`.
 
 - Every `kustomization.yaml` lists resources explicitly — a new file is not deployed until
   listed.
-- **Adding an app**: `apps/<app>/` (with sizes), an entry in `charts/control-plane/apps.yaml`,
-  its source in `templates/sources.yaml`, an `updatecli/updatecli.d/` file, a case in
-  `tests/cases/index.yaml` for each platform release (nothing checks this one), and a line in
-  `examples/cluster.yaml`. `tests/build.py` asserts the table, `apps/` and the example agree.
+- **Adding an app**: the list is in `apps/README.md` (Adding an application).
 - `apps/gaufre.js` / `apps/switcher.js` must not contain `$` (Calendars' ConfigMap is
   substituted over).
 - updatecli patterns must be anchored to the repository URL: all git pins share

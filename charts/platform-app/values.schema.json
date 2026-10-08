@@ -87,7 +87,7 @@
           "type": ["integer", "string"]
         },
         "components": {
-          "description": "PDB name suffix -> pod selector labels.",
+          "description": "PDB name suffix -> pod selector labels, stated rather than derived: an upstream chart's Service names do not follow from its component labels.",
           "type": "object",
           "additionalProperties": {
             "type": "object",

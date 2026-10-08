@@ -2,20 +2,8 @@
 
 ## Checks
 
-Everything CI runs is a script you can run locally; `AGENTS.md` (Checks) lists what each one
-answers. `tests/toolchain.sh <tool…>` installs the pinned versions of helm, flux,
-kubeconform, conftest, dyff and gitleaks; the scripts also need Python 3 with PyYAML.
-
-```sh
-./tests/schema.py && ./tests/golden.py          # charts
-./tests/build.py built && ./tests/kubeconform.sh tests/golden built
-./tests/binding.py && ./tests/check-secrets.py && ./tests/profiles.py   # need network
-conftest verify --policy policy/charts && conftest verify --policy policy/config
-```
-
-A change to a template or to `tests/cases/` changes a golden: run `./tests/golden.py --update`
-and commit the diff with the change, after reading it. A new app needs a case in
-`tests/cases/index.yaml` for each of its platform releases.
+Every CI job runs a script you can run locally. `AGENTS.md` (Checks) lists them, what
+each answers and what it needs. Adding an application: `apps/README.md`.
 
 ## One change at a time
 

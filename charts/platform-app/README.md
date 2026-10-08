@@ -3,7 +3,8 @@
 The surround. It creates everything *around* what an upstream chart's release created
 (`docs/history/design/04-platform-charts.md`). It creates almost nothing that runs — the one
 exception is the media proxy, which is a route's backend rather than part of the
-application; `docs/adr/0109` argues that case.
+application; `docs/adr/0109` argues that case. Every key is described in
+`values.schema.json`; this file is how the pieces fit.
 
 ## What actually does something on this cluster
 
@@ -12,15 +13,10 @@ application; `docs/adr/0109` argues that case.
 | `HTTPRoute` | **Real.** The only way traffic reaches an app. |
 | `BackendTrafficPolicy` | **Real.** Body limits and timeouts; HTTPRoute cannot express either. |
 | `PodDisruptionBudget` | Real when replicas > 1. Off at the `small` profile, where it could only block drains. |
-| `NetworkPolicy` | **Emitted, NOT enforced.** Flannel ships no policy controller — `docs/adr/0103`. |
+| `NetworkPolicy` | **Emitted, NOT enforced** — `docs/adr/0103`. Never cite it as segmentation. |
 | `HTTPRouteFilter` | **Real.** A 403 at the edge for `routes[].deny`. |
 | media proxy | **Real, and it runs.** Off unless `mediaProxy.enabled` — `docs/adr/0109`. |
 | static files | **Real.** Off unless `staticFiles.enabled`, which also adds the `static` route: an nginx serving `filesConfigMap` (the switcher scripts, default `<app>-gaufre`) and `servicesConfigMap` (the service list, default `office-services`) under `/custom/`. |
-
-> Do not cite this chart's `NetworkPolicy` as network segmentation in a security review.
-> It has been verified to have no effect on this cluster. It is emitted because the egress
-> graph is real knowledge worth stating, and because it starts working unchanged the day a
-> policy-capable CNI arrives.
 
 ## Routes are grouped by backend, not by path
 
@@ -98,10 +94,3 @@ The Deployment's selector is `app.kubernetes.io/name: <app>-media-proxy`, not th
 selector, because a Deployment's selector is immutable and this one matches the object Docs
 already runs from a hand-written manifest — so that release can be adopted rather than
 recreated.
-
-## What it cannot know
-
-The upstream release's replica count lives in another release's values, so `pdb.enabled` is
-set by the size profile alongside replicas rather than inferred. The `pdb.components` selectors are stated explicitly because an upstream chart's Service
-names are not derivable from its component labels — that is the price of attaching to a
-chart we do not own.

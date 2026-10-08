@@ -115,8 +115,9 @@ A directory here, and one entry in `charts/control-plane/apps.yaml` — its defa
 dependencies, switcher entry and everything the platform provisions for it (database, cache
 users and their ACLs, OIDC client, bucket, search user); that file's header is the field
 reference. Outside both, only what pins and tests it: its source in
-`charts/control-plane/templates/sources.yaml`, its `updatecli/updatecli.d/` file, its test
-case, and its line in `examples/cluster.yaml`. `tests/build.py` asserts the table, this
+`charts/control-plane/templates/sources.yaml`, its `updatecli/updatecli.d/` file, a case in
+`tests/cases/index.yaml` for each of its platform releases, and its line in
+`examples/cluster.yaml`. `tests/build.py` asserts the table, this
 directory and the example agree.
 
 ## The switcher
