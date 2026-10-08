@@ -1,6 +1,9 @@
 # Chart sources — every pin the platform runs, in one file. Upstream pins are literal:
 # updatecli rewrites them here (updatecli/README.md). La Suite publishes no Helm
 # repository, so its charts come from pinned git tags — see docs/adr/0104.
+{{- /* Written out per source on purpose, `interval` and `ignore` included: updatecli's
+patterns are anchored to each source's url line, and a source generated from a table
+has none to anchor to. */}}
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "cloudnative-pg" }}

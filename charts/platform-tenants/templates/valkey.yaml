@@ -11,7 +11,7 @@ kind: ExternalSecret
 metadata:
   name: valkey-{{ $inst }}-users
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   refreshInterval: "0"
   target: {name: valkey-{{ $inst }}-users, creationPolicy: Owner}
@@ -27,7 +27,7 @@ kind: ExternalSecret
 metadata:
   name: valkey-user-{{ $app }}
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   refreshInterval: "0"
   target: {name: valkey-user-{{ $app }}, creationPolicy: Owner}
@@ -43,7 +43,7 @@ kind: ExternalSecret
 metadata:
   name: valkey-{{ $inst }}-acl
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   refreshInterval: 1h
   secretStoreRef: {kind: ClusterSecretStore, name: {{ $.Values.namespaces.data }}}
@@ -79,7 +79,7 @@ metadata:
   name: valkey-{{ $inst }}-acl-values
   namespace: {{ $.Values.namespaces.data }}
   labels:
-    {{- include "tenants.labels" $ | nindent 4 }}
+    {{- include "platform.labels" $ | nindent 4 }}
     reconcile.fluxcd.io/watch: Enabled
 data:
   values.yaml: |

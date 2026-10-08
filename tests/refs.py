@@ -27,7 +27,7 @@ PATH = re.compile(rf"(?<![\w./@-])(?:\./)?((?:{'|'.join(TOPS)})/[\w.*/<>{{}}$+-]
 LINK = re.compile(r"\]\((?!https?:|mailto:|#)([^)\s#]+)")
 # Not scanned: decision records, rendered output, and files that are not ours.
 SKIP = ("docs/history/", "docs/adr/", "tests/golden/", "platform/identity/vendor/",
-        "docs/maintenance-")
+        "docs/maintenance-", "tests/refs.py")
 TEXT = (".md", ".yaml", ".yml", ".py", ".sh", ".tpl", ".rego", ".json", ".js", ".txt", ".conf")
 TEXT_NAMES = (".sourceignore", ".gitlint", ".gitignore", ".gitattributes", "Chart.lock")
 # Things shaped like a path that are not one: apiVersions, and names outside this tree.

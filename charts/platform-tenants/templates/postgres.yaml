@@ -6,7 +6,7 @@ kind: ExternalSecret
 metadata:
   name: {{ $app }}-db
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   refreshInterval: "0"
   target:
@@ -25,7 +25,7 @@ kind: DatabaseRole
 metadata:
   name: {{ $app }}
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   cluster: {name: {{ $.Values.postgresCluster }}}
   name: {{ $app }}
@@ -40,7 +40,7 @@ kind: Database
 metadata:
   name: {{ $app }}
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   cluster: {name: {{ $.Values.postgresCluster }}}
   name: {{ $app }}

@@ -1,7 +1,8 @@
-{{- define "tenants.labels" -}}
+{{/* The same labels as platform-deps and platform-app; tests/unit/test_charts.py keeps them so. */}}
+{{- define "platform.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-app.kubernetes.io/part-of: {{ .Values.tenant }}
+app.kubernetes.io/part-of: {{ .Values.tenant | default "office" }}
 app.kubernetes.io/name: {{ .Release.Name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}

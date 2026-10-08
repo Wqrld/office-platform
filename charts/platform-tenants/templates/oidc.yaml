@@ -7,7 +7,7 @@ kind: ExternalSecret
 metadata:
   name: oidc-client-{{ $app }}
   namespace: {{ $.Values.namespaces.identity }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   refreshInterval: "0"
   target:

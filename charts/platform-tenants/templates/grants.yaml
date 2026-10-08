@@ -9,7 +9,7 @@ kind: GarageReferenceGrant
 metadata:
   name: {{ $.Values.tenant }}-{{ $app }}
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   from:
     - {kind: GarageBucket, namespace: {{ $.Values.tenant }}-{{ $app }}}

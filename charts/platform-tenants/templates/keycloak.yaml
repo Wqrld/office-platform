@@ -33,7 +33,7 @@ kind: ConfigMap
 metadata:
   name: realm-{{ $hash }}
   namespace: {{ .Values.namespaces.identity }}
-  labels: {{- include "tenants.labels" . | nindent 4 }}
+  labels: {{- include "platform.labels" . | nindent 4 }}
 data:
   realm.yaml: |
     {{- $realm | nindent 4 }}
@@ -43,14 +43,14 @@ kind: Job
 metadata:
   name: realm-{{ $hash }}
   namespace: {{ .Values.namespaces.identity }}
-  labels: {{- include "tenants.labels" . | nindent 4 }}
+  labels: {{- include "platform.labels" . | nindent 4 }}
 spec:
   # On a fresh install Keycloak starts after this Job does; the availability check waits
   # ten minutes, the retries cover the rest. Nothing waits on this Job (platform/tenants.yaml).
   backoffLimit: 10
   template:
     metadata:
-      labels: {{- include "tenants.labels" . | nindent 8 }}
+      labels: {{- include "platform.labels" . | nindent 8 }}
     spec:
       restartPolicy: Never
       securityContext:

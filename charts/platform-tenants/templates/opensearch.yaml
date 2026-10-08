@@ -46,7 +46,7 @@ kind: Secret
 metadata:
   name: opensearch-security
   namespace: {{ .Values.namespaces.data }}
-  labels: {{- include "tenants.labels" . | nindent 4 }}
+  labels: {{- include "platform.labels" . | nindent 4 }}
 stringData:
   {{- toYaml $files | nindent 2 }}
 {{- range $app, $_ := $users }}
@@ -58,7 +58,7 @@ kind: ExternalSecret
 metadata:
   name: opensearch-user-{{ $app }}
   namespace: {{ $.Values.namespaces.data }}
-  labels: {{- include "tenants.labels" $ | nindent 4 }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
 spec:
   refreshInterval: "0"
   target: {name: opensearch-user-{{ $app }}, creationPolicy: Owner}
@@ -71,14 +71,14 @@ kind: Job
 metadata:
   name: opensearch-security-{{ $hash }}
   namespace: {{ .Values.namespaces.data }}
-  labels: {{- include "tenants.labels" . | nindent 4 }}
+  labels: {{- include "platform.labels" . | nindent 4 }}
 spec:
   # On a fresh install the server starts after this Job does; the retries wait it out.
   # Nothing waits on this Job (platform/tenants.yaml).
   backoffLimit: 10
   template:
     metadata:
-      labels: {{- include "tenants.labels" . | nindent 8 }}
+      labels: {{- include "platform.labels" . | nindent 8 }}
     spec:
       restartPolicy: Never
       securityContext:
