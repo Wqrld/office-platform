@@ -1,7 +1,6 @@
-# One application's namespace; `${APP}` is set per Kustomization by the control plane.
-# `gateway-access` is the Gateway's allowedRoutes selector: without it a route attaches
-# to nothing and reports no error. PSA `baseline` because Collabora needs capabilities
-# `restricted` forbids (its README); `restricted` stays on audit/warn.
+# One application's namespace. `gateway-access` is the Gateway's allowedRoutes selector:
+# without it a route attaches to nothing, silently. PSA `baseline` for Collabora's
+# capabilities (its README); `restricted` stays on audit/warn.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -12,8 +11,7 @@ metadata:
     pod-security.kubernetes.io/audit: restricted
     pod-security.kubernetes.io/warn: restricted
 ---
-# Every pod here runs as `default` (no upstream chart creates its own ServiceAccount) and
-# none calls the Kubernetes API, so none needs a token mounted.
+# Every pod runs as `default` and none calls the Kubernetes API.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -21,8 +19,7 @@ metadata:
   namespace: office-${APP}
 automountServiceAccountToken: false
 ---
-# `defaultRequest` only, so it can refuse nothing — platform/guardrails.yaml. It is for the
-# container that arrives without requests, which would otherwise land as BestEffort.
+# `defaultRequest` only, so it refuses nothing (platform/guardrails.yaml).
 apiVersion: v1
 kind: LimitRange
 metadata:

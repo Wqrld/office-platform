@@ -10,7 +10,6 @@ resources:
   - surround.yaml
 
 configMapGenerator:
-  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
   - name: meet-sizes
     namespace: office-meet
     files:
@@ -22,12 +21,10 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
-      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
+      labels: {reconcile.fluxcd.io/watch: Enabled}
 
-  # The two switcher scripts (one level up — Drive's too; apps/README.md, The switcher),
-  # plus the nginx config that injects them, mounted over the frontend image's own
-  # default.conf (release.yaml). `substitute: disabled`: default.conf has nginx `$uri`
-  # variables, and nothing in the scripts is a `${…}` either.
+  # The switcher scripts and the nginx config that injects them (release.yaml). Not
+  # substituted: default.conf has nginx `$uri` variables.
   - name: meet-frontend
     namespace: office-meet
     files: [../switcher.js, ../gaufre.js, default.conf]
@@ -36,8 +33,7 @@ configMapGenerator:
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
 
-  # Two one-file Python patches, each imported at interpreter start by the process it is
-  # mounted into as `sitecustomize.py` (the files say why). Nothing to substitute.
+  # Two Python patches, each mounted as `sitecustomize.py` (the files say why).
   - name: meet-patches
     namespace: office-meet
     files: [summary-sitecustomize.py, whisperx-sitecustomize.py]

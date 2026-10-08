@@ -28,14 +28,10 @@ resources:
   - identity/realm.yaml
 
 
-# PHASE 1 OF THE HANDOVER TO platform-tenants, for the OpenSearch users and the realm. The
-# next release deletes secrets/opensearch-users.yaml, identity/realm.yaml and this block.
-#   * opensearch-user-*: claimed by the tenants release, which needs Helm's ownership
-#     metadata on them; `prune: disabled` so removing the file never lets ESO delete a live
-#     password.
-#   * the KeycloakRealmImport: `prune: disabled` before it leaves git. Deleting it would not
-#     delete the realm — the operator's controller has no cleanup and the CR no finalizer —
-#     but it is the realm, and it is not removed on an argument.
+# PHASE 1 OF THE HANDOVER TO platform-tenants; the next release deletes
+# secrets/opensearch-users.yaml, identity/realm.yaml and this block. Helm ownership lets the
+# tenants release claim opensearch-user-*, and `prune: disabled` keeps a live password, and
+# the realm, from being deleted when the files go.
 patches:
   - target: {kind: ExternalSecret, namespace: office-data, name: "opensearch-user-.*"}
     patch: |

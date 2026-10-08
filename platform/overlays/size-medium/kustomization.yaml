@@ -1,14 +1,7 @@
-# Size profile `medium` — the platform layer. 50-500 people.
-#
-# Empty: the base manifests carry the measured production numbers, and restating them here
-# would put every figure in two places. (The apps no longer work this way — each carries
-# its three sizes as values, apps/README.md — but CNPG, Garage and Keycloak are plain
-# manifests, so the platform layer is still patched.)
+# Size profile `medium` — the platform layer. 50-500 people. Empty: the base carries the
+# measured numbers.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
-# Kustomize refuses a component whose kustomization.yaml carries nothing but its own
-# apiVersion and kind ("kustomization.yaml is empty"), so the empty profile has to say
-# `patches: []` out loud. That is a tooling requirement, not a placeholder — do not read it
-# as an invitation to fill it in.
+# Kustomize refuses an empty component ("kustomization.yaml is empty"); not a placeholder.
 patches: []

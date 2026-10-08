@@ -27,7 +27,7 @@ spec:
   ref: {tag: v2.3.4}
   # secretRef: {name: office-platform-git}       # a private fork: `flux create secret git`
 ---
-# 3. Your choices. charts/control-plane/values.yaml documents each key; the schema rejects
+# 3. Your choices. charts/control-plane/values.schema.json documents each key and rejects
 #    anything else, so a typo is a refused release with a message.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

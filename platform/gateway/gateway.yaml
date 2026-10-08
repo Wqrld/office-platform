@@ -16,10 +16,7 @@ spec:
       port: 80
       allowedRoutes:
         namespaces: {from: Same}            # only the redirect below
-    # One listener, no hostname: Envoy selects the certificate by SNI. Adding an
-    # application therefore never edits this file — its host goes in the control plane's
-    # app table, which is where certificate.yaml's SAN list comes from, and it ships its
-    # own HTTPRoute.
+    # One listener, no hostname: certificates by SNI, so a new app never edits this file.
     - name: https
       protocol: HTTPS
       port: 443
@@ -33,10 +30,8 @@ spec:
           selector:
             matchLabels:
               office.haaijer.dev/gateway-access: "true"
-    # WebRTC media for LiveKit, proxied at L4 (adr/0113): Envoy's UDP proxy gives each
-    # client its own upstream socket, which is the NAT every SFU already expects. The
-    # Gateway is therefore the ONE LoadBalancer, on any provider. Open even with Meet off;
-    # without its routes the ports answer nothing.
+    # LiveKit's media at L4 (adr/0113), so the Gateway is the ONE LoadBalancer. Open even
+    # with Meet off, answering nothing.
     - name: rtc-tcp
       protocol: TCP
       port: 7881
@@ -64,9 +59,8 @@ spec:
           selector:
             matchLabels:
               office.haaijer.dev/gateway-access: "true"
-    # Inbound mail for Messages, the MX (apps/messages/surround.yaml). Plain TCP: STARTTLS
-    # is the MTA's own, and it needs the sender's address, which reaches it as a PROXY
-    # header. Open even with Messages off, answering nothing.
+    # Messages' MX (apps/messages/surround.yaml). Plain TCP: STARTTLS is the MTA's own.
+    # Open even with Messages off, answering nothing.
     - name: smtp
       protocol: TCP
       port: 25

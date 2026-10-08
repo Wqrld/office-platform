@@ -1,11 +1,6 @@
-# The Garage S3 API, published — for one bucket. adr/0110.
-#
-# Drive hands the browser a presigned PUT URL, and a SigV4 signature covers the host, so it
-# must be signed against a host the browser can reach. There is no in-application fallback.
-#
-# THE PATH PREFIX IS THE SCOPE. Garage is path-style, so a bucket is a path prefix:
-# `/docs/` matches no route and 404s at the edge. Adding a prefix here publishes that
-# bucket — a security decision, not a routing tweak.
+# The Garage S3 API, published for one bucket, for Drive's presigned browser uploads
+# (adr/0110). THE PATH PREFIX IS THE SCOPE: path-style, so a bucket is a prefix, and adding
+# one here publishes that bucket — a security decision, not a routing tweak.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -21,9 +16,8 @@ spec:
       backendRefs:
         - {name: office-s3, port: 3900}
 ---
-# CORS for the browser upload, at the edge because Garage's bucket CORS is not reachable
-# through the operator's CRDs. `allowOrigins` stops another site's page using these URLs;
-# a leaked URL is covered by the 60-second expiry and the single-key PUT-only signature.
+# CORS at the edge: the operator's CRDs cannot set Garage's. A leaked URL is covered by the
+# 60-second expiry and the single-key PUT-only signature.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: SecurityPolicy
 metadata:
@@ -40,8 +34,7 @@ spec:
     exposeHeaders: [ETag]
     maxAge: 10m
 ---
-# No requestBuffer: it holds the whole body in Envoy, which on a large upload trades the
-# upload for an OOM. Drive caps size itself. A slow upload is slow, not hung.
+# No requestBuffer: Envoy would hold a large upload whole, and OOM. Drive caps size itself.
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: BackendTrafficPolicy
 metadata:

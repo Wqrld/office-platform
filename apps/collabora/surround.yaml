@@ -15,9 +15,8 @@ spec:
         paths: [/]
         websocket: true                 # the editor holds one open all session
 
-        # coolwsd puts its admin console and metrics on the same host and port as the
-        # editor. `/cool/getMetrics` enumerates every open document. 403 at the edge; the
-        # generated password is the second layer, not the first.
+        # The admin console and metrics share the editor's port; `/cool/getMetrics` lists
+        # every open document. The generated password is the second layer.
         deny:
           - /browser/dist/admin
           - /cool/adminws

@@ -14,33 +14,26 @@ spec:
     # database value (meet/settings.py), so the `django` profile fits as-is.
     postgres: {enabled: true}
 
-    # `cache` only. The backend's own Celery is OFF (CELERY_ENABLED=false in release.yaml):
-    # nothing in the transcript pipeline goes through it, and Meet reads the URL as
-    # CELERY_BROKER_URL, not the profile's DJANGO_CELERY_BROKER_URL. The SUMMARY service's
-    # Celery does need a broker, with a password in the URL — that URL is assembled in
-    # tokens.yaml from the same `valkey-user-meet` draw, which is why the platform still
-    # creates a broker password for `meet` even though this block does not ask for one.
+    # `cache` only. The backend's own Celery is off (release.yaml) and would read
+    # CELERY_BROKER_URL, not the profile's name. The summary service's broker URL is built
+    # in summary-secret.yaml from the same `valkey-user-meet` draw, which is why the platform
+    # still makes `meet` a broker password.
     cache: {enabled: true, uses: [cache]}
 
-    # Bucket `meet`: the audio egress lands here (LiveKit's egress worker uploads with the
-    # credentials Meet's backend hands it per request), the summary service reads it back
-    # by presigned URL and writes the transcript beside it. NO `publicEndpoint`: nothing
-    # presigns to a browser, so the bucket stays unpublished (adr/0110).
+    # The audio egress lands here (with credentials the backend hands LiveKit per request),
+    # and the summary service reads it by presigned URL. Nothing presigns to a browser, so
+    # no `publicEndpoint` (adr/0110).
     objectstore:
       enabled: true
-      mode: ${S3_MODE}     # the organisation's — see apps/docs/deps.yaml
+      mode: ${S3_MODE}
       quota: {maxSize: 20Gi}
 
-    # Meet's OIDC_* names carry no prefix and match
-    # platform.oidc.env one for one; the callback is /api/v1.0/callback/ and the client's
-    # redirect URI (charts/platform-tenants, `oidc`) is the wildcard.
+    # Unprefixed OIDC_*, as the profile; the callback is /api/v1.0/callback/.
     oidc: {enabled: true}
 
-    # DJANGO_EMAIL_*: Meet's mail settings use django-configurations' default prefix
-    # (meet/settings.py `EMAIL_HOST = values.Value(None)`), same as Docs and Drive.
+    # DJANGO_EMAIL_*, django-configurations' default prefix, as Docs and Drive.
     smtp: {enabled: true}
 
-    # Ordered, and can never gain an entry — `refreshInterval: "0"` means written once.
     generated:
       meet-django:
         - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}

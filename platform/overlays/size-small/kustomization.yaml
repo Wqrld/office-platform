@@ -1,20 +1,11 @@
-# Size profile `small` — the platform layer. 5-50 people, one node, no HA.
-#
-# The app profile moves application requests; this one moves the datastores, which is where
-# a demo environment's floor actually is. An empty demo still pays for Postgres, two Valkeys,
-# Garage and Keycloak before it serves a single request, and that floor is most of what
-# decides whether a demo fits on a spare node.
-#
-# `instances: 1` and `replicas: 1` are NOT here. They are already 1 in the base, for a
-# reason that is not sizing: there is one node, so a second Postgres instance buys latency
-# and no availability. They become a `medium`/`large` concern the day a second node exists.
+# Size profile `small` — the platform layer. 5-50 people, one node, no HA. The datastores
+# are most of an empty environment's floor. `instances`/`replicas` stay the base's 1: on
+# one node a second copy buys latency, not availability.
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
 patches:
-  # Valkey: half the cache, and the same for the broker. `maxmemory` is the number that
-  # matters — the container will grow to it and the LimitRange's defaultRequest does not
-  # cap it, so a 256mb cache on a demo node is 256mb of real resident memory doing nothing.
+  # Valkey: half of each. `maxmemory` is what the container grows to; nothing else caps it.
   - target: {kind: HelmRelease, name: valkey-cache, namespace: office-data}
     patch: |
       apiVersion: helm.toolkit.fluxcd.io/v2
@@ -27,9 +18,7 @@ patches:
             maxmemory-policy allkeys-lru
             save ""
 
-  # The broker stays `noeviction` at every size. Eviction here is not a memory saving, it is
-  # silently dropped Celery tasks (history/design/06-datastores.md) — the failure presents as "some uploads
-  # never get processed", weeks later. Only the ceiling moves.
+  # The broker stays `noeviction` at every size; only the ceiling moves (platform/valkey/README.md).
   - target: {kind: HelmRelease, name: valkey-broker, namespace: office-data}
     patch: |
       apiVersion: helm.toolkit.fluxcd.io/v2
@@ -42,9 +31,8 @@ patches:
             maxmemory-policy noeviction
             appendonly yes
 
-  # Postgres: 20Gi -> 8Gi. A demo's ten databases are empty. Note this is a ONE-WAY door on
-  # a live cluster — a Longhorn volume expands online and never shrinks — so it applies to a
-  # demo built from nothing, not to an environment moved down a profile.
+  # Postgres: 20Gi -> 8Gi. A ONE-WAY door: a volume expands online and never shrinks, so
+  # this is for an environment built small, not one moved down a size.
   - target: {kind: Cluster, name: office-pg, namespace: office-data}
     patch: |
       apiVersion: postgresql.cnpg.io/v1
@@ -59,8 +47,8 @@ patches:
             # handful of workers, and every backend slot is preallocated shared memory.
             max_connections: "100"
 
-  # Keycloak. 768Mi is a measured production floor; the JVM will size its heap to the
-  # container limit, so lowering the limit is what actually shrinks it.
+  # Keycloak, under the base's measured 768Mi floor: the JVM sizes its heap to the limit,
+  # so the limit is what shrinks it.
   - target: {kind: Keycloak, name: keycloak, namespace: office-identity}
     patch: |
       apiVersion: k8s.keycloak.org/v2beta1
@@ -71,7 +59,7 @@ patches:
           requests: {cpu: 100m, memory: 512Mi}
           limits: {memory: 1Gi}
 
-  # Garage: 20Gi data + 2Gi meta -> 8Gi + 1Gi. Same one-way-door caveat as Postgres.
+  # Garage: 20Gi + 2Gi -> 8Gi + 1Gi, the same one-way door.
   - target: {kind: GarageCluster, name: office-s3, namespace: office-data}
     patch: |
       - op: replace

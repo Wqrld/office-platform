@@ -6,7 +6,6 @@ resources:
   - release.yaml
   - surround.yaml
 
-# The size files, one ConfigMap key each; the HelmRelease picks its key with `${SIZE}`.
 configMapGenerator:
   - name: collabora-sizes
     namespace: office-collabora
@@ -16,4 +15,4 @@ configMapGenerator:
       - large=sizes/large.yaml
     options:
       disableNameSuffixHash: true
-      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
+      labels: {reconcile.fluxcd.io/watch: Enabled}

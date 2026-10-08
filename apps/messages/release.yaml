@@ -1,11 +1,6 @@
-# Release 2 of 3: Messages, from the chart written in the application's own repo
-# (`src/helm/messages`, copied from Docs' `src/helm/impress` so upstream reads it as theirs).
-# It is not in an upstream tag yet, so it comes from the fork's git tag until the upstreaming
-# PR lands; see charts/control-plane/templates/sources.yaml and README.md.
-#
-# Five workloads: backend (Django; also the MDA the MTA delivers into), celery-worker
-# (delivery in and out, imports, indexing, and the beat scheduler), frontend (Caddy serving
-# the SPA), mta-in (SMTP on 25, via the Gateway) and mpa (rspamd, called by the backend).
+# Release 2 of 3: Messages, from the in-tree chart (`src/helm/messages`, copied from Docs')
+# at the fork's git tag until the upstreaming PR lands (adr/0104). README.md has the five
+# workloads. Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -13,23 +8,18 @@ metadata:
   namespace: office-messages
 spec:
   interval: 30m
-  # Every Secret this release consumes with `envFrom` is created by messages-deps.
   dependsOn: [{name: messages-deps}]
   chart:
     spec:
       chart: src/helm/messages
       sourceRef: {kind: GitRepository, name: wqrld-messages, namespace: flux-system}
       reconcileStrategy: Revision
-  # The migrate and createsuperuser Jobs are plain Jobs, as in Docs' chart.
   install:
     disableWaitForJobs: true
   upgrade:
     disableWaitForJobs: true
     remediation:
-      # A rollback reverts the code and leaves the schema migrated. Fail forward, loudly.
       retries: 0
-  # Sizing — replicas, resources, concurrency — comes from sizes/<size>.yaml, one key of the
-  # `messages-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.
   valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "${SIZE}"}]
 
   postRenderers:
@@ -39,37 +29,28 @@ spec:
             patch: |
               - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
   values:
-    # THE FORK'S IMAGES, one tag for all five, until upstream publishes the MPA and merges
-    # MTA_OUT_EHLO_HOSTNAME (README.md, Pins). The chart's default is `latest`.
+    # The fork's images, one tag for all five (README.md, Pins).
     image:
       repository: ghcr.io/wqrld/messages-backend
       tag: "0.9.0-office.1"
 
-    # Routing is ours — surround.yaml. Already false in the chart; stated so a default flip
-    # upstream cannot quietly publish a second path in.
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
 
     backend:
-      pdb: {enabled: false}          # the surround owns budgets, at every size
+      pdb: {enabled: false}
 
-      # Upstream's CI builds the backend without DOCKER_USER, so `USER ${DOCKER_USER}` is
-      # root and the chart's `runAsNonRoot: true` refuses every pod. 1001 is what upstream's
-      # test CI builds with; the entrypoint adds the passwd entry (group 0 may write it).
-      # Covers worker, Jobs and cronjob, which all read backend.securityContext. A map
-      # merge: the rest of the chart's securityContext stands. Dropped once the fork's CI
-      # passes DOCKER_USER. Read-only root as Docs runs; /tmp is all these write.
+      # Upstream's CI builds without DOCKER_USER, so the image is root and the chart's
+      # `runAsNonRoot` refuses it. 1001 is upstream's test CI user; the entrypoint adds the
+      # passwd entry. Drop once the fork's CI passes DOCKER_USER.
       securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
-      # The chart's liveness path is Docs' `/__lbheartbeat__`, which Messages does not serve:
-      # a 404, and the kubelet restarts every backend pod. Dropped once the fork's chart
-      # default says `/__heartbeat__`.
+      # The chart's default is Docs' `/__lbheartbeat__`, which Messages 404s. Drop once the
+      # fork's chart says `/__heartbeat__`.
       probes:
         liveness: {path: /__heartbeat__}
 
-      # Each probe is a ~1s Django import; at the chart's 10s this cost 200m. No Service
-      # selects workers, so no readiness; liveness every 5m via postRenderers (no chart value).
       celery:
         probes: {readiness: null, liveness: {timeoutSeconds: 30}}
 
@@ -103,9 +84,7 @@ spec:
         LOGIN_REDIRECT_URL_FAILURE: https://messages.${BASE_DOMAIN}
         LOGOUT_REDIRECT_URL: https://messages.${BASE_DOMAIN}
 
-        # MAIL. The technical domain is the base domain: its `mx.` is the Gateway's address
-        # (dns.py prints it), its `_spf.` lists the address mail LEAVES from. One MX, not
-        # upstream's mx1/mx2 — there is one Gateway address to point them at.
+        # MAIL. One MX, not upstream's mx1/mx2: one Gateway address (README.md, Mail DNS).
         MESSAGES_TECHNICAL_DOMAIN: ${BASE_DOMAIN}
         MESSAGES_DNS_RECORDS: '[{"target":"","type":"mx","value":"10 mx.{technical_domain}."},{"target":"","type":"txt","value":"v=spf1 include:_spf.{technical_domain} -all"},{"target":"_dmarc","type":"txt","value":"v=DMARC1; p=reject; adkim=s; aspf=s;"}]'
         # Straight to each recipient's MX from the worker. Needs outbound 25 open at the
@@ -118,13 +97,10 @@ spec:
         # (messages-mpa) is for the web UI and learning only.
         SPAM_CONFIG: '{"rspamd_url": "http://messages-mpa:8010/_api"}'
 
-        # THE GAUFRE. `LaGaufreV2` takes the widget script and the service list as URLs,
-        # both served from Messages' own origin by `staticFiles` in surround.yaml — the
-        # same wiring as Calendars' (apps/README.md, The switcher).
+        # THE GAUFRE, as Calendars' (apps/README.md, The switcher).
         FRONTEND_LAGAUFRE_WIDGET_CONFIG: '{"api_url": "https://messages.${BASE_DOMAIN}/custom/services.json", "path": "https://messages.${BASE_DOMAIN}/custom/gaufre.js"}'
 
-        # The other two storages, on the same bucket and key as AWS_S3_* (deps.yaml): the
-        # platform provisions one bucket per app, and their object keys do not collide.
+        # The other two storages share the app's one bucket; their keys do not collide.
         STORAGE_MESSAGE_IMPORTS_ENDPOINT_URL: {secretKeyRef: {name: messages-s3, key: AWS_S3_ENDPOINT_URL}}
         STORAGE_MESSAGE_IMPORTS_REGION_NAME: {secretKeyRef: {name: messages-s3, key: AWS_S3_REGION_NAME}}
         STORAGE_MESSAGE_IMPORTS_BUCKET_NAME: {secretKeyRef: {name: messages-s3, key: AWS_STORAGE_BUCKET_NAME}}
@@ -141,15 +117,14 @@ spec:
       image:
         repository: ghcr.io/wqrld/messages-frontend
         tag: "0.9.0-office.1"
-      # Read-only root. Caddy keeps its autosave and storage under $HOME (/home/nonroot).
+      # Caddy keeps its autosave and storage under $HOME.
       securityContext: {readOnlyRootFilesystem: true}
       persistence: {home: {type: emptyDir, mountPath: /home/nonroot}}
       envVars:
-        # Caddy proxies /api and /admin itself; surround.yaml sends /api past it, so this
-        # carries the admin and the health checks.
+        # The admin and health checks go through Caddy; /api bypasses it (surround.yaml).
         MESSAGES_FRONTEND_BACKEND_SERVER: messages-backend:80
-        # Envoy's address, so Caddy takes the client from X-Forwarded-For. Pod ranges are
-        # not a cluster variable; these cover every private range a CNI allocates from.
+        # Envoy, so Caddy takes the client from X-Forwarded-For: every private range, as
+        # pod ranges are not a cluster variable.
         MESSAGES_FRONTEND_TRUSTED_PROXIES: 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
 
     mtaIn:
@@ -166,10 +141,8 @@ spec:
         MDA_API_BASE_URL: http://messages-backend/api/v1.0/
         # The banner and `Received:` name; the name the MX record points at.
         PYMTA_SMTP_HOSTNAME: mx.${BASE_DOMAIN}
-        # The Gateway prepends a PROXY v2 header (surround.yaml), so the MTA sees each
-        # sender's address, not Envoy's — without it every message is stamped with, and
-        # rate-limited as, one IP. Trusted from the private ranges only: the Service is
-        # ClusterIP, so anything sending a header is in-cluster.
+        # The Gateway's PROXY v2 header carries each sender's address; without it every
+        # message is stamped and rate-limited as Envoy. ClusterIP, so private ranges only.
         PYMTA_ENABLE_PROXY_PROTOCOL: "true"
         PYMTA_TRUSTED_PROXIES: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
         # STARTTLS, self-signed — sending MTAs encrypt opportunistically and verify nothing
@@ -187,8 +160,7 @@ spec:
       image:
         repository: ghcr.io/wqrld/messages-mpa
         tag: "0.9.0-office.1"
-      # Read-only root. rspamd's maps and hyperscan cache, its pid and sockets, nginx's
-      # temp paths, and start.sh's rendered servers.conf (/tmp) are all it writes.
+      # rspamd's maps, cache, pid and sockets, nginx's temp paths, start.sh's servers.conf.
       securityContext: {readOnlyRootFilesystem: true}
       persistence:
         tmp: {type: emptyDir, mountPath: /tmp}

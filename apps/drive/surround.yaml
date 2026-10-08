@@ -6,7 +6,6 @@ spec:
   interval: 30m
   dependsOn: [{name: drive}]
   chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: drive
@@ -18,9 +17,7 @@ spec:
 
       - name: api
         backend: {name: drive-backend, port: 80}
-        # /api carries the WOPI host endpoints that Collabora calls from OUTSIDE the
-        # cluster, so this cannot become internal-only. /static is whitenoise serving
-        # Django's admin CSS.
+        # /api carries the WOPI host endpoints Collabora calls from OUTSIDE the cluster.
         paths: [/api, /admin, /static]
         # File bodies go straight to the object store, so what arrives here is metadata.
         requestBuffer: 25Mi
@@ -33,22 +30,17 @@ spec:
         paths: [/media]
         timeout: 300s
 
-    # The `/media` route's backend — adr/0109. Drive's media-auth lives under `items`,
-    # not `documents`; that segment is the whole difference from Docs.
+    # adr/0109. Media-auth lives under `items`, not Docs' `documents`.
     mediaProxy:
       enabled: true
       auth: {service: drive-backend, port: 80, path: /api/v1.0/items/media-auth/}
       objectstore: {bucket: drive}
       locations:
-        # nginx picks the longest matching prefix, so order here is presentational. The
-        # preview renders inline; everything else is forced to download.
+        # The preview renders inline; everything else downloads. Longest prefix wins.
         - {path: "/media/preview/"}
         - {path: "/media/", headers: {Content-Disposition: attachment}}
 
-    # Drive's own app switcher loads a widget script from static.suite.anct.gouv.fr and the
-    # French government's service list, both compiled into the frontend bundle. It is hidden
-    # (release.yaml) and replaced with ours, served from Drive's own origin through the only
-    # hook the page offers, FRONTEND_JS_URL (apps/README.md, The switcher).
+    # switcher.js too, the button Drive's frontend lacks (apps/README.md, The switcher).
     staticFiles: {enabled: true, filesConfigMap: drive-switcher}
 
     networkPolicy:

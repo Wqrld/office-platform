@@ -8,7 +8,7 @@
 | File | What |
 |---|---|
 | `deps.yaml` | Postgres, Valkey cache, Garage bucket `meet`, OIDC client, SMTP, generated Django secrets |
-| `tokens.yaml` | the five shared tokens read into the key names each process wants; the by-hand HF token |
+| `summary-secret.yaml` | the summary service's Secret: its tenant table, tokens and broker URLs (the other shared tokens are `shared:` in `deps.yaml`) |
 | `release.yaml` | the upstream chart; secrets attached by `postRenderers` (the chart has no `envFrom`) |
 | `whisperx.yaml` | the STT API: PVC for models, Deployment, Service |
 | `surround.yaml` | routes and the (unenforced) egress policy |

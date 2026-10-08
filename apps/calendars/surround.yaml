@@ -1,6 +1,4 @@
-# Calendars' surround. No media proxy: nothing declares a file field, so `/media` has no
-# content. `/static` is a BACKEND path (whitenoise serves it); `staticFiles` below is ours,
-# for the gaufre.
+# Calendars' surround. No media proxy: nothing declares a file field, so `/media` is empty.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: calendars-platform, namespace: office-calendars}
@@ -8,49 +6,31 @@ spec:
   interval: 30m
   dependsOn: [{name: calendars}]
   chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: calendars
     baseDomain: ${BASE_DOMAIN}
 
-    # Grouped by BACKEND, not by path: a BackendTrafficPolicy attaches to an HTTPRoute, so
-    # paths that need different traffic treatment cannot share one object.
     routes:
       - backend: {name: calendars-frontend, port: 80}
         paths: [/]
 
       - name: api
         backend: {name: calendars-backend, port: 80}
-        # `/caldav` points at the BACKEND, not at calendars-caldav. Django's CalDAVProxyView
-        # authenticates the request and translates ACLs before forwarding; SabreDAV behind
-        # it trusts an API key and has no notion of our users. Routing straight to the
-        # caldav Service would publish every calendar to anyone who can reach the hostname.
-        #
-        # `/.well-known/caldav` is the RFC 6764 discovery endpoint every CalDAV client
-        # probes first, and it is served at the URL ROOT by calendars/urls.py, not under
-        # /api — leave it out and Thunderbird and iOS find nothing.
-        #
-        # `/static` is whitenoise serving Django's admin CSS. The frontend serves nothing
-        # there, and omitting it is why an unstyled /admin is a recurring surprise.
+        # `/caldav` goes to the BACKEND, never to calendars-caldav, and `/.well-known/caldav`
+        # is served at the URL root, not under /api (README.md, CalDAV is never routed from
+        # outside).
         paths: [/api, /external_api, /rsvp, /ical, /caldav, /.well-known/caldav, /admin, /static]
-        # CalDAV clients sync whole calendar collections in one request, and a first sync
-        # against a large calendar is slow rather than hung.
+        # A first sync of a large calendar is one slow request, not a hung one. Nothing
+        # uploads, so no requestBuffer.
         timeout: 300s
-        # No requestBuffer: nothing here uploads. An .ics PUT is kilobytes.
 
-    # THE GAUFRE. `LaGaufreV2` renders the button in Calendars' own header and then loads a
-    # widget script and a service list by URL — by default from static.suite.anct.gouv.fr and
-    # lasuite.numerique.gouv.fr. Both URLs are runtime settings (release.yaml's three
-    # `FRONTEND_LAGAUFRE_*` vars), so unlike Drive nothing has to be hidden: these two files
-    # are served from Calendars' own origin and are what those settings point at.
     staticFiles: {enabled: true}
 
-    # `external: 443` is OIDC discovery over the public issuer URL and outbound channel sync.
+    # `external: 443` is OIDC discovery and outbound channel sync.
     networkPolicy:
       egress:
         - {datastore: postgres}
         - {datastore: cache}
         - {identity: true}
         - {external: true, port: 443}
-

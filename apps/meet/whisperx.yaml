@@ -1,18 +1,9 @@
 # Speech to text: suitenumerique/meet-whisperx, the OpenAI-compatible WhisperX API Meet's
-# summary service is written against (`response_format=diarized_json` is its extension).
-# Not a chart — upstream ships none — so three plain objects here.
-#
-# ON CPU. There is no GPU on this node, and the image (built on a CUDA base) falls back to
-# CPU float32 when it finds none. `--model small` is the trade: large-v2, the upstream
-# default, is unusable without a GPU; small transcribes roughly at real time here and is
-# adequate for Dutch and English meetings. The summary service must ask for the SAME
-# model name (WHISPERX_ASR_MODEL in release.yaml) — v1.2.0 loads exactly one and 404s any
-# other. `v1.2.0` is the last tag; `main` moved the model to an env var and to a newer
-# pyannote pipeline, and is where to go next.
-#
-# Two prerequisites it cannot create for itself: the models, downloaded on first start
-# into a PVC (minutes, once), and HF_TOKEN, a Hugging Face token whose account has
-# accepted the gated pyannote model terms — the by-hand Secret in docs/install.md.
+# summary service is written against. Upstream ships no chart, so three plain objects.
+# ON CPU, with `--model small`: large-v2, the default, is unusable without a GPU, and small
+# runs at about real time (README.md, whisperx on CPU). The summary service must ask for
+# the same model (WHISPERX_ASR_MODEL in release.yaml). Needs the by-hand HF_TOKEN
+# (docs/install.md); the models download into the PVC on first start.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata: {name: meet-whisperx-models, namespace: office-meet}
@@ -55,17 +46,13 @@ spec:
             # Whisper v2 checkpoints fail torch's weights_only default; upstream's
             # Dockerfile sets this too.
             - {name: TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD, value: "1"}
-            # Eight of the node's ten cores, and no CPU limit: the summary service gives
-            # up on a transcription after ten minutes (a hard-coded read timeout in its
-            # worker), so a transcript is a race against that clock, and diarization on
-            # CPU is the slow half. What it costs the calls running alongside is
-            # accepted; what would fix it is a GPU. See README.md.
+            # Eight of ten cores and no CPU limit: a transcript races the summary worker's
+            # timeout, and the cost to calls alongside is accepted (README.md).
             - {name: OMP_NUM_THREADS, value: "8"}
             # whisperx-sitecustomize.py, mounted below: the image's CPU path is broken.
             - {name: PYTHONPATH, value: /etc/office}
           ports: [{name: http, containerPort: 8000}]
-          # Model load on CPU is minutes, and the first start also downloads. The startup
-          # probe absorbs that; liveness stays responsive afterwards.
+          # Loading on CPU takes minutes, the first start downloads too: 20 minutes' grace.
           startupProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 15

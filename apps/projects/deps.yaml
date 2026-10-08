@@ -34,8 +34,7 @@ spec:
     # STARTTLS on its own, so the relay's useTLS has nowhere to go.
     smtp: {enabled: true}
 
-    # An ORDERED LIST that can never gain an entry (`refreshInterval: "0"`, see Calendars'
-    # deps.yaml). SECRET_KEY signs the session cookies, and every replica must share it.
+    # SECRET_KEY signs the session cookies, and every replica must share it.
     generated:
       projects-app:
         - {env: SECRET_KEY, draw: secretkey, generator: office-token-50}

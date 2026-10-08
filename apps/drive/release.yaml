@@ -1,8 +1,5 @@
-# Release 2 of 3: Drive, from the in-tree chart at the fork's git tag (adr/0104). The fork,
-# Wqrld/drive, is upstream main plus document thumbnails (README.md, The fork).
-#
-# The chart has no `envFrom`, so drive-deps' Secrets are attached by the post-renderer at
-# the bottom of this file. README.md has the reasoning; tests/check-secrets.py asserts it.
+# Release 2 of 3: Drive, from the in-tree chart at the fork's git tag (adr/0104): upstream
+# main plus document thumbnails (README.md, The fork). Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -20,26 +17,18 @@ spec:
       sourceRef: {kind: GitRepository, name: wqrld-drive, namespace: flux-system}
       reconcileStrategy: Revision
   install:
-    # The Jobs carry ttlSecondsAfterFinished, so waiting on them races garbage collection.
     disableWaitForJobs: true
   upgrade:
     disableWaitForJobs: true
     remediation:
-      # A Helm rollback reverts the code and leaves the database schema migrated. Fail
-      # forward, loudly, rather than silently running old code against a new schema.
       retries: 0
-  # Sizing — replicas, resources, the worker list — comes from sizes/<size>.yaml, one key
-  # of the `drive-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live
-  # here.
   valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "${SIZE}"}]
   values:
+    # The fork's images, one tag with the chart (README.md, The fork).
     image:
       repository: ghcr.io/wqrld/drive-backend
-      # The chart declares appVersion: latest, which is useless as a pin.
       tag: v0.23.0-office.6
 
-    # Routing is ours — surround.yaml. Already false at this tag; stated anyway so a
-    # default flip upstream cannot quietly publish a second path to the application.
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
     ingressMedia: {enabled: false}
@@ -48,18 +37,14 @@ spec:
       ingress: {enabled: false}
       ingressAssets: {enabled: false}
 
-    # Unused — our own media proxy talks to Garage directly — but the chart creates this
-    # ExternalName Service unconditionally, so point it somewhere true.
     serviceMedia:
       host: office-s3.office-data.svc.cluster.local
       port: 3900
 
     backend:
-      pdb: {enabled: false}          # the surround owns budgets, at every size
-      # Chart default is `securityContext: null` — every backend-derived workload (this
-      # Deployment, both celery workloads, the Jobs and CronJobs) reuses this one value
-      # verbatim. Read-only root as mijn-bureau runs it; /tmp is all these write
-      # (gunicorn, celery, beat's schedule).
+      pdb: {enabled: false}
+      # The chart's default is null, so the whole restricted set; every backend-derived
+      # workload reuses it verbatim.
       securityContext: &restricted
         allowPrivilegeEscalation: false
         capabilities: {drop: ["ALL"]}
@@ -76,11 +61,6 @@ spec:
         DJANGO_CORS_ALLOWED_ORIGINS: https://drive.${BASE_DOMAIN}
         DJANGO_CORS_ALLOW_ALL_ORIGINS: "false"
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
-        # Branding, and nothing else about mail. DJANGO_EMAIL_BACKEND, _HOST, _PORT,
-        # _HOST_USER, _HOST_PASSWORD, _USE_TLS/_SSL and _FROM all arrive in `drive-smtp`,
-        # attached by the post-renderer below. THEY MUST NOT ALSO BE SET HERE: a
-        # container's `env` beats `envFrom` for the same name, so a leftover line here
-        # would silently override the relay.
         DJANGO_EMAIL_BRAND_NAME: Office
         DJANGO_LANGUAGE_CODE: nl-nl    # prefixed, unlike Docs' bare LANGUAGE_CODE
 
@@ -93,48 +73,36 @@ spec:
         # AWS_S3_UPLOAD_ACL stays at its default `private`: Garage accepts a signed
         # x-amz-acl on a presigned PUT — measured, 200 with and without.
 
-        # Defaults to TRUE, and there is no search service: the indexing task would fail
-        # on every upload.
+        # Defaults to TRUE; with no search service the indexing task fails on every upload.
         FEATURES_INDEXED_SEARCH: "False"
-        # The built-in switcher loads a widget script from static.suite.anct.gouv.fr and
-        # the French government's service list, both compiled into the frontend bundle with
-        # no runtime override. Hidden, and replaced by our own through FRONTEND_JS_URL —
-        # the only hook the page offers. `switcher.js`, served by `staticFiles`.
+        # The built-in switcher is compiled to the French government's; ours comes in
+        # through FRONTEND_JS_URL, the page's only hook (apps/README.md, The switcher).
         FRONTEND_HIDE_GAUFRE: "true"
-        # Skips the intermediate login-advertising page on a 401: the frontend retries
-        # OIDC auth silently and only falls back to the manual login screen if that fails.
+        # On a 401, retry OIDC silently before showing the login page.
         FRONTEND_SILENT_LOGIN_ENABLED: "true"
         FRONTEND_JS_URL: https://drive.${BASE_DOMAIN}/custom/switcher.js
         MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
 
-        # WOPI. Each name in WOPI_CLIENTS is read back as WOPI_<NAME>_DISCOVERY_URL.
-        # The fetch is internal; every URL inside the document it returns is Collabora's
-        # public one, built from its own `server_name`. README.md has the table.
+        # Each name in WOPI_CLIENTS is read back as WOPI_<NAME>_DISCOVERY_URL. Fetched
+        # in-cluster; the URLs inside are Collabora's public ones (README.md).
         WOPI_CLIENTS: collabora
         WOPI_COLLABORA_DISCOVERY_URL: http://collabora-online.office-collabora.svc.cluster.local:9980/hosting/discovery
         WOPI_SRC_BASE_URL: https://drive.${BASE_DOMAIN}   # Collabora calls back from outside
         WOPI_DISABLE_CHAT: "1"          # unmoderated side channel inside the editor
-        # Document thumbnails: a Celery task posts each ready file to Collabora's
-        # convert-to, in-cluster, and stores the first page next to the file.
+        # Document thumbnails, the fork's feature (README.md, The fork).
         WOPI_COLLABORA_OPTIONS: '{"ThumbnailServiceUrl": "http://collabora-online.office-collabora.svc.cluster.local:9980/cool/convert-to"}'
-        # Every ten minutes, not nightly. The client configuration lives in the Django
-        # cache, which is `allkeys-lru` and does not survive a Valkey restart — and on a
-        # miss `get_wopi_configuration()` returns an empty default, so every document
-        # reads as "unsupported format" until the next run. Upstream's default of 03:00
-        # makes that outage up to a day long. The task is one in-cluster HTTP GET.
+        # Every ten minutes, not upstream's 03:00: the configuration lives in an evicting
+        # cache, and until it is refilled every document is "unsupported format" (README.md).
         WOPI_CONFIGURATION_CRONTAB_MINUTE: "*/10"
         WOPI_CONFIGURATION_CRONTAB_HOUR: "*"
 
         LOGGING_LEVEL_LOGGERS_APP: INFO
         LOGGING_LEVEL_LOGGERS_ROOT: INFO
         SPECTACULAR_SETTINGS_ENABLE_DJANGO_DEPLOY_CHECK: "false"
-        # No staticfiles override, unlike Docs: `collectstatic` runs at image build with
-        # whitenoise's manifest storage, so the default already works.
+        # No staticfiles override, unlike Docs (README.md).
 
-      # Upstream's command is wrong twice over: it fails once the account exists (and the
-      # Job is not a Helm hook, so that is permanent noise), and Drive's USERNAME_FIELD is
-      # `admin_email`, which `--email` does not set. Both addresses go to the same value so
-      # the admin login and the OIDC identity are one account.
+      # USERNAME_FIELD is `admin_email`, which upstream's `--email` does not set. Both
+      # addresses get the same value, so the admin and the OIDC identity are one account.
       createsuperuser:
         command:
           - /bin/sh
@@ -159,11 +127,9 @@ spec:
             print("superuser ready:", email)
             PY
 
-      # `celeryWorkers` — the one worker, with its probes — is in sizes/: a list, so the
-      # whole entry belongs with the numbers that change per size.
+      # `celeryWorkers` is in sizes/: a list, restated whole per size (apps/README.md, Sizing).
 
-      # Beat re-runs the WOPI configuration on its crontab, so a Collabora upgrade is
-      # picked up without a Drive deploy.
+      # Re-runs the WOPI configuration, so a Collabora upgrade needs no Drive deploy.
       celeryBeat:
         enabled: true
 
@@ -176,13 +142,8 @@ spec:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://drive.${BASE_DOMAIN}
 
-  # The chart has no `envFrom`, so drive-deps' six Secrets are attached after rendering
-  # rather than as ~40 `secretKeyRef` entries.
-  #
-  # THE NAME SELECTOR IS THE SECURITY BOUNDARY. kustomize matches `name` as a FULL-STRING
-  # regex: `drive-backend.*` selects ten workloads and NOT `drive-frontend`, which renders
-  # for the browser and must never hold the database password or the client secret.
-  # tests/check-secrets.py asserts both after a chart bump.
+  # The chart has no `envFrom`. THE NAME SELECTOR IS THE SECURITY BOUNDARY: `drive-backend.*`
+  # selects ten workloads and not `drive-frontend` (apps/README.md, Conventions).
   postRenderers:
     - kustomize:
         patches:
@@ -197,7 +158,6 @@ spec:
                   - {secretRef: {name: drive-oidc}}
                   - {secretRef: {name: drive-django}}
                   - {secretRef: {name: drive-smtp}}
-          # A CronJob buries the pod spec a level deeper and no target spans both shapes.
           - target: {kind: CronJob, name: "drive-backend.*"}
             patch: |
               - op: add

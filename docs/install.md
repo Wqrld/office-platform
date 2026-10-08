@@ -49,7 +49,7 @@ record, `turn.` included, points at the Gateway: it is the one address (adr/0113
 
 `cluster.yaml` is the whole of what you keep: the Flux frame, the platform version, and
 your choices. `install.sh` writes it from `examples/cluster.yaml` and your variables;
-`charts/control-plane/values.yaml` documents every value and the schema refuses anything
+`charts/control-plane/values.schema.json` documents every value and refuses anything
 else. Keep it somewhere — re-applying it is the upgrade until it lives in a git
 repository or an OCI artifact and the `FluxInstance.spec.sync` block points there
 (`examples/cluster.yaml` shows both).

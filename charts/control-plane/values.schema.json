@@ -1,14 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema",
+  "description": "The organisation's contract with the platform; examples/cluster.yaml is the whole file an organisation keeps. Anything not listed here is refused, so a typo is a refused HelmRelease with a message rather than a misspelt variable serving nobody.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "domain": {
+      "description": "Public DNS suffix. Every application is a subdomain of it: docs.<domain>, id.<domain>.",
       "type": "string",
       "format": "hostname",
       "minLength": 1
     },
     "storageClass": {
+      "description": "StorageClass for every persistent volume the platform creates.",
       "type": "string",
       "minLength": 1
     },
@@ -17,18 +20,22 @@
       "additionalProperties": false,
       "properties": {
         "ip": {
+          "description": "The shared Gateway's address: a MetalLB pool address, or what the cluster's load balancer allocates.",
           "type": "string",
           "format": "ipv4"
         },
         "tlsIssuer": {
+          "description": "ClusterIssuer for the one SAN certificate.",
           "type": "string",
           "minLength": 1
         },
         "acmeEmail": {
+          "description": "Let's Encrypt's contact for the certificate.",
           "type": "string",
           "format": "email"
         },
         "extraCertificates": {
+          "description": "TLS Secrets in office-system for hosts routed outside the platform; the Gateway picks one by SNI.",
           "type": "array",
           "items": {
             "type": "string",
@@ -39,6 +46,7 @@
       }
     },
     "size": {
+      "description": "small (5-50 people, one node), medium (50-500, the measured one), large (500-5,000, HA; a shape, not a measurement). apps/README.md (Sizing) is what each means; every app carries its three sizes in apps/<app>/sizes/.",
       "enum": [
         "small",
         "medium",
@@ -46,6 +54,7 @@
       ]
     },
     "apps": {
+      "description": "Which apps run: `<app>: true|false`. An app not named takes its `default` from charts/control-plane/apps.yaml, the list of what exists; a name the table lacks is refused. Disabling an app removes it and keeps its data: database, role, passwords and bucket live in the platform layer, which provisions every app whether enabled or not, so re-enabling reconnects to them. Dependencies are enforced (drive needs collabora, docs needs find, meet needs docs; livekit follows meet). Messages is off by default: it needs port 25 open in both directions and a PTR record for its egress address (apps/messages/README.md, Mail DNS).",
       "type": "object",
       "additionalProperties": {
         "type": "boolean"
@@ -56,6 +65,7 @@
       "additionalProperties": false,
       "properties": {
         "mode": {
+          "description": "garage: the platform runs its own S3 and publishes s3.<domain> for Drive's browser uploads. external: the organisation's S3 provider; endpoint, region and credentials come from a Secret `object-store` in office-data, applied by hand once like the SMTP relay (docs/install.md). Buckets are named after the apps and must exist before the first release, and Drive's needs CORS for https://drive.<domain>, which the platform cannot set on a store it does not run.",
           "enum": [
             "garage",
             "external"
@@ -64,6 +74,7 @@
       }
     },
     "cluster": {
+      "description": "What the platform installs because the cluster lacks it (adr/0112). Off means the cluster brings its own, and preflight.py checks that it does.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -72,9 +83,11 @@
           "additionalProperties": false,
           "properties": {
             "install": {
+              "description": "Envoy Gateway, with the Gateway API CRDs.",
               "type": "boolean"
             },
             "className": {
+              "description": "The GatewayClass the Gateway attaches to.",
               "type": "string",
               "minLength": 1
             }
@@ -85,6 +98,7 @@
           "additionalProperties": false,
           "properties": {
             "install": {
+              "description": "cert-manager, with enableGatewayAPI.",
               "type": "boolean"
             }
           }
@@ -94,6 +108,7 @@
           "additionalProperties": false,
           "properties": {
             "kind": {
+              "description": "metallb: the Gateway pinned to gateway.ip. none: the cluster allocates.",
               "enum": [
                 "metallb",
                 "none"
@@ -103,6 +118,7 @@
               "type": "boolean"
             },
             "pool": {
+              "description": "MetalLB address pool, e.g. \"10.0.0.5/32\" or \"10.0.0.5-10.0.0.6\".",
               "type": "array",
               "items": {
                 "type": "string",
@@ -118,11 +134,13 @@
       "additionalProperties": false,
       "properties": {
         "configured": {
+          "description": "false ships a placeholder relay so every app starts; sends fail until the real Secret exists and this is true (docs/install.md, Mail).",
           "type": "boolean"
         }
       }
     },
     "source": {
+      "description": "Where the platform's source is fetched from, at the tag of this chart's version: this repository, or a fork of it.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -131,11 +149,13 @@
           "pattern": "^(https|ssh)://.+"
         },
         "secretRef": {
+          "description": "A Flux git Secret in flux-system for a private repository (`flux create secret git`); empty for a public one.",
           "type": "string"
         }
       }
     },
     "reconcile": {
+      "description": "Interval, retry interval and timeout of every Kustomization the control plane renders.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

@@ -1,11 +1,7 @@
-# The Fernet key that encrypts the OIDC refresh token in the Django session.
-#
-# `OIDC_STORE_REFRESH_TOKEN: true` is REQUIRED by full-text search (deps.yaml), and lasuite's
-# backend raises `OIDC_STORE_REFRESH_TOKEN_KEY setting is required` at the OIDC callback
-# without this — a 500 on login, not a degraded search.
-#
-# Fernet wants 32 bytes, url-safe base64. `office-password` draws 40 alphanumeric characters;
-# 32 of them are the key material, and the two `replace`s make the encoding url-safe.
+# The Fernet key for the OIDC refresh token stored in the session (deps.yaml, for search).
+# Without it the OIDC callback raises `OIDC_STORE_REFRESH_TOKEN_KEY setting is required`: a
+# 500 on login. Fernet wants 32 bytes, url-safe base64: 32 of the 40 drawn characters, and
+# the two `replace`s make the encoding url-safe.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata: {name: docs-oidc-refresh, namespace: office-docs}

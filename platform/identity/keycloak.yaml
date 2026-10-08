@@ -42,33 +42,25 @@ spec:
     usernameSecret: {name: keycloak-db, key: username}
     passwordSecret: {name: keycloak-db, key: password}
   hostname:
-    # The browser-facing origin. Backend services do NOT use this — see backchannelDynamic.
+    # The browser-facing origin.
     hostname: "https://id.${BASE_DOMAIN}"
-    # THE setting that makes in-cluster OIDC work. With it, Keycloak accepts requests on
-    # the internal Service URL and answers with URLs derived from the request, while
-    # still advertising the external host to browsers. Without it, an app doing its token
-    # exchange against http://keycloak-service:8080 gets rejected, and the failure looks
-    # exactly like a wrong client secret. (docs/app-inventory.md, "Upstream gotchas")
+    # THE setting that makes in-cluster OIDC work: requests on the internal Service get
+    # URLs derived from the request, browsers still the external host. Without it a token
+    # exchange against keycloak-service:8080 fails exactly like a wrong client secret.
     backchannelDynamic: true
   http:
-    # TLS terminates at the shared Gateway; the hop from Envoy to Keycloak is in-cluster.
-    # Do not also set KC_HTTP_ENABLED in additionalOptions — Kubernetes 1.34 rejects a pod
-    # spec with a duplicate env var name, and that is exactly how it would be emitted.
+    # TLS ends at the Gateway. Not also KC_HTTP_ENABLED in additionalOptions: Kubernetes
+    # 1.34 rejects the duplicate env var it would emit.
     httpEnabled: true
   proxy:
     headers: xforwarded
   ingress:
-    # Routing is ours: an HTTPRoute on the shared Gateway, below.
     enabled: false
   bootstrapAdmin:
-    # Only consulted the first time a Keycloak is created against an empty database —
-    # which is the credential the tenants chart's realm Job logs in with. A Keycloak created
-    # before this stanza existed has the operator-generated `keycloak-initial-admin`
-    # instead; none of ours is that old.
+    # Read only when Keycloak first meets an empty database; the realm Job logs in with it.
     user: {secret: keycloak-bootstrap-admin}
   networkPolicy:
-    # This cluster's CNI enforces nothing (adr/0103). An operator-managed policy here
-    # would imply isolation that does not exist.
+    # Enforced by nothing here (adr/0103), so it would imply isolation that does not exist.
     enabled: false
   scheduling:
     priorityClassName: office-critical

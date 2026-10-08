@@ -22,15 +22,13 @@ spec:
     oidc:
       enabled: true
       extraEnv:
-        # Must equal the `iss` in Keycloak's introspection response BYTE FOR BYTE. Keycloak
-        # returns the external issuer even when the call arrives on the internal Service, so
-        # this URL and the endpoint below deliberately disagree. A mismatch fails every
-        # search and reads exactly like a wrong client secret.
+        # Must equal Keycloak's `iss` BYTE FOR BYTE, which is the external issuer even on
+        # the internal Service, so it and the endpoint below disagree on purpose. A mismatch
+        # reads exactly like a wrong client secret.
         OIDC_OP_URL: https://id.${BASE_DOMAIN}/realms/office
         OIDC_OP_INTROSPECTION_ENDPOINT: http://keycloak-service.office-identity.svc.cluster.local:8080/realms/office/protocol/openid-connect/token/introspect   # mirrors oidc.internalUrl
         OIDC_RS_CLIENT_ID: find
-        # Resolved by ESO, not by Helm: `extraEnv` values pass through into the target
-        # template, so the client secret still never reaches Helm values (history/design/adr/0005).
+        # Resolved by ESO, not Helm: the secret never reaches Helm values (history/design/adr/0005).
         OIDC_RS_CLIENT_SECRET: "{{ .secret }}"
         OIDC_RS_SCOPES: openid
 

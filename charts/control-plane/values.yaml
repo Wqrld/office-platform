@@ -1,43 +1,19 @@
-# The organisation's contract with the platform. examples/cluster.yaml shows the whole
-# file an organisation keeps; values.schema.json rejects anything not listed here, so a
-# typo is a refused HelmRelease with a message rather than a `${BASE_DOMIAN}` serving to
-# nobody.
+# The organisation's contract with the platform. values.schema.json describes every key and
+# refuses anything else; examples/cluster.yaml is the whole file an organisation keeps.
 
 # ---------------------------------------------------------------- what an organisation chooses
-# Public DNS suffix. Every application is a subdomain of it: docs.<domain>, id.<domain>…
-domain: ""
+domain: ""                        # public DNS suffix: docs.<domain>, id.<domain>…
 storageClass: longhorn
 gateway:
   ip: ""                          # the shared Gateway's address — a MetalLB pool address
   tlsIssuer: letsencrypt-gateway  # ClusterIssuer for the one SAN certificate
   acmeEmail: ""                   # Let's Encrypt's contact for the certificate
   extraCertificates: []           # TLS Secrets in office-system for hosts routed outside the platform
-# Size: small (5-50 people, one node), medium (50-500, the measured one), large
-# (500-5,000, HA — a shape, not a measurement). apps/README.md (Sizing) is what each one
-# means; every app carries its three sizes in apps/<app>/sizes/.
-size: medium
-# Which apps run: `<app>: true|false`. An app not named here takes its `default` from
-# charts/control-plane/apps.yaml, the list of what exists (examples/cluster.yaml names them
-# all); a name the table lacks is refused. Disabling an app removes it from the cluster and
-# keeps its data: its database, role, passwords and bucket contents all live in the
-# platform layer, which provisions for every app whether enabled or not. Re-enabling
-# reconnects to them. Dependencies are enforced — drive needs collabora, docs needs find,
-# meet needs docs — and livekit follows meet. Messages is off by default: it needs port 25
-# open in BOTH directions and a PTR record for its egress address (apps/messages/README.md,
-# Mail DNS).
-apps: {}
+size: medium                      # small | medium | large — apps/README.md, Sizing
+apps: {}                          # <app>: true|false; the rest take charts/control-plane/apps.yaml's default
 objectStore:
-  # garage: the platform runs its own S3 (Garage) and publishes s3.<domain> for Drive's
-  #         browser uploads.
-  # external: an S3 provider of the organisation's. Endpoint, region and credentials come
-  #         from a Secret named `object-store` in office-data, applied by hand once like
-  #         the SMTP relay account — docs/install.md. Buckets are named after the apps
-  #         (docs, drive, meet) and exist before the first release; Drive's bucket needs
-  #         CORS for https://drive.<domain>, which the platform cannot set on a store it
-  #         does not run.
-  mode: garage
-# What the platform installs because the cluster lacks it (adr/0112). Off means the
-# cluster brings its own, and preflight.py checks that it does.
+  mode: garage                    # garage | external (an S3 store of the organisation's)
+# What the platform installs because the cluster lacks it (adr/0112).
 cluster:
   gateway:
     install: false                # Envoy Gateway, with the Gateway API CRDs
@@ -48,18 +24,13 @@ cluster:
     kind: metallb                 # metallb: the Gateway pinned to gateway.ip; none: the cluster allocates
     install: false
     pool: []                      # for MetalLB: "10.0.0.5/32", "10.0.0.5-10.0.0.6"
-# false ships a placeholder relay so every app starts; sends fail until the real Secret
-# exists and this is true (docs/install.md, "Mail").
 smtp:
-  configured: false
+  configured: false               # false ships a placeholder relay (docs/install.md, "Mail")
 
 # ---------------------------------------------------------------- platform defaults
-# Where the platform's source is fetched from, at the tag of this chart's version: this
-# repository, or a fork of it. `secretRef` names a Flux git Secret in flux-system, for a
-# private repository (`flux create secret git`); empty for a public one.
 source:
-  url: https://github.com/Wqrld/office-platform
-  secretRef: ""
+  url: https://github.com/Wqrld/office-platform   # this repository or a fork, at this chart's tag
+  secretRef: ""                   # a Flux git Secret for a private repository
 reconcile:
   interval: 30m
   retryInterval: 2m

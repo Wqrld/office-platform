@@ -18,14 +18,12 @@ spec:
     replicas: 1
     priorityClassName: office-data
 
-    # Pinned separately from the chart, which would otherwise take the tag from its
-    # appVersion and move the server on a chart bump.
+    # Pinned apart from the chart, so a chart bump cannot move the server.
     image:
       tag: "3.8.0"
 
-    # The chart asks for 1000m and 100Mi. The first is more than this node should promise
-    # to an idle search server; the second is below the JVM heap set below, which is how a
-    # pod gets OOMKilled while its request claims it needs nothing.
+    # Not the chart's 1000m/100Mi: too much CPU for an idle server, and memory below the
+    # JVM heap, which is how a pod is OOMKilled while its request claims it needs nothing.
     resources:
       requests: {cpu: 200m, memory: 1Gi}
     opensearchJavaOpts: "-Xmx1g -Xms1g"
@@ -34,26 +32,23 @@ spec:
       enabled: true
       size: 10Gi
       storageClass: ${STORAGE_CLASS}
-      # No root initContainer to chown the volume: the chart's `fsGroup: 1000` does it, and
-      # local-path volumes, which fsGroup skips, are created world-writable.
+      # No root chown initContainer: fsGroup does it (local-path volumes are world-writable).
       enableInitChown: false
 
-    # Merged with the chart's runAsUser/fsGroup 1000, runAsNonRoot and drop ALL: together,
-    # PSA `restricted`.
+    # With the chart's own settings: PSA `restricted`.
     podSecurityContext:
       fsGroupChangePolicy: OnRootMismatch
       seccompProfile: {type: RuntimeDefault}
     securityContext:
       allowPrivilegeEscalation: false
 
-    # sysctlInit would run a privileged initContainer to raise vm.max_map_count, which this
-    # namespace's baseline PSA refuses. It is not needed: the node is already at 1048576.
+    # A privileged initContainer, which baseline PSA refuses; the node's vm.max_map_count is
+    # already 1048576.
     sysctlInit: {enabled: false}
 
     extraEnvs:
-      # We supply certificates and a security config, so the image must not install its
-      # demo ones. Leaving this unset also makes the image demand
-      # OPENSEARCH_INITIAL_ADMIN_PASSWORD and refuse to start without it.
+      # Ours, not the demo certificates and config; unset, the image also demands
+      # OPENSEARCH_INITIAL_ADMIN_PASSWORD.
       - name: DISABLE_INSTALL_DEMO_CONFIG
         value: "true"
 

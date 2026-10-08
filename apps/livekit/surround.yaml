@@ -1,12 +1,6 @@
-# LiveKit's surround: one HTTPRoute for signaling, three L4 routes for media.
-#
-# Everything enters through the Gateway on ${GATEWAY_IP}, media included (adr/0113): a
-# TCPRoute and two UDPRoutes attach to the Gateway's media listeners and Envoy proxies
-# the packets to the pod. The signaling WebSocket is an ordinary route like any app's —
-# that is where the certificate is, and `wss://livekit.${BASE_DOMAIN}` is what Meet hands
-# the browser. The chart's ClusterIP Service already carries 7880/7881/7882; TURN's 3478
-# gets a Service of its own here. `extraObjects` because platform-app knows only HTTP
-# routes (history/design/05-app-contract.md tier 3).
+# LiveKit's surround: one HTTPRoute for signaling, three L4 routes through the Gateway's
+# media listeners (adr/0113), as `extraObjects` since platform-app knows only HTTP. TURN's
+# 3478 gets a Service of its own; the chart's carries the rest.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: livekit-platform, namespace: office-livekit}
@@ -14,16 +8,13 @@ spec:
   interval: 30m
   dependsOn: [{name: livekit}]
   chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
-  # The disruption budget comes with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: livekit
     baseDomain: ${BASE_DOMAIN}
 
     routes:
-      # Signaling. `websocket: true` sets the connection idle timeout to the platform's
-      # 24h rather than Envoy's default — a call is one WebSocket that lasts the meeting.
-      # The chart's Service maps 80 → 7880.
+      # Signaling: a call is one WebSocket that lasts the meeting.
       - backend: {name: livekit, port: 80}
         paths: [/]
         websocket: true

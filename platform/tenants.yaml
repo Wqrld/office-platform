@@ -1,19 +1,15 @@
-# Everything the platform provisions per application: every app's provisioning fields in
-# charts/control-plane/apps.yaml, handed over by the control plane as TENANTS_JSON — every
-# app, enabled or not (adr/0107). Block style on purpose: a flow map cannot hold a plain
-# `${}`, and substituted into a block the one-line JSON is read back as a map. It also
-# renders the Valkey instances' ACL users (platform/valkey/). In office-data because that
-# is where the datastores are; the OIDC client secrets, the realm and its reconcile Job
-# land in office-identity.
+# Everything the platform provisions per application, from every app's entry in
+# charts/control-plane/apps.yaml, enabled or not (adr/0107), plus the Valkey ACL users.
+# `apps` is block style: a flow map cannot hold a plain `${}`, and substituted into a block
+# the one-line JSON is read back as a map.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: tenants, namespace: office-data}
 spec:
   interval: 30m
   chartRef: {kind: HelmChart, name: platform-tenants, namespace: flux-system}
-  # The realm and OpenSearch reconcile Jobs wait on Keycloak and OpenSearch, which start
-  # in this same layer and read this release's Secrets: waiting on the Jobs would put this
-  # release behind servers that are waiting on it. They retry on their own.
+  # The reconcile Jobs wait on Keycloak and OpenSearch, which wait on this release's
+  # Secrets: waiting on the Jobs would be a cycle. They retry on their own.
   install:
     disableWaitForJobs: true
     remediation: {retries: 3}

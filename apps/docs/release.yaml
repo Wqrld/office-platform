@@ -1,15 +1,5 @@
-# Docs, from DINUM's in-tree chart at the pinned git tag v5.5.0 (adr/0104). The chart
-# path is `src/helm/impress`; the chart's own name is `docs`.
-#
-# Values keys verified against that tag's values.yaml, because the design set gets three
-# of them wrong: it is `backend.envFrom` (not envVarsFrom), `backend.pdb.enabled` (not
-# podDisruptionBudget.enabled), and there is no `serviceMonitor` key — the chart ships no
-# ServiceMonitor template at all.
-#
-# One more correction, found by server dry-run: the chart's own comment documents envFrom
-# entries as `- secret: {name: ...}`. That is NOT a Kubernetes EnvFromSource. The chart
-# passes the list through `toYaml` verbatim, and Kubernetes 1.34 rejects it with
-# `unknown field "envFrom[0].secret"`. The entries below use `secretRef`.
+# Docs, from DINUM's in-tree chart (`src/helm/impress`, named `docs`) at its pinned git tag
+# (adr/0104). Conventions every release follows: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -17,7 +7,6 @@ metadata:
   namespace: office-docs
 spec:
   interval: 30m
-  # Every Secret this release consumes with `envFrom` is created by docs-deps.
   dependsOn: [{name: docs-deps}]
   chart:
     spec:
@@ -25,17 +14,11 @@ spec:
       sourceRef: {kind: GitRepository, name: suitenumerique-docs, namespace: flux-system}
       reconcileStrategy: Revision
   install:
-    # The chart's migrate and createsuperuser Jobs are plain Jobs with
-    # ttlSecondsAfterFinished, so waiting on them races garbage collection.
     disableWaitForJobs: true
   upgrade:
     disableWaitForJobs: true
     remediation:
-      # A Helm rollback reverts the code and leaves the database schema migrated. Fail
-      # forward, loudly, rather than silently running old code against a new schema.
       retries: 0
-  # Sizing — replicas, resources, concurrency — comes from sizes/<size>.yaml, one key of
-  # the `docs-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here.
   valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
   postRenderers:
     - kustomize:
@@ -45,14 +28,8 @@ spec:
               - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
   values:
     image:
-      # The chart declares appVersion: latest, which is useless as a pin. Every image tag
-      # is set explicitly and moves only in a reviewed commit.
       tag: v5.7.0
 
-    # Routing is ours: HTTPRoutes on the shared Gateway, in surround.yaml. All five of the
-    # chart's Ingress objects are off. They are already false by default at this tag;
-    # they are stated anyway so a default flip upstream cannot quietly publish a second,
-    # unauthenticated path to the application.
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
     ingressMedia: {enabled: false}
@@ -63,22 +40,15 @@ spec:
       ingress: {enabled: false}
       ingressAssets: {enabled: false}
 
-    # Unused — our own media proxy talks to Garage directly — but the chart creates this
-    # ExternalName Service unconditionally, so point it somewhere true.
     serviceMedia:
       host: office-s3.office-data.svc.cluster.local
       port: 3900
 
     backend:
-      pdb: {enabled: false}          # the surround owns budgets, at every size
-      # Read-only root, as mijn-bureau runs these images; /tmp is all they write (gunicorn,
-      # celery, nginx temp paths, yarn's cache). A map merge with the chart's
-      # securityContext. Also reaches the worker and every Job.
+      pdb: {enabled: false}
       securityContext: {readOnlyRootFilesystem: true}
       persistence: &tmp {tmp: {type: emptyDir, mountPath: /tmp}}
 
-      # Each probe is a 1.5s Django import; at the chart's 10s this cost 310m. No Service
-      # selects workers, so no readiness; liveness every 5m via postRenderers (no chart value).
       celery:
         probes: {readiness: null, liveness: {timeoutSeconds: 30}}
 
@@ -101,13 +71,8 @@ spec:
         DJANGO_CORS_ALLOWED_ORIGINS: https://docs.${BASE_DOMAIN}
         DJANGO_CORS_ALLOW_ALL_ORIGINS: "false"
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
-        # The "Welcome to Docs" marketing homepage. Off: the entry point for this platform
-        # is the document list, and an anonymous visitor gets the login page.
+        # No marketing homepage: an anonymous visitor gets the login page.
         FRONTEND_HOMEPAGE_FEATURE_ENABLED: "false"
-        # Branding, and nothing else about mail. DJANGO_EMAIL_BACKEND, _HOST, _PORT,
-        # _HOST_USER, _HOST_PASSWORD, _USE_TLS/_SSL and _FROM all arrive in `docs-smtp`
-        # above. THEY MUST NOT ALSO BE SET HERE: a container's `env` beats `envFrom` for
-        # the same name, so a leftover line here would silently override the relay.
         DJANGO_EMAIL_BRAND_NAME: Office
         LANGUAGE_CODE: nl-nl
         MEDIA_BASE_URL: https://docs.${BASE_DOMAIN}
@@ -130,23 +95,16 @@ spec:
         LOGGING_LEVEL_LOGGERS_APP: INFO
         LOGGING_LEVEL_LOGGERS_ROOT: INFO
         MALWARE_DETECTION_BACKEND: lasuite.malware_detection.backends.dummy.DummyBackend
-        # Full-text search through Find. PUBLIC urls, not the cluster Service: Find's
-        # Production settings 301 a request that arrives without X-Forwarded-Proto, and
-        # `requests` downgrades a 301'd POST to a GET — so a pod-to-pod call silently
-        # indexes nothing. See apps/find/surround.yaml.
+        # Find at its PUBLIC url: pod-to-pod, a 301 turns the POST into a GET and indexes
+        # nothing (apps/find/surround.yaml).
         SEARCH_INDEXER_CLASS: core.services.search_indexers.FindDocumentIndexer
         SEARCH_INDEXER_COUNTDOWN: "10"   # Celery debounce; 0 makes every save synchronous
         INDEXING_URL: https://find.${BASE_DOMAIN}/api/v1.0/documents/index/
         SEARCH_URL: https://find.${BASE_DOMAIN}/api/v1.0/documents/search/
         STORAGES_STATICFILES_BACKEND: django.contrib.staticfiles.storage.StaticFilesStorage
         SPECTACULAR_SETTINGS_ENABLE_DJANGO_DEPLOY_CHECK: "false"
-        # The rendered theme JSON is cached in Redis for a day. Editing the values below
-        # does NOT change what users see until this expires or the key is deleted:
-        #   redis-cli --user docs -a <pw> -n 1 --scan --pattern 'docs*theme*' | xargs redis-cli ... del
+        # A theme edit is invisible until this expires or the key is deleted (README.md).
         THEME_CUSTOMIZATION_CACHE_TIMEOUT: "86400"
-      # `createsuperuser` upstream runs `manage.py createsuperuser`, which fails once the
-      # account exists — and this chart's Job is not a Helm hook, so a failing Job is
-      # permanent noise on every reconcile. Replaced with an idempotent equivalent.
       createsuperuser:
         command:
           - /bin/sh
@@ -172,10 +130,8 @@ spec:
             user.save()
             print("superuser ready:", email)
             PY
-      # WITHOUT THIS THE WHOLE FEATURE IS DARK: `_get_search_type()` returns TITLE and Docs
-      # never calls Find at all. The chart's generic job slot was unused (`command: []`), so
-      # no extraObjects escape hatch is needed. The `waffle_flag` CLI is unreliable — use
-      # the ORM. Hook annotations for the same immutability reason as Find's migrate Job.
+      # Without this flag `_get_search_type()` returns TITLE and Docs never calls Find. The
+      # ORM, because the `waffle_flag` CLI is unreliable.
       job:
         name: search-flags
         annotations:
@@ -197,12 +153,8 @@ spec:
 
       themeCustomization:
         enabled: true
-        # Our ConfigMap is mounted over the whole theme directory, so it REPLACES
-        # upstream's `backend/impress/configuration/theme/default.json` — it does not
-        # merge with it. Every key the default carried has to be restated here or it is
-        # silently lost. That is how the top-left logo vanished: with no `header.icon`,
-        # LeftPanelHeader renders no <Image> at all and marks the "Docs" title `sr-only`.
-        # The five keys below are upstream's defaults, restored verbatim.
+        # REPLACES upstream's default.json rather than merging: every key it carried is
+        # restated here at upstream's value, or it is gone (README.md).
         file_content:
           header:
             logo: {}                     # wide brand logo, home page only; upstream ships none
@@ -224,20 +176,14 @@ spec:
               height: 74
               style: {width: 64px, height: auto}
               alt: ""
-          # Empty strings are falsy in the frontend, so every entry below renders nothing;
-          # `onboarding.enabled` is what keeps the help menu present at all — HelpMenu.tsx
-          # hides the whole menu when no help key is truthy.
+          # Empty strings render nothing; `onboarding.enabled` alone keeps the help menu.
           onboarding: {enabled: true, learn_more_url: "", ready_template_url: ""}
           help:
             documentation_url: ""
             support_mailto: ""
             legal_links:
               {personal_data: "", terms_of_use: "", accessibility_statement: "", legal_notice: ""}
-          # THE GAUFRE. Without a `waffle` key the switcher does not render at all. Both
-          # of what `LaGaufreV2` loads by URL are served from Docs' own origin (surround.yaml,
-          # `staticFiles`): the widget script — `widgetPath`, whose default is the French
-          # government's CDN, and without which there is no switcher — and the service list,
-          # which the control plane derives from the enabled apps (apps/services.yaml).
+          # THE GAUFRE: without `waffle` no switcher renders (README.md, The waffle).
           waffle:
             label: Office
             showMoreLimit: 9

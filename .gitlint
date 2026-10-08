@@ -1,20 +1,8 @@
-# The commit convention: <gitmoji> (<scope>) <subject in the imperative>.
-#
-#   ✨ (charts) platform-lib, platform-deps and platform-app
-#   🐛 (deps) point cache credentials at the assembled ACL Secret
-#
-# Kept from the old repo, and now actually runnable. What was here before could not run at
-# all: `\x{1F300}` is PCRE syntax and gitlint is Python, so gitlint exited "Config Error"
-# before linting a single commit — a check that is always green because it never starts.
-#
-# The ranges are the gitmoji set, not "emoji": pictographs, the arrows ⬆️⬇️, the media
-# controls ⏪, and the dingbats ✨✅➕. ️ is optional because several gitmoji carry the
-# variation selector (🔒️, ♻️) and several do not, and ‍ allows the one joined form
-# (🧑‍💻). Verified against every commit in this repo's history.
-#
-# `contrib-title-conventional-commits` is deliberately NOT enabled: it demands
-# `type(scope): subject`, which every commit here violates by design. Two conventions
-# cannot both be the convention.
+# `<gitmoji> (<scope>) <imperative subject>` (CONTRIBUTING.md, Commits); not Conventional
+# Commits, so `contrib-title-conventional-commits` stays off. The title regex is the gitmoji
+# set, not "emoji": pictographs, arrows, media controls and dingbats, an optional variation
+# selector (🔒️ has one, 🔧 not) and the zero-width joiner for 🧑‍💻. Python syntax: gitlint is
+# Python, and PCRE's `\x{...}` is a config error that never lints.
 [general]
 ignore=body-is-missing
 
@@ -24,7 +12,6 @@ regex=^[\U0001F000-\U0001FAFF←-⇿⏩-⏾☀-➿⬀-⯿]️?(?:‍[\U0001F000-
 [title-max-length]
 line-length=80
 
-# The width the history is already written at. Prose wraps; a URL or a rendered line that
-# cannot wrap goes in a fenced block, which gitlint ignores.
+# A URL or rendered line that cannot wrap goes in a fenced block, which gitlint ignores.
 [body-max-line-length]
 line-length=92

@@ -1,8 +1,6 @@
-# The suite's service list, one ConfigMap per app, served from the app's own origin as
-# /custom/services.json for its switcher. SERVICES_JSON is the control plane's, built from
-# the enabled apps (charts/control-plane/apps.yaml), so an app that is off is listed nowhere.
-# The "\n" is load-bearing: Flux substitutes on the YAML text, and a one-line value that
-# starts with `{` would be read back as a map; with a newline it is a block scalar, a string.
+# The suite's service list, served by each app as /custom/services.json (apps/README.md,
+# The switcher). The "\n" is load-bearing: Flux substitutes on the YAML text, and a one-line
+# value that starts with `{` would be read back as a map; with a newline it is a string.
 apiVersion: v1
 kind: ConfigMap
 metadata:

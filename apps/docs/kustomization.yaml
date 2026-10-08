@@ -9,7 +9,6 @@ resources:
   - surround.yaml
 
 configMapGenerator:
-  # The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
   - name: docs-sizes
     namespace: office-docs
     files:
@@ -21,7 +20,7 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
-      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
+      labels: {reconcile.fluxcd.io/watch: Enabled}
 
   # The switcher panel `LaGaufreV2` loads by URL (surround.yaml), shared with every app.
   - name: docs-gaufre

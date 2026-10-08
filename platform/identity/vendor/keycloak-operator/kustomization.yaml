@@ -1,16 +1,9 @@
-# Keycloak's official install is Kustomize manifests, NOT a Helm chart, and they are
-# pinned 1:1 to the Keycloak release — the operator only ever runs the server version it
-# ships with (adr/0104's sibling problem: no chart, so the tag is the pin).
-#
-# The five files beside this one are byte-identical copies of
+# Keycloak's operator ships as Kustomize manifests, not a chart, pinned 1:1 to the server
+# version it runs. The five files beside this one are byte-identical copies of
 #   https://github.com/keycloak/keycloak-k8s-resources/tree/26.8.0/kubernetes
-# Do not hand-edit them. `update.sh` in this directory re-downloads all five at the newest
-# tag and rewrites this comment, atomically — run it by hand or let CI do it weekly.
-# Everything we change about the operator is expressed here instead.
-#
-# The operator watches ONLY its own namespace (JOSDK_WATCH_CURRENT in kubernetes.yml), so
-# it must live in the same namespace as the Keycloak CR. Upstream's own kustomization
-# does the same thing with `namespace: keycloak`; ours just picks a different one.
+# Never hand-edit them: `update.sh` re-downloads all five and rewrites the tag above;
+# every change of ours is made here. The operator watches only its own namespace, so it
+# lives beside the Keycloak CR.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -23,9 +16,8 @@ resources:
   - keycloaksamlclients.k8s.keycloak.org-v1.yml
   - kubernetes.yml
 
-# Upstream's ClusterRoleBinding hardcodes `namespace: keycloak` on its ServiceAccount
-# subject. setRoleBindingSubjects rewrites it; without this the operator silently runs
-# with no permissions and nothing reconciles.
+# setRoleBindingSubjects moves the ServiceAccount subjects too; without it the operator
+# silently runs with no permissions.
 transformers:
   - |-
     apiVersion: builtin
@@ -37,9 +29,7 @@ transformers:
       - path: metadata/namespace
         create: true
 
-# ...except on the ClusterRoleBinding, whose subject namespace upstream hardcodes to
-# `keycloak`. The transformer fills a missing namespace but will not overwrite a present
-# one, so that single field has to be patched by hand.
+# ...except the ClusterRoleBinding's hardcoded `keycloak`, which it will not overwrite.
 patches:
   - target: {kind: ClusterRoleBinding, name: keycloak-operator-clusterrole-binding}
     patch: |-
@@ -47,10 +37,8 @@ patches:
         path: /subjects/0/namespace
         value: office-identity
 
-  # Upstream ships the operator's own Deployment with no securityContext at all. The image
-  # (quay.io/keycloak/keycloak-operator) already runs as uid 1000 via its own Dockerfile
-  # USER directive, so this only enforces what is already true rather than changing
-  # behaviour. Read-only root: live, the JVM writes only /tmp (hsperfdata, vert.x cache).
+  # Upstream sets no securityContext; the image already runs as uid 1000, so this enforces
+  # what is true. The JVM writes only /tmp.
   - target: {kind: Deployment, name: keycloak-operator}
     patch: |-
       - op: add

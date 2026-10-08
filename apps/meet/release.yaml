@@ -1,20 +1,7 @@
-# Meet, from La Suite's in-tree chart at the pinned git tag v1.31.0 (adr/0104). The chart
-# path is `src/helm/meet`. It renders NINE Deployments unconditionally; four of them run at
-# zero replicas here (see `replicas: 0` below for which and why).
-#
-# THE CHART HAS NO `envFrom`. Every variable is `envVars: {NAME: value}` or a
-# `secretKeyRef` per key — forty of them, for a Django app that reads six platform Secrets.
-# Drive's chart has the same gap and the same answer: a Flux `postRenderers` kustomize
-# patch adds `envFrom` to the rendered workloads (apps/drive/release.yaml). THE NAME
-# SELECTOR IS THE SECURITY BOUNDARY: `meet-backend.*` selects the backend, its Jobs and its
-# CronJobs and NOT `meet-frontend`, which renders for the browser and must never hold the
-# database password. The second selector is the transcript pipeline, which needs the
-# bucket and its own tokens and NOT the OIDC secret. tests/check-secrets.py asserts all
-# of it after a chart bump.
-#
-# A container's `env` beats `envFrom` for the same name. That is relied on ONCE, on
-# purpose, and noted where it happens (AWS_S3_ENDPOINT_URL for the summary service); any
-# other overlap between `envVars` below and a platform Secret is a bug.
+# Meet, from La Suite's in-tree chart (`src/helm/meet`) at its pinned git tag (adr/0104).
+# Nine Deployments, four at `replicas: 0` (workloads not deployed, not a size). The chart
+# has no `envFrom`, so the patches below add it (apps/README.md, Conventions). `env` beating
+# `envFrom` is relied on once, on purpose (AWS_S3_ENDPOINT_URL); any other overlap is a bug.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -22,7 +9,7 @@ metadata:
   namespace: office-meet
 spec:
   interval: 30m
-  # Every Secret the patches below inject is created by meet-deps or tokens.yaml.
+  # The patched-in Secrets come from meet-deps and summary-secret.yaml.
   dependsOn: [{name: meet-deps}]
   chart:
     spec:
@@ -30,26 +17,17 @@ spec:
       sourceRef: {kind: GitRepository, name: suitenumerique-meet, namespace: flux-system}
       reconcileStrategy: Revision
   install:
-    # migrate and createsuperuser are plain Jobs with a 30s ttlSecondsAfterFinished, so
-    # waiting on them races garbage collection — same as Docs.
     disableWaitForJobs: true
   upgrade:
     disableWaitForJobs: true
     remediation:
-      # A Helm rollback reverts the code and leaves the schema migrated. Fail forward,
-      # loudly. Also required by policy/config/pins.rego for any release carrying a
-      # migrate job.
       retries: 0
 
-  # Sizing — replicas, resources — comes from sizes/<size>.yaml, one key of the
-  # `meet-sizes` ConfigMap. `spec.values` would beat it, so no sizing key may live here;
-  # the `replicas: 0` below are not sizes, they are workloads not deployed.
   valuesFrom: [{kind: ConfigMap, name: meet-sizes, valuesKey: "${SIZE}"}]
   postRenderers:
     - kustomize:
         patches:
-          # The backend and everything that runs its code: migrate, createsuperuser, the
-          # two housekeeping CronJobs.
+          # The backend and what runs its code: migrate, createsuperuser, two CronJobs.
           - target: {kind: "Deployment|Job", name: "meet-backend.*"}
             patch: |
               - op: add
@@ -62,7 +40,6 @@ spec:
                   - {secretRef: {name: meet-smtp}}
                   - {secretRef: {name: meet-django}}
                   - {secretRef: {name: meet-tokens}}
-          # A CronJob buries the pod spec a level deeper and no target spans both shapes.
           - target: {kind: CronJob, name: "meet-backend.*"}
             patch: |
               - op: add
@@ -75,11 +52,8 @@ spec:
                   - {secretRef: {name: meet-smtp}}
                   - {secretRef: {name: meet-django}}
                   - {secretRef: {name: meet-tokens}}
-          # The transcript pipeline: the summary API and its workers. The bucket (it reads
-          # the recording and writes the transcript) and its own tokens; nothing else.
-          # NOT `meet-celery-backend`: that one is the BACKEND's Celery (Django code, the
-          # backend's Secrets) — at zero replicas today, and the day it is enabled it
-          # belongs in the first patch, not this one.
+          # The transcript pipeline: the bucket and its own tokens, not the OIDC secret. NOT
+          # `meet-celery-backend`, the backend's Celery: enabled, it belongs in the first patch.
           - target: {kind: Deployment, name: "meet-summary|meet-celery-(transcribe.*|summarize|summary-backend)"}
             patch: |
               - op: add
@@ -89,15 +63,10 @@ spec:
                   - {secretRef: {name: meet-summary}}
 
   values:
-    # The chart declares every tag as `latest`, which pins nothing. Four images, five
-    # workloads that carry a tag key: the backend takes the top-level `image` (the Celery
-    # backend worker inherits it), everything else overrides. All the same version, always
-    # — updatecli/updatecli.d/meet.yaml rewrites them together.
+    # The backend's (and the Celery backend's); every other tag overrides it. All the same
+    # version, moved together by updatecli/updatecli.d/meet.yaml.
     image: {tag: v1.34.0}
 
-    # Routing is ours: HTTPRoutes on the shared Gateway, in surround.yaml. All the chart's
-    # Ingress objects are off. They are already false by default at this tag; stated so a
-    # default flip upstream cannot quietly publish a second, unauthenticated path.
     ingress: {enabled: false}
     ingressWebhook: {enabled: false}
     ingressAdmin: {enabled: false}
@@ -107,17 +76,13 @@ spec:
       ingress: {enabled: false}
       ingressAssets: {enabled: false}
 
-    # Unused — nothing here serves media to a browser — but the chart creates these two
-    # ExternalName Services unconditionally, so point them somewhere true.
     serviceMedia: {host: office-s3.office-data.svc.cluster.local, port: 3900}
     serviceMediaFiles: {host: office-s3.office-data.svc.cluster.local, port: 3900}
 
     # ---------------------------------------------------------------- backend
     backend:
-      pdb: {enabled: false}          # the surround owns budgets, at every size
-      # Chart default is `securityContext: null` for every component, and every Meet image
-      # runs as uid 1001. The backend's Jobs and CronJobs reuse this; the rest alias it.
-      # Read-only root as mijn-bureau runs it, with /tmp the one writable path.
+      pdb: {enabled: false}
+      # The chart's default is null for every component; every image runs as uid 1001.
       securityContext: &restricted
         allowPrivilegeEscalation: false
         capabilities: {drop: ["ALL"]}
@@ -128,45 +93,30 @@ spec:
       envVars:
         DJANGO_SETTINGS_MODULE: meet.settings
         DJANGO_CONFIGURATION: Production
-        # Only the public name. The two machine callers — LiveKit's webhook and the summary
-        # service's completion hook — also use it: SECURE_SSL_REDIRECT in the Production
-        # settings 301s any plain-http call, so in-cluster Service URLs cannot work.
+        # Only the public name: SECURE_SSL_REDIRECT 301s plain http, so LiveKit's webhook
+        # and the summary service's hook call it too.
         DJANGO_ALLOWED_HOSTS: meet.${BASE_DOMAIN}
         DJANGO_CSRF_TRUSTED_ORIGINS: https://meet.${BASE_DOMAIN}
         DJANGO_CORS_ALLOWED_ORIGINS: https://meet.${BASE_DOMAIN}
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
         DJANGO_LANGUAGE_CODE: nl-nl
-        # Branding only. DJANGO_EMAIL_BACKEND, _HOST, _PORT, _HOST_USER, _HOST_PASSWORD,
-        # _USE_TLS/_SSL and _FROM all arrive in `meet-smtp`. THEY MUST NOT ALSO BE SET
-        # HERE — `env` beats `envFrom`, so a leftover line would silently override the
-        # relay.
         DJANGO_EMAIL_BRAND_NAME: Office
         DJANGO_EMAIL_APP_BASE_URL: https://meet.${BASE_DOMAIN}
-        # The backend's own Celery is off: nothing in the transcript path uses it (that
-        # pipeline is the SUMMARY service's Celery), and `meet-cache` carries only
-        # REDIS_URL. See deps.yaml.
+        # The backend's own Celery: nothing in the transcript path uses it (deps.yaml).
         CELERY_ENABLED: "false"
-        # Rooms are created by signed-in users (the "start a meeting" button); a URL typed
-        # at random must not become a room. Upstream's default is true — that is the
-        # public-service posture, not ours.
+        # Upstream's public-service default is true: here only signed-in users make rooms.
         ALLOW_UNREGISTERED_ROOMS: "false"
 
-        # ---- LiveKit. The PUBLIC signaling URL, because it is handed to the browser as
-        # well as used by the backend's own API client (which follows it out through the
-        # Gateway and back — a hairpin, but one hop, and the certificate is real).
+        # ---- LiveKit. PUBLIC, because the browser gets it too; the backend hairpins.
         LIVEKIT_API_URL: https://livekit.${BASE_DOMAIN}
         LIVEKIT_FORCE_WSS_PROTOCOL: "true"
 
-        # ---- Transcripts. `RECORDING_ENABLE` plus `transcript` in the worker classes is
-        # what puts the button in the UI; the default map also carries
-        # `screen_recording`, which is left out: a video egress is a much larger Chrome,
-        # and there is no download route for its output.
+        # ---- Transcripts: this pair puts the button in the UI. No `screen_recording`: a
+        # video egress is a much larger Chrome, and nothing serves its output.
         RECORDING_ENABLE: "true"
         RECORDING_WORKER_CLASSES: '{"transcript": "core.recording.worker.services.AudioCompositeEgressService"}'
-        # The frontend's recording page — `/recording/<id>`, SINGULAR (routes.ts). The
-        # backend puts `<this>/<id>` at the top of the Docs document as the link to the
-        # audio; the page fetches the recording and offers the file from /media, which is
-        # the media proxy in surround.yaml.
+        # `/recording/<id>`, SINGULAR (routes.ts): the link atop each transcript document,
+        # whose download is the media proxy (surround.yaml).
         RECORDING_DOWNLOAD_BASE_URL: https://meet.${BASE_DOMAIN}/recording
         SUMMARY_SERVICE_VERSION: "2"
         SUMMARY_SERVICE_ENDPOINT: http://meet-summary/api/v2/async-jobs/transcribe/
@@ -177,11 +127,8 @@ spec:
         LOGGING_LEVEL_LOGGERS_APP: INFO
         LOGGING_LEVEL_LOGGERS_ROOT: INFO
 
-      # `createsuperuser` upstream runs Django's stock command with `--email` and
-      # `--password`. Neither exists here: Meet's USERNAME_FIELD is `admin_email` and the
-      # stock command takes no password flag — so the upstream Job fails on the first run
-      # and every run after, and it is not a Helm hook, so that is permanent noise.
-      # Replaced with an idempotent equivalent, the way Docs' is.
+      # Upstream's `--email`/`--password` fail from the first run: USERNAME_FIELD is
+      # `admin_email` and the stock command takes no password.
       createsuperuser:
         command:
           - /bin/sh
@@ -220,18 +167,9 @@ spec:
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
-      # THE GAUFRE. Meet's frontend has no switcher and no hook for one — the only
-      # runtime customisation is a CSS URL. So the nginx that serves the bundle is told
-      # to add one <script> tag to every HTML response (`sub_filter`, in default.conf)
-      # and to serve /custom/ itself: the two scripts from the `meet-frontend` ConfigMap
-      # (kustomization.yaml) and the service list from `office-services`
-      # (apps/services.yaml), projected into one directory. No fork, no init container,
-      # and a chart bump that changes default.conf shows up as a diff against ours in git.
-      #
-      # default.conf is a `subPath` mount because it replaces one file in a directory the
-      # image owns; nginx reads it at start, so a change to it needs a restart anyway.
-      # /custom is a DIRECTORY mount: a subPath is a copy the kubelet never refreshes,
-      # and the other apps serve the same files live, so Meet must too.
+      # THE GAUFRE, injected by nginx's `sub_filter` (README.md, The gaufre). default.conf
+      # is a subPath (one file in the image's directory, read at start); /custom is a
+      # directory mount, because a subPath copy is never refreshed.
       extraVolumes:
         - name: conf
           configMap: {name: meet-frontend, items: [{key: default.conf, path: default.conf}]}
@@ -245,40 +183,32 @@ spec:
         - {name: custom, mountPath: /srv/custom, readOnly: true}
 
     # ---------------------------------------------------------------- transcript pipeline
-    # The summary service is one image, run four ways: the API (`summary`) that the
-    # backend POSTs jobs to, and three Celery workers each on their own queue. All four
-    # read `meet-s3` + `meet-summary` (postRenderers) and the same non-secret block below,
-    # anchored once because the chart has no shared env for them.
+    # One image run four ways: the API the backend POSTs jobs to, and three Celery workers,
+    # one per queue. The env block is anchored: the chart has no shared env for them.
     summary:
       image: {tag: v1.34.0}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
       envVars: &summaryEnv
-        # The ONE deliberate env-over-envFrom override. `meet-s3` carries
-        # AWS_S3_ENDPOINT_URL as the full URL Django's storage wants; the summary service
-        # uses the Minio client, which wants host:port and a separate TLS flag.
+        # The ONE deliberate env-over-envFrom override: the Minio client wants host:port and
+        # a TLS flag, not the full URL `meet-s3` carries for Django.
         AWS_S3_ENDPOINT_URL: office-s3.office-data.svc.cluster.local:3900
         AWS_S3_SECURE_ACCESS: "false"
-        # Speech to text: the whisperx API in this namespace (whisperx.yaml). The model
-        # name must be the one that pod loaded — v1.2.0 answers a request for any other
-        # model with 404.
+        # The model whisperx.yaml loaded: v1.2.0 404s any other. Language is auto-detected
+        # among en/fr/de/nl by default.
         WHISPERX_BASE_URL: http://meet-whisperx:8000/v1
         WHISPERX_ASR_MODEL: small
-        # Language auto-detection; the allowed set defaults to en/fr/de/nl.
-        # No summaries, and no LLM: transcripts go to Docs as-is. The three LLM_* values
-        # are required by the settings class even when nothing reads them.
+        # No summaries: transcripts go to Docs as-is. The settings class requires LLM_*.
         IS_SUMMARY_ENABLED: "false"
         LLM_BASE_URL: http://disabled.invalid/v1
         LLM_API_KEY: disabled
         LLM_MODEL: disabled
-        # Where transcripts go: a Docs document owned by whoever started the transcript,
-        # created server-to-server (the `docs-meet` Secret in apps/docs/deps.yaml is the other end).
+        # Owned by whoever started it; the other end is `docs-meet` (apps/docs/deps.yaml).
         IS_LASUITE_DOCS_INTEGRATION_ENABLED: "true"
         LASUITE_DOCS_BASE_URL: https://docs.${BASE_DOMAIN}
 
-    # `transcribe-queue`: download the recording, ffmpeg it, call whisperx, post to Docs.
-    # ffmpeg on an hour of audio is the memory peak of the whole pipeline bar whisperx.
+    # `transcribe-queue`: download, ffmpeg (the pipeline's memory peak), whisperx, Docs.
     celeryTranscribe:
       image: {tag: v1.34.0}
       pdb: {enabled: false}
@@ -286,9 +216,7 @@ spec:
       persistence: *tmp
       envVars:
         <<: *summaryEnv
-        # The worker's call to whisperx has a hard-coded ten-minute read timeout; on CPU
-        # a long meeting takes longer than that. summary-sitecustomize.py (mounted below, found
-        # through PYTHONPATH) raises it to this many seconds for that one call.
+        # summary-sitecustomize.py raises the call's hard-coded ten-minute read timeout.
         PYTHONPATH: /etc/office
         WHISPERX_READ_TIMEOUT: "3600"
       extraVolumes:
@@ -307,8 +235,7 @@ spec:
       persistence: *tmp
       envVars: *summaryEnv
 
-    # `summarize-queue`: the LLM step. Off (IS_SUMMARY_ENABLED=false), so no worker — a
-    # job on this queue would only ever be a misconfiguration.
+    # `summarize-queue`: the LLM step, off.
     celerySummarize:
       image: {tag: v1.34.0}
       replicas: 0
@@ -317,8 +244,7 @@ spec:
       persistence: *tmp
       envVars: *summaryEnv
 
-    # The BACKEND's Celery worker (Django's, not the summary service's). CELERY_ENABLED
-    # is false above; nothing enqueues to it.
+    # The backend's Celery: CELERY_ENABLED is false.
     celeryBackend:
       replicas: 0
       pdb: {enabled: false}
@@ -326,11 +252,9 @@ spec:
       persistence: *tmp
 
     # ---------------------------------------------------------------- not deployed
-    # Two LiveKit agents the chart also renders. `agentSubtitles` is live captions via
-    # Deepgram (a paid API, and keys we do not have). `agentMetadata` collects per-speaker
-    # timing to attribute transcript segments to participants by name — it is optional and
-    # the whisperx diarization already labels speakers; revisit if "Speaker 1" in the
-    # transcript is the complaint.
+    # `agentSubtitles` is live captions through Deepgram, a paid API. `agentMetadata` names
+    # speakers in transcripts; diarization labels them already. Revisit if "Speaker 1" is
+    # the complaint.
     agentMetadata:
       image: {tag: v1.34.0}
       replicas: 0

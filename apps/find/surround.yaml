@@ -1,10 +1,7 @@
-# Find's surround. ONE route. Not `/`, not `/api`, not `/admin` — the mijn-bureau reference publishes all
-# three; here the Django admin is reachable by port-forward only.
-#
-# It has to be published at all (rather than reached pod-to-pod) because Find's Production
-# settings set SECURE_SSL_REDIRECT with SECURE_PROXY_SSL_HEADER: a direct pod-to-pod call
-# carries no X-Forwarded-Proto, so Django 301s and `requests` downgrades the 301'd POST to a
-# GET. Indexing then silently does nothing.
+# Find's surround: ONE route, not mijn-bureau's `/`, `/api` and `/admin`; the admin is
+# port-forward only. Published at all because a pod-to-pod call carries no
+# X-Forwarded-Proto: SECURE_SSL_REDIRECT 301s it, `requests` turns the POST into a GET,
+# and indexing silently does nothing.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: find-platform, namespace: office-find}
@@ -12,7 +9,6 @@ spec:
   interval: 30m
   dependsOn: [{name: find}]
   chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
-  # The disruption budget comes with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: find-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: find

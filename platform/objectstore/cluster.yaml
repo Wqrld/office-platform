@@ -4,31 +4,20 @@ metadata:
   name: office-s3
   namespace: office-data
 spec:
-  # Pin Garage like a database major version. The operator speaks Admin API v2, which
-  # requires Garage >= 2.0.0; below that every admin call 404s.
-  # `image` is the FULL reference and overrides `imageRepository` entirely. It must also
-  # be registry-qualified: this cluster's CRI-O resolves a bare name against quay.io, so
-  # an unqualified string fails with a confusing 404 for `quay.io/v2.3.0:latest`.
+  # Pinned like a database major. The operator speaks Admin API v2 (Garage >= 2.0.0; below,
+  # every admin call 404s). The FULL, registry-qualified reference: it overrides
+  # `imageRepository`, and CRI-O resolves a bare name against quay.io.
   image: docker.io/dxflrs/garage:v2.3.0
   replication:
-    # CANNOT BE CHANGED IN PLACE — raising this requires destroying and rebuilding the
-    # cluster. One node, so one copy; revisit only when a second node exists, and expect
-    # a rebuild when you do.
+    # CANNOT BE CHANGED IN PLACE: raising it is a rebuild. One node, so one copy.
     factor: 1
   storage:
     replicas: 1
     priorityClassName: office-data
-    # The image is FROM scratch with no USER, so every file under /data and /meta was
-    # created root:root (verified live: dirs 0755, files 0644, both no group-write). Root
-    # can always read/write regardless of ownership, so this has run fine so far — but it
-    # also means simply declaring non-root here would EACCES on every existing file.
-    # fsGroup is load-bearing, not decoration: Longhorn's CSIDriver reports
-    # fsGroupPolicy=ReadWriteOnceWithFSType, so on the next mount (this StatefulSet's
-    # single-replica restart) kubelet recursively chgrps AND chmods g+rwX both PVCs to
-    # this GID before the container starts — that is what makes uid 1000 able to write
-    # metadata/data it does not own. Without fsGroup here, the pod would crash-loop on
-    # first metadata write. No general-purpose initContainer hook exists on this CRD to
-    # do the chown by hand instead (checked v0.7.7's StorageSpec).
+    # The image (FROM scratch, no USER) wrote its existing files as root, so non-root needs
+    # fsGroup: Longhorn's fsGroupPolicy makes the kubelet chgrp and chmod g+rwX both
+    # volumes on mount, which is what lets uid 1000 write them. The CRD has no
+    # initContainer hook to chown instead (v0.7.7's StorageSpec).
     securityContext:
       runAsNonRoot: true
       runAsUser: 1000
@@ -38,20 +27,16 @@ spec:
       allowPrivilegeEscalation: false
       capabilities: {drop: ["ALL"]}
       readOnlyRootFilesystem: true     # a static binary; it writes only its two volumes
-    # Sized for this node, not aspirationally: Longhorn has ~85Gi free with the legacy
-    # stack still running, and Docs' entire media set is ~100MB. Growing a Longhorn
-    # volume is an online expand; shrinking one is a rebuild.
+    # Growing a volume is online; shrinking is a rebuild. The reclaim policy is the
+    # default Retain, so a deleted cluster leaves its volumes to clean up by hand.
     data:
       size: 20Gi
       storageClassName: ${STORAGE_CLASS}
     metadata:
       size: 2Gi
       storageClassName: ${STORAGE_CLASS}
-    # Default is Retain, which is correct — but it means deleting this cluster leaves
-    # volumes behind to be cleaned up by hand.
   admin:
     adminTokenSecretRef: {name: office-s3-admin-token, key: token}
   s3Api:
-    # Set explicitly: an empty region makes SigV4 signing flaky in some SDKs. The legacy
-    # stack hardcoded eu-west-1 for exactly this reason.
+    # An empty region makes SigV4 signing flaky in some SDKs.
     region: eu-west-1

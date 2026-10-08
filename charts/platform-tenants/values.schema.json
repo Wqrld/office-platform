@@ -7,6 +7,7 @@
   ],
   "properties": {
     "apps": {
+      "description": "One entry per application, in the shape charts/control-plane/apps.yaml documents in its header: the control plane hands every app's provisioning fields, enabled or not, over as TENANTS_JSON (adr/0107), merged over the one entry in values.yaml, Keycloak's own database.",
       "type": "object",
       "additionalProperties": {
         "type": "object",
@@ -100,6 +101,7 @@
       }
     },
     "valkeyAcl": {
+      "description": "Each Valkey instance's ACL line for every app with a password there, before the app's own `acl` extras. Rendered as `valkey-<instance>-acl-values`, the ConfigMap the instance's HelmRelease reads `auth.aclUsers` from.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -109,32 +111,38 @@
       ],
       "properties": {
         "default": {
+          "description": "No ambient access: with no NetworkPolicy enforcement (adr/0103) these ACLs are the only isolation between applications.",
           "type": "string",
           "minLength": 1
         },
         "cache": {
+          "description": "`+flushdb` on the cache only: Django's `cache.clear()` calls it and fails with `ConnectionInterrupted` without it.",
           "type": "string",
           "minLength": 1
         },
         "broker": {
+          "description": "No `+flushdb`: queued work lives here.",
           "type": "string",
           "minLength": 1
         }
       }
     },
     "legacyValkeyUsers": {
+      "description": "Apps whose Valkey passwords were drawn before generation was per app, and live in `valkey-<instance>-users` beside `default`. A re-draw logs every user out, so they stay there.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "objectStore": {
+      "description": "${S3_MODE}: bucket grants exist only when the platform runs the store.",
       "enum": [
         "garage",
         "external"
       ]
     },
     "tenant": {
+      "description": "Apps live in <tenant>-<app>.",
       "type": "string",
       "minLength": 1
     },
@@ -160,9 +168,11 @@
       "type": "string"
     },
     "domain": {
+      "description": "${BASE_DOMAIN}; the clients' URLs are https://<app>.<domain>.",
       "type": "string"
     },
     "keycloak": {
+      "description": "The realm reconcile Job (templates/keycloak.yaml). keycloak-config-cli is built against one Keycloak minor; 6.5.1, built for 26.5, runs against the 26.7 server this platform pins (verified against 26.7.3). Move it with Keycloak (platform/identity/vendor/keycloak-operator).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -181,6 +191,7 @@
       }
     },
     "opensearch": {
+      "description": "The OpenSearch security reconcile Job (templates/opensearch.yaml). The image is the server's own, for securityadmin.sh and hash.sh at the server's version: keep it at the tag platform/opensearch/cluster.yaml runs.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

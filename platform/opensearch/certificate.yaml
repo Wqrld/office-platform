@@ -24,10 +24,8 @@ metadata: {name: opensearch-ca, namespace: office-data}
 spec:
   ca: {secretName: opensearch-ca}
 ---
-# Serves the REST layer and identifies the node on the transport layer.
-#
-# PKCS8 is load-bearing: the security plugin cannot parse cert-manager's default PKCS1 key
-# and the node dies at startup on an unhelpful "Unable to read the private key".
+# REST and transport. PKCS8 is load-bearing: with cert-manager's default PKCS1 the node dies
+# at startup on "Unable to read the private key".
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata: {name: opensearch-node, namespace: office-data}
@@ -46,10 +44,8 @@ spec:
     - opensearch-cluster-master-headless.office-data.svc.cluster.local
   issuerRef: {name: opensearch-ca, kind: Issuer}
 ---
-# The admin certificate. Nothing uses it in steady state — it is the only way to change the
-# security config once the `.opendistro_security` index exists, because
-# `allow_default_init_securityindex` seeds that index and then never looks at the files
-# again. See README.md, "Changing the security config".
+# The admin certificate: the only way to change the security config once the index is
+# seeded (README.md, "Changing the security config").
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata: {name: opensearch-admin, namespace: office-data}

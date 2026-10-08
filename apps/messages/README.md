@@ -85,7 +85,8 @@ fork changes it (Upstream changes, 2-4). Greylisting is off: rspamd scans after 
 accepted, so a greylist verdict filters nothing and only delays every first-time sender.
 
 Its state (Bayes, reputation, ratelimits) lives in the cache Valkey through the backend's
-own `REDIS_URL`; eviction there costs retraining, not mail.
+own `REDIS_URL`; eviction there costs retraining, not mail. It runs as Lua scripts
+(`@scripting`, which the shared ACL line allows), tested against exactly those permissions.
 
 ## Where the chart comes from, and when that changes
 

@@ -1,18 +1,15 @@
-# The application these dependencies belong to. Every Secret, bucket and OIDC client is
-# named from it, so an app file normally sets this and almost nothing else.
+# What an app needs before it starts. values.schema.json describes each key; an app file
+# normally sets `app`, `env` and which kinds are enabled.
 app: ""
 tenant: office
 
-# Where the 30-platform layer put the shared datastores. These are defaults, not knobs —
-# an app overriding them is a smell, but a second cluster with different names needs them.
+# Where the platform layer put the shared datastores: defaults, not knobs.
 platform:
   stores:
     data: office-data              # ClusterSecretStore holding datastore credentials
     identity: office-identity      # ClusterSecretStore holding OIDC client secrets
   passwordGenerator: office-password
 
-# Which spelling of env names this app expects, per kind — templates/_profiles.tpl. A
-# family name here sets every kind; a kind's own `env` overrides it.
 env: ""                            # lasuite | find | calendars | projects | messages
 
 postgres:
@@ -25,14 +22,13 @@ postgres:
   credentialSecret: ""             # defaults to <app>-db, created by 30-platform
   refreshInterval: 1h
 
+# Two instances, cache and broker: platform/valkey/README.md.
 cache:
   enabled: false
   env: ""
   uses: [cache]                    # which instances this app needs
   instances:
-    # `credentialSecret` is the ASSEMBLED Secret, not the generate-once one that feeds it —
-    # `charts/platform-tenants/templates/valkey.yaml`. Pointing at `valkey-*-users` instead
-    # resolves for the users that predate the split and fails for every app added after.
+    # `credentialSecret` is the ASSEMBLED Secret, not the generate-once one (schema).
     cache:
       host: valkey-cache.office-data.svc.cluster.local
       port: 6379
@@ -45,7 +41,7 @@ cache:
       credentialSecret: valkey-broker-acl
   refreshInterval: 1h
 
-# One shared instance, an internal user and an index prefix per app (history/design/06-datastores.md).
+# One shared instance, an internal user and an index prefix per app (adr/0111).
 opensearch:
   enabled: false
   env: ""
@@ -53,25 +49,15 @@ opensearch:
   port: 9200
   username: ""                     # defaults to .Values.app
   indexPrefix: ""                  # defaults to .Values.app; the tenant boundary (adr/0111)
-  # TLS from a cluster-internal CA. Encryption only: Find hardcodes verify_certs=False, so
-  # there is no server authentication on that path (adr/0111).
   useSSL: true
   credentialSecret: ""             # defaults to opensearch-user-<app>, created by 30-platform
-  # For an app that verifies the certificate: the CA is copied into this Secret, and the
-  # profile's caCerts env names `caPath`, where the app's release mounts it.
-  caSecret: ""
+  caSecret: ""                     # for an app that verifies the certificate
   caPath: /etc/opensearch-ca/ca.crt
   refreshInterval: 1h
 
 objectstore:
   enabled: false
   env: ""
-  # `garage` provisions a bucket and a key on the platform's own store. `external` points
-  # at any S3-compatible store the organisation already runs: like smtp, the endpoint,
-  # region and credential are applied by hand into office-data once (docs/install.md) as
-  # a Secret with keys endpoint, region, accessKeyId, secretAccessKey. Bucket names stay
-  # the platform's (<app>); the organisation creates them, and CORS for Drive's browser
-  # upload is theirs to configure there. The Secret the app reads is identical either way.
   mode: garage                     # garage | external
   credentialSecret: object-store   # external only, in the office-data store
   refreshInterval: 1h              # external only
@@ -80,59 +66,36 @@ objectstore:
   cluster: {name: office-s3, namespace: office-data}
   quota: {maxSize: ""}
   deletionPolicy: Retain
-  # Where a BROWSER can reach this bucket. Only correct for an app that presigns to the
-  # browser, and only if the store is actually published there (adr/0110). Rendered
-  # through `tpl`; the profile picks the env name. In external mode the endpoint is already
-  # public, so only non-emptiness matters: it flags "this app presigns" and the text is unused.
-  publicEndpoint: ""
-  # Garage is not AWS. Since 2025 the AWS SDKs send checksum algorithms that non-AWS S3
-  # implementations may reject; these make boto3 ask for one only when the call needs it.
-  awsChecksumWorkaround: true
+  publicEndpoint: ""               # only for an app that presigns to the browser (adr/0110)
+  awsChecksumWorkaround: true      # Garage is not AWS
 
-# Outbound mail. The relay credential is the one secret on this platform that cannot be
-# generated: it is issued by a mail provider, applied by hand into office-data once
-# (docs/install.md), and read from there by every app that sends. HOST, PORT, TLS FLAGS AND
-# THE FROM-ADDRESS ALL LIVE IN THAT SECRET TOO, not here — switching provider is then one
-# `kubectl` and nothing about mail is in git.
-#
-# Outbound TCP 25 is blocked by this platform's provider (measured), so the relay must answer
-# on 587 or 465.
+# The relay is a hand-applied Secret; outbound 25 is blocked, so it answers on 587 or 465.
 smtp:
   enabled: false
   env: ""
-  # The Django backend class. A constant rather than a credential, but it belongs in the same
-  # Secret as the host it points at — see postgres.engine for the same reasoning.
   backend: django.core.mail.backends.smtp.EmailBackend
   credentialSecret: smtp-credentials   # in the office-data store; applied by hand, not generated
   refreshInterval: 1h
 
-# Public DNS suffix. Supplied by the app file as ${BASE_DOMAIN} — Flux substitutes it into
-# the HelmRelease values before the release is applied.
-baseDomain: ""
+baseDomain: ""                     # supplied as ${BASE_DOMAIN} by the app file
 
 oidc:
   enabled: false
-  # `django`: the mozilla-django-oidc endpoint set, browser and back-channel split
-  # (_oidc.tpl). `discovery`: issuer + client only, for apps that discover the rest.
-  env: django
+  env: django                      # django | discovery
   client: ""                       # defaults to .Values.app; also names the Keycloak client
   realm: office
   idHost: id                       # <idHost>.<baseDomain> is the browser-facing issuer
   internalUrl: http://keycloak-service.office-identity.svc.cluster.local:8080
   host: ""                         # redirect host; defaults to <app>.<baseDomain>
-  scopes: [openid, email, profile] # `profile` carries given_name/family_name — without it
-                                   # every user's display name is their email address
+  scopes: [openid, email, profile] # `profile`, or every display name is an email address
   clientSecretKey: ""              # defaults to oidc-client-<client>
   refreshInterval: 1h
 
-  # Defaults are the secure end of each choice. An app relaxes one deliberately, in its own
-  # file, where the relaxation is visible.
+  # The secure end of each choice; an app relaxes one in its own file, where it is visible.
   signAlgo: RS256
   requireHttps: true
   useNonce: true
-  # Open provisioning: the realm decides who exists, and every app creates a realm user on
-  # first login. Registration is off in the realm, so this admits no one Keycloak didn't.
-  createUser: true
+  createUser: true                 # the realm decides who exists; registration is off there
   fallbackToEmail: true
   allowDuplicateEmails: false
   storeAccessToken: true
@@ -142,35 +105,12 @@ oidc:
   shortnameField: name
   extraEnv: {}
 
-# Secrets generated once, in-cluster, and never derived at render time (history/design/adr/0005).
-#
-#   generated:
-#     docs-django:
-#       - {env: DJANGO_SECRET_KEY, draw: secretkey}
-#
-# A LIST, not a map: `dataFrom` is ordered, its order is part of the spec, and Helm sorts
-# map keys — so a map would let a re-sort silently rewrite the object.
-#
-# Each entry takes its OWN draw, so two variables in one Secret are never equal. The draw
-# name is internal to the ExternalSecret and never appears in the Secret it produces.
-# `generator` names the ClusterGenerator for that one draw; the default is
-# `platform.passwordGenerator` (40 characters). Django's SECRET_KEY wants 50 or more —
-# its deploy check (security.W009) says so on every heartbeat — so that entry names
-# `office-token-50`:
-#
-#       - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
-#
-# THESE OBJECTS CANNOT GAIN A VARIABLE once drawn. `refreshInterval: "0"` means written
-# once and never again, not "re-draw on a spec change": an added entry never appears while
-# ESO still reports `secret synced`. Give a live application a second `generated` Secret
-# and a second `envFrom` instead.
+# Secrets generated once, in-cluster: an ORDERED list per Secret that can never gain an
+# entry once drawn (schema).
+#   docs-django:
+#     - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
 generated: {}
 
-# Values both ends of an app-to-app exchange must read: drawn once in office-data
-# (platform/secrets/service-tokens.yaml) and read here under this app's env names. A
-# plain string is a constant that belongs in the same Secret.
-#
-#   shared:
-#     docs-search:
-#       SEARCH_INDEXER_SECRET: {from: find-service-tokens, key: docs}
+# Values both ends of an app-to-app exchange read, drawn once in office-data:
+#   docs-search: {SEARCH_INDEXER_SECRET: {from: find-service-tokens, key: docs}}
 shared: {}

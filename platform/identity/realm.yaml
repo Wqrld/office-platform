@@ -1,11 +1,6 @@
-# PHASE 1 — delete this file in the next release (platform/kustomization.yaml says why it
-# is still here). The realm is the tenants chart's now: charts/platform-tenants/files/realm.yaml
-# and one client per `oidc` entry, applied by keycloak-config-cli on every change. This stub
-# carries no settings, so there is one copy of them. Shrinking it changes nothing live: the
-# operator's import Job is create-only (KeycloakRealmImportJobDependentResource implements
-# Creator, not Updater), so it never runs again, and it would skip an existing realm anyway
-# (`--override=false`). On a new cluster it creates an empty `office` realm, or finds the one
-# the tenants chart's Job already made and skips.
+# PHASE 1 — delete in the next release (platform/kustomization.yaml). The realm is
+# charts/platform-tenants/files/realm.yaml now; this stub carries no settings. The
+# operator's import is create-only and skips an existing realm, so nothing live changes.
 apiVersion: k8s.keycloak.org/v2beta1
 kind: KeycloakRealmImport
 metadata:

@@ -10,19 +10,16 @@ spec:
     env: calendars
     baseDomain: ${BASE_DOMAIN}
 
-    # One database, two schemas: Django owns `public` and SabreDAV's tables go in `sabre`.
-    # The caldav container reads the same credentials under PG* names — see release.yaml.
+    # One database, two schemas (release.yaml); SabreDAV reads it under PG* names.
     postgres: {enabled: true}
 
-    # THREE URLs, which is why this app has its own profile. Dramatiq keeps task results in
-    # a second store, and DRAMATIQ_RESULT_BACKEND_URL carries the password, so it cannot be
-    # assembled from `valueFrom` in release.yaml — it has to come out of this Secret.
+    # THREE URLs, hence the app's own profile: Dramatiq's result backend URL carries the
+    # password, so it cannot be assembled with `valueFrom` in release.yaml.
     #
-    # `results` points at the CACHE instance, not the broker. Results are held for 30 days;
-    # on the broker (`noeviction`, by design) a filled result set stops the queue, while on
-    # the cache (`allkeys-lru`) a lost result is a `/tasks/<id>/` poll that returns nothing.
-    # That is the cheaper failure. Same instance as `cache`, so it is the same ACL user and
-    # one password draw — a separate `db` only keeps result payloads out of the session keys.
+    # `results` is on the CACHE, not the broker. Results are held for 30 days: on the
+    # `noeviction` broker a full result set stops the queue, on the `allkeys-lru` cache a
+    # lost result is a `/tasks/<id>/` poll that returns nothing. Same instance as `cache`,
+    # so the same ACL user; its own `db` keeps payloads out of the session keys.
     cache:
       enabled: true
       uses: [cache, broker, results]
@@ -35,27 +32,20 @@ spec:
 
     oidc: {enabled: true}
 
-    # The bare EMAIL_* spelling, not Docs' and Drive's DJANGO_-prefixed one: this settings
-    # module passes `environ_prefix=None` on every mail value, and its from-address is
-    # Django's stock DEFAULT_FROM_EMAIL. The relay account itself is applied by hand into
-    # office-data once and is not in git — docs/install.md.
+    # Bare EMAIL_*, not DJANGO_EMAIL_*: the settings pass `environ_prefix=None` on every mail
+    # value, and the from-address is Django's stock DEFAULT_FROM_EMAIL.
     smtp: {enabled: true}
 
-    # Both blocks are ORDERED LISTS, and neither can ever gain an entry: `refreshInterval:
-    # "0"` means written once and never again, not "re-draw on a spec change", so a variable
-    # added later never appears while ESO keeps reporting `secret synced`. Everything these
-    # two objects will ever hold has to be here before the first install.
+    # Ordered, and can never gain an entry (apps/README.md, Conventions).
     generated:
       calendars-django:
         - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
         - {env: DJANGO_SUPERUSER_PASSWORD, draw: superuser}
-        # SALT_KEY derives Fernet keys from SECRET_KEY (PBKDF2) for the EncryptedJSONField
-        # that holds channel tokens. Its upstream default is the literal string
-        # `calendars-default-salt-change-in-production`. Generate-once is exactly right:
-        # rotating it makes every stored token undecryptable, with no error at write time.
+        # Derives the Fernet keys for stored channel tokens; upstream's default is the
+        # literal `calendars-default-salt-change-in-production`. Rotating it makes every
+        # stored token undecryptable, so generate-once is exactly right.
         - {env: SALT_KEY, draw: salt}
-      # Three keys read by BOTH Django and SabreDAV, so both pods envFrom this one Secret.
-      # Never three literals in the HelmRelease: they would be in git and they would drift.
+      # Read by BOTH Django and SabreDAV, so both pods envFrom this one Secret.
       calendars-caldav:
         - {env: CALDAV_INBOUND_API_KEY,  draw: inbound}
         - {env: CALDAV_OUTBOUND_API_KEY, draw: outbound}

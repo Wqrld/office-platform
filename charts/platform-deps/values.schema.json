@@ -5,8 +5,8 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "app": {"type": "string"},
-    "env": {"type": "string"},
+    "app": {"description": "The application these dependencies belong to. Every Secret, bucket and OIDC client is named from it.", "type": "string"},
+    "env": {"description": "The family of env names the app reads (templates/_profiles.tpl): lasuite, find, calendars, projects or messages. It sets every kind; a kind's own `env` overrides it.", "type": "string"},
     "tenant": {"type": "string"},
     "baseDomain": {"type": "string"},
 
@@ -64,7 +64,7 @@
               "port": {"type": "integer", "minimum": 1, "maximum": 65535},
               "db": {"type": "integer", "minimum": 0},
               "credentialSecret": {
-                "description": "The ASSEMBLED Secret, not the generate-once one that feeds it.",
+                "description": "The ASSEMBLED Secret (`valkey-<instance>-acl`), not the generate-once one that feeds it: `valkey-<instance>-users` resolves for the users that predate the split and fails for every app added after (charts/platform-tenants/templates/valkey.yaml).",
                 "type": "string"
               }
             }
@@ -87,7 +87,7 @@
           "description": "Defaults to `app`. The tenant boundary — the app's role grants `<indexPrefix>-*` and nothing else (adr/0111).",
           "type": "string"
         },
-        "useSSL": {"type": "boolean"},
+        "useSSL": {"description": "TLS from a cluster-internal CA. Encryption only for Find, which hardcodes verify_certs=False (adr/0111).", "type": "boolean"},
         "credentialSecret": {"description": "Defaults to opensearch-user-<app>, created by 30-platform.", "type": "string"},
         "caSecret": {"description": "Copy the cluster-internal CA into this Secret, for an app that verifies the server.", "type": "string"},
         "caPath": {"description": "Where the app mounts caSecret; the profile's caCerts env names it.", "type": "string"},
@@ -101,7 +101,7 @@
       "properties": {
         "enabled": {"type": "boolean"},
         "env": {"type": "string"},
-        "mode": {"description": "`garage` provisions on the platform's store; `external` reads endpoint, region and credential from `credentialSecret` in the office-data store.", "enum": ["garage", "external"]},
+        "mode": {"description": "`garage` provisions a bucket and a key on the platform's store; `external` reads endpoint, region and credential from `credentialSecret` in the office-data store, applied by hand once like smtp (docs/install.md), with keys endpoint, region, accessKeyId, secretAccessKey. Bucket names stay `<app>`; the organisation creates them, and Drive's browser-upload CORS is theirs to set. The Secret the app reads is identical either way.", "enum": ["garage", "external"]},
         "credentialSecret": {"description": "External mode only.", "type": "string"},
         "refreshInterval": {"$ref": "#/$defs/duration"},
         "bucket": {"description": "Defaults to `app`.", "type": "string"},
@@ -121,10 +121,10 @@
         },
         "deletionPolicy": {"enum": ["Retain", "Delete"]},
         "publicEndpoint": {
-          "description": "Where a BROWSER reaches this bucket — only correct for an app that presigns to the browser, and only if the store is published there (adr/0110). Rendered through `tpl`.",
+          "description": "Where a BROWSER reaches this bucket — only correct for an app that presigns to the browser, and only if the store is published there (adr/0110). Rendered through `tpl`; the profile picks the env name. In external mode the endpoint is already public, so only non-emptiness matters: it flags that the app presigns.",
           "type": "string"
         },
-        "awsChecksumWorkaround": {"type": "boolean"}
+        "awsChecksumWorkaround": {"description": "Garage is not AWS: since 2025 the AWS SDKs send checksum algorithms non-AWS S3 implementations may reject. This makes boto3 ask for one only when the call needs it.", "type": "boolean"}
       }
     },
 
@@ -139,13 +139,13 @@
         "idHost": {"type": "string"},
         "internalUrl": {"type": "string"},
         "host": {"description": "Redirect host; defaults to <app>.<baseDomain>.", "type": "string"},
-        "scopes": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "scopes": {"description": "`profile` carries given_name/family_name; without it every user's display name is their email address.", "type": "array", "items": {"type": "string"}, "minItems": 1},
         "clientSecretKey": {"type": "string"},
         "refreshInterval": {"$ref": "#/$defs/duration"},
         "signAlgo": {"type": "string"},
         "requireHttps": {"type": "boolean"},
         "useNonce": {"type": "boolean"},
-        "createUser": {"type": "boolean"},
+        "createUser": {"description": "Open provisioning: the realm decides who exists and every app creates a realm user on first login. Registration is off in the realm, so this admits no one Keycloak did not. The security defaults beside it are the secure end of each choice; an app relaxes one in its own file, where it is visible.", "type": "boolean"},
         "fallbackToEmail": {"type": "boolean"},
         "allowDuplicateEmails": {"type": "boolean"},
         "storeAccessToken": {"type": "boolean"},
@@ -158,7 +158,7 @@
     },
 
     "smtp": {
-      "description": "The outbound relay. Everything about it — host, port, TLS flags, credentials and the from-address — lives in `credentialSecret`, applied by hand into office-data (docs/install.md, Mail); nothing here names a mail server.",
+      "description": "The outbound relay. Everything about it — host, port, TLS flags, credentials and the from-address — lives in `credentialSecret`, applied by hand into office-data (docs/install.md, Mail); nothing here names a mail server, so switching provider is one `kubectl`. Outbound TCP 25 is blocked by this platform's provider (measured), so the relay must answer on 587 or 465.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -171,7 +171,7 @@
     },
 
     "generated": {
-      "description": "Secret name -> an ORDERED list of variables, each with its own draw (history/design/adr/0005, adr/0106). A map would let Helm's key sort silently rewrite `dataFrom`, and these objects cannot gain a variable once drawn.",
+      "description": "Secret name -> an ORDERED list of variables, each with its own draw, generated once in-cluster and never derived at render time (history/design/adr/0005, adr/0106). A map would let Helm's key sort silently rewrite `dataFrom`. The draw name is internal to the ExternalSecret; each entry's own draw means two variables in one Secret are never equal. THESE OBJECTS CANNOT GAIN A VARIABLE once drawn: `refreshInterval: \"0\"` means written once, not re-drawn on a spec change, so an added entry never appears while ESO reports `secret synced`. Give a live application a second Secret and a second `envFrom` instead.",
       "type": "object",
       "additionalProperties": {
         "type": "array",
@@ -183,14 +183,14 @@
           "properties": {
             "env": {"type": "string"},
             "draw": {"type": "string"},
-            "generator": {"type": "string", "description": "ClusterGenerator for this draw; default platform.passwordGenerator"}
+            "generator": {"type": "string", "description": "ClusterGenerator for this draw; default platform.passwordGenerator (40 characters). Django's SECRET_KEY wants 50 or more (deploy check security.W009), so that entry names `office-token-50`."}
           }
         }
       }
     },
 
     "shared": {
-      "description": "Secret name -> env name -> a value read from a Secret in office-data, or a constant.",
+      "description": "Secret name -> env name -> a value read from a Secret in office-data, or a constant. For values both ends of an app-to-app exchange must read, drawn once in office-data (platform/secrets/service-tokens.yaml).",
       "type": "object",
       "additionalProperties": {
         "type": "object",

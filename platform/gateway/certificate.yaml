@@ -1,10 +1,6 @@
-# One SAN certificate for every platform hostname; the Gateway's single HTTPS listener
-# selects from it by SNI. Neither this file nor the Gateway is edited to add an
-# application. See docs/adr/0105.
-#
-# RULE: a hostname may be served only once its DNS resolves to the Gateway.
-# Let's Encrypt fails the whole certificate if any single SAN fails validation, so one
-# mispointed record takes down TLS for every application.
+# One SAN certificate for every platform hostname; the Gateway's HTTPS listener selects from
+# it by SNI (docs/adr/0105). A hostname may be served only once its DNS resolves to the
+# Gateway: Let's Encrypt fails the whole certificate if one SAN fails validation.
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -15,9 +11,6 @@ spec:
   issuerRef:
     name: ${TLS_ISSUER}
     kind: ClusterIssuer
-  # Every hostname this cluster serves, derived by the control plane from the enabled apps
-  # and substituted whole as a JSON list (charts/control-plane/templates/_helpers.tpl, `hosts`).
-  # An application that is off has no SAN here and needs no DNS record; `s3.*` is present
-  # only while the platform runs the object store itself. Adding an application is one
-  # `hosts` entry in the app table, never an edit here.
+  # The enabled apps' `hosts` from the control plane's app table, plus `s3.*` while the
+  # platform runs the object store; never edited by hand.
   dnsNames: ${TLS_HOSTS}

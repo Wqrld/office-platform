@@ -1,15 +1,6 @@
-# Release 2 of 3: Calendars, from the chart written in the application's own repo
-# (`src/helm/calendars`) — the shape adr/0104 expects. It is not in an upstream tag yet, so
-# it comes from the fork's git tag until the upstreaming PR lands; see
-# charts/control-plane/templates/sources.yaml and README.md.
-#
-# Four workloads on one hostname: backend (Django/gunicorn), frontend (Caddy + a Vite SPA),
-# caldav (SabreDAV under Apache/PHP) and worker (Dramatiq, NOT Celery). Plus three Jobs.
-#
-# CALDAV IS NEVER ROUTED FROM OUTSIDE. Django's `CalDAVProxyView` serves `/caldav/*`, doing
-# authentication and ACL translation before it forwards; the `calendars-caldav` Service
-# stays ClusterIP and is reached only through CALDAV_URL. Nothing in surround.yaml points
-# at it, and that is a security property, not a routing preference.
+# Release 2 of 3: Calendars, from the in-tree chart (`src/helm/calendars`) at the fork's git
+# tag until the upstreaming PR lands (adr/0104). README.md has the workloads and the pins.
+# CALDAV IS NEVER ROUTED FROM OUTSIDE: only Django's proxy reaches it (README.md).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -17,24 +8,20 @@ metadata:
   namespace: office-calendars
 spec:
   interval: 30m
-  # Every Secret this release consumes with `envFrom` is created by calendars-deps.
   dependsOn: [{name: calendars-deps}]
   chart:
     spec:
       chart: src/helm/calendars
       sourceRef: {kind: GitRepository, name: wqrld-calendars, namespace: flux-system}
+  # apps/README.md, Conventions. These Jobs are also hooks, which Helm waits on itself.
   install:
-    # The three Jobs below are Helm hooks, which Helm waits on itself. This covers the
-    # chart's own `ttlSecondsAfterFinished: 30`, which otherwise races Flux's Job wait.
     disableWaitForJobs: true
   upgrade:
     disableWaitForJobs: true
     remediation:
-      # A rollback reverts the code and leaves the schema migrated. Fail forward, loudly.
-      # Also required by policy/config/pins.rego for any release carrying a migrate job.
       retries: 0
-  # The chart has no pod securityContext for caldav. This sysctl is one PSA allows, and
-  # it is what lets www-data bind :80 (values.caldav.securityContext).
+  # Lets www-data bind :80 (caldav.securityContext): the chart has no pod securityContext
+  # for caldav, and this sysctl is one PSA allows.
   postRenderers:
     - kustomize:
         patches:
@@ -44,87 +31,42 @@ spec:
                 path: /spec/template/spec/securityContext
                 value: {sysctls: [{name: net.ipv4.ip_unprivileged_port_start, value: "80"}]}
 
-  # Sizing — replicas, resources, worker concurrency — comes from sizes/<size>.yaml, one
-  # key of the `calendars-sizes` ConfigMap. `spec.values` would beat it, so no sizing key
-  # may live here.
   valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "${SIZE}"}]
 
   values:
-    # THREE IMAGE TAGS, ALL STATED, AND ALL FROM THE FORK. The chart declares
-    # `appVersion: latest`, which pins nothing, and its defaults are literally `latest`.
-    #
-    # THE REGISTRY IS THE FORK'S, NOT UPSTREAM'S, AND IT HAS TO BE. The chart is built from
-    # the fork at `fe564fd`, and `dockerflow` — which is what serves the `/__heartbeat__`
-    # and `/__lbheartbeat__` probes this chart configures by default — was added AFTER
-    # upstream's `v0.1.0`. Against `ghcr.io/suitenumerique/calendars-backend:0.1.0` both
-    # probes 404 and liveness restarts the pod in a loop. Upstream's own `:main` tag does
-    # not help either: it was last built 2026-06-24 from `9bb5200`, before that commit.
-    #
-    # `0.1.1` is the fork's tag: `fe564fd` plus one CI fix, so these images declare
-    # `USER 1001:127` and run non-root the way Docs' do. Upstream's CI builds without
-    # DOCKER_USER, so its images run as root and the chart's own `runAsNonRoot: true`
-    # cannot start them — a CreateContainerConfigError with no logs. `runAsUser: 1001` on
-    # backend and frontend below states the user here, so an upstream image starts too.
-    # Note the missing `v`: `type=semver,pattern={{version}}` publishes `v0.1.1` as `0.1.1`.
-    #
-    # All of this collapses when the chart PR lands and upstream cuts a release carrying
-    # both: three tags move and the repositories go back to `suitenumerique`.
+    # All three images are the fork's: upstream's lack the probes' endpoints and a non-root
+    # user (README.md, Pins).
     image:
       repository: ghcr.io/wqrld/calendars-backend
       tag: "0.1.1"
 
-    # Routing is ours — surround.yaml. Both are already false at this chart version; stated
-    # anyway so a default flip upstream cannot quietly publish an unauthenticated path.
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
 
     backend:
-      # The chart emits a PodDisruptionBudget from INSIDE each Deployment template, and all
-      # three default to true. The surround owns that kind (tests/binding.py fails on any
-      # PDB from an upstream release), at every size.
       pdb: {enabled: false}
 
-      # Non-root whatever the image declares (the image comment above). 1001 is what Docs'
-      # images run as. Covers worker, Jobs and cronjob, which all read backend.securityContext.
-      # A map merge: the rest of the chart's securityContext stands. Read-only root as
-      # mijn-bureau runs it; /tmp is all they write (gunicorn, dramatiq's metrics).
+      # 1001, as Docs' images, so an upstream root image starts too (README.md, Pins).
       securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
-      # All three Job names are stable — `calendars-backend-migrate`, `-createsuperuser`,
-      # `calendars-caldav-initdb` carry no chart version — and a Job's `spec.template` is
-      # immutable, so a values change can collide with a Job the TTL has not collected yet
-      # and fail the upgrade with `field is immutable`. Hooks with `before-hook-creation`
-      # delete the previous Job first. The chart applies THIS key to createsuperuser too.
+      # Stable Job names, so hooks (apps/README.md, Conventions). Reaches createsuperuser too.
       migrateJobAnnotations:
         helm.sh/hook: pre-install,pre-upgrade
         helm.sh/hook-delete-policy: before-hook-creation
 
-      # `- secretRef:`, not the `- secret:` the chart's own values.yaml documents. That is
-      # not an EnvFromSource; the chart passes this list through `toYaml` verbatim and
-      # Kubernetes 1.34 rejects it with `unknown field "envFrom[0].secret"`. Docs' chart
-      # carries the same wrong example — this one is inherited from it.
-      #
-      # This list is shared with the WORKER deployment and with both backend Jobs, which is
-      # what puts the database and the CalDAV keys in front of the migrate and
-      # createsuperuser steps.
+      # Shared with the worker and both backend Jobs: they need the database and CalDAV keys.
       envFrom:
         - {secretRef: {name: calendars-postgres}}
         - {secretRef: {name: calendars-cache}}
         - {secretRef: {name: calendars-oidc}}
         - {secretRef: {name: calendars-django}}
         - {secretRef: {name: calendars-caldav}}
-        # Attached to the SHARED block for the same reason DJANGO_CONFIGURATION is below:
-        # invitation and RSVP mail is sent by the Dramatiq worker, and the worker does not
-        # read `backend.django.*`. Put mail there and every send fails in the one process
-        # that does the sending, silently.
+        # Here, not in `backend.django`: the worker sends the mail and reads only this block.
         - {secretRef: {name: calendars-smtp}}
 
-      # Shared with the worker deployment. DJANGO_CONFIGURATION MUST STAY HERE: worker.py
-      # does `os.environ.setdefault("DJANGO_CONFIGURATION", "Development")`, so moving this
-      # one line into `backend.django.envVars` (which the worker does not read) silently
-      # runs the worker under the Development configuration — DEBUG on, a different cache,
-      # and no error anywhere.
+      # DJANGO_CONFIGURATION must stay in this shared block, or the worker silently runs
+      # Development (README.md, Known gaps).
       envVars:
         DJANGO_SETTINGS_MODULE: calendars.settings
         DJANGO_CONFIGURATION: Production
@@ -142,61 +84,25 @@ spec:
         LOGIN_REDIRECT_URL_FAILURE: https://calendars.${BASE_DOMAIN}
         LOGOUT_REDIRECT_URL: https://calendars.${BASE_DOMAIN}
 
-        # Mail. EMAIL_BACKEND, EMAIL_HOST/PORT/HOST_USER/HOST_PASSWORD, EMAIL_USE_TLS/SSL
-        # and DEFAULT_FROM_EMAIL all arrive in `calendars-smtp` above and MUST NOT be set
-        # here as well — a container's `env` beats `envFrom` for the same name, so a line
-        # here would silently override the relay. That is what the upstream default of
-        # SMTP-against-localhost:25 would do.
-        #
-        # The invitation sender is the same address, read from the same key rather than
-        # written a second time: this app has two from-addresses and only one of them is a
-        # Django standard name. A map value renders as `valueFrom`, like the caldav pod's
-        # PG* below.
+        # The app's second from-address, read from the relay's rather than written twice.
         CALENDAR_INVITATION_FROM_EMAIL:
           {secretKeyRef: {name: calendars-smtp, key: DEFAULT_FROM_EMAIL}}
 
-        # Wiring between the two halves. `CALDAV_URL` is backend -> caldav;
-        # `CALDAV_CALLBACK_BASE_URL` (set on the caldav pod) is caldav -> backend. Both are
-        # cluster Services: no part of this conversation leaves the namespace.
+        # backend -> caldav; CALDAV_CALLBACK_BASE_URL below is the way back. Both in-cluster.
         CALDAV_URL: http://calendars-caldav:80
-        # WORKER_CONCURRENCY is in sizes/: worker.py passes `--processes 4 --threads 1`
-        # unless told otherwise, each process a full Django, so it is a size.
 
-      # THE FRONTEND'S OWN CONFIGURATION, read back by the SPA from
-      # `/api/v1.0/config/`. `backend.django.envVars` and not the shared block above on
-      # purpose: `calendars.backend.django.env` reaches the backend Deployment only, and
-      # nothing here is of any use to the worker or to the two Jobs.
+      # The SPA's runtime config (`/api/v1.0/config/`); reaches the backend Deployment only.
       django:
         envVars:
-          # THE GAUFRE. Enabled here and pointed at our own two files, both served from
-          # Calendars' own origin by `staticFiles` in surround.yaml (apps/README.md, The
-          # switcher). `LaGaufreV2` takes the widget script and the service list as URLs and
-          # both are runtime settings here; the defaults are
-          # `static.suite.anct.gouv.fr/widgets/lagaufre.js` and
-          # `lasuite.numerique.gouv.fr/api/services` — another country's services, fetched
-          # from another country's CDN, on every page load.
+          # THE GAUFRE: our two files, not the French government's (apps/README.md, The switcher).
           FRONTEND_LAGAUFRE_ENABLED: "true"
           FRONTEND_LAGAUFRE_WIDGET_PATH: https://calendars.${BASE_DOMAIN}/custom/gaufre.js
           FRONTEND_LAGAUFRE_WIDGET_API_URL: https://calendars.${BASE_DOMAIN}/custom/services.json
+          # No silent login: the app has no such setting (README.md, Known gaps).
 
-          # NO SILENT LOGIN HERE, deliberately: Calendars has no such setting. Drive's
-          # `FRONTEND_SILENT_LOGIN_ENABLED` has no counterpart in this application at any
-          # version, and writing one here would be a variable nothing reads. It needs three
-          # changes in the application itself — README.md, "Silent login".
-
-      # The chart's default is `manage.py createsuperuser --email … --password …`, which
-      # cannot work here for two independent reasons: Django's createsuperuser has no
-      # `--password` flag, and this model's USERNAME_FIELD is `admin_email`, not `email`.
-      # It also fails once the account exists.
-      #
-      # It runs `migrate` first because BOTH Jobs are hooks in the same phase and Helm
-      # orders same-weight hooks by name — `…-createsuperuser` sorts before `…-migrate`, so
-      # this one runs first on a fresh install. `migrate` is idempotent, so paying for it
-      # twice is cheaper than a job that only works in one order.
-      #
-      # `organization` is a non-null FK: every user belongs to exactly one org, keyed by
-      # email domain (`resolve_organization`), and it is created on first login for real
-      # users. This account never logs in through OIDC, so it needs its org made for it.
+      # Upstream's command cannot work (README.md, chart change 5). `migrate` first: Helm
+      # orders same-weight hooks by name, so this Job runs before `…-migrate` on a fresh
+      # install. The org is made here because this account never logs in through OIDC.
       createsuperuser:
         command:
           - /bin/sh
@@ -227,37 +133,16 @@ spec:
             print("superuser ready:", email, "in org", org.external_id)
             PY
 
-      # The worker is sized in sizes/. KNOWN GAP, no workaround available in values:
-      # worker.py asks dramatiq for `--worker-shutdown-timeout 600000` (10 minutes) and the
-      # chart exposes no `terminationGracePeriodSeconds`, so the pod's 30s default wins and
-      # a rolling update SIGKILLs a worker mid-task. One field upstream fixes it — README.md.
+      # The worker is sized in sizes/; its shutdown timeout is a known gap (README.md).
 
     frontend:
       image:
         repository: ghcr.io/wqrld/calendars-frontend
         tag: "0.1.1"
       pdb: {enabled: false}
-      # TEMPORARY, and the same class of bug Collabora taught us: `/usr/bin/caddy` carries
-      # the FILE CAPABILITY `cap_net_bind_service=ep` (the official caddy image sets it so
-      # the server can bind :80). A file capability only grants what is in the container's
-      # BOUNDING set, and with `drop: [ALL]` plus `allowPrivilegeEscalation: false`
-      # (no_new_privs) the kernel refuses the exec outright:
-      #
-      #     exec /usr/bin/caddy: operation not permitted
-      #
-      # — a CrashLoopBackOff whose only log line is that sentence. Measured: dropping ALL
-      # under no-new-privileges reproduces it, and adding this one capability back fixes it.
-      #
-      # The capability is never USED — this server listens on :8080. It has to be in the
-      # bounding set only so the binary can be executed at all. The real fix is upstream and
-      # is `setcap -r /usr/bin/caddy` in the frontend's production stage, which is verified
-      # to serve with ALL capabilities dropped and nothing added; Docs avoids the problem
-      # entirely by using `nginx-unprivileged`, which carries no file caps. Delete the
-      # capability when the image stops shipping it. See README.md.
-      #
-      # runAsUser: as the backend's. Even with `admin off` and `auto_https off` Caddy
-      # writes its XDG dirs (autosave.json, instance.uuid, storage locks), so those two are
-      # emptyDirs under the read-only root.
+      # NET_BIND_SERVICE only so the image's file-capability caddy can exec at all; it listens
+      # on :8080. Remove when the image drops it (README.md, Gotchas). Caddy writes its XDG
+      # dirs even with admin and auto_https off, hence the two emptyDirs.
       securityContext:
         runAsUser: 1001
         readOnlyRootFilesystem: true
@@ -266,10 +151,7 @@ spec:
       persistence:
         config: {type: emptyDir, mountPath: /config/caddy}
         data: {type: emptyDir, mountPath: /data/caddy}
-      # No envVars at all, deliberately. The SPA's API origin is compiled in at build time
-      # (`NEXT_PUBLIC_API_ORIGIN`) and falls back to the browser's own origin when it was
-      # built empty, which is what the published image is. Same host for page and API, so
-      # there is nothing to configure.
+      # No envVars: the SPA was built with an empty API origin, so it uses the page's own.
 
     caldav:
       image:
@@ -277,9 +159,8 @@ spec:
         tag: "0.1.1"
       pdb: {enabled: false}
 
-      # As www-data rather than root: the chart keeps root for NET_BIND_SERVICE on :80, and
-      # the postRenderers sysctl lets a non-root process bind :80 instead. The php:apache
-      # image already gives www-data its run, lock and log dirs. Also the initdb Job's.
+      # www-data, not the chart's root: the postRenderers sysctl lets it bind :80. Also the
+      # initdb Job's.
       securityContext:
         runAsNonRoot: true
         runAsUser: 33
@@ -296,7 +177,6 @@ spec:
         - {name: apache-lock, mountPath: /run/lock/apache2}
         - {name: tmp, mountPath: /tmp}
 
-      # Same immutability reason as the two backend Jobs, on the key that reaches this one.
       initdbJobAnnotations:
         helm.sh/hook: pre-install,pre-upgrade
         helm.sh/hook-delete-policy: before-hook-creation
@@ -306,24 +186,16 @@ spec:
         - {secretRef: {name: calendars-caldav}}
 
       envVars:
-        # PG*, not DB_*. `server.php` and `init-database.sh` read libpq's own variable
-        # names; the backend reads the `django` profile's DB_*. Same role, same database,
-        # two spellings — so these five reach into the Secret the profile already wrote
-        # rather than adding a `libpq` profile to platform-lib for a single consumer.
-        # (platform-lib's rule: add a profile when a THIRD app needs the spelling.)
-        # A map value here renders as `valueFrom`, so no credential passes through Helm.
+        # SabreDAV reads libpq's PG* names: the same Secret re-keyed, rather than a profile
+        # for one consumer.
         PGHOST:     {secretKeyRef: {name: calendars-postgres, key: DB_HOST}}
         PGPORT:     {secretKeyRef: {name: calendars-postgres, key: DB_PORT}}
         PGDATABASE: {secretKeyRef: {name: calendars-postgres, key: DB_NAME}}
         PGUSER:     {secretKeyRef: {name: calendars-postgres, key: DB_USER}}
         PGPASSWORD: {secretKeyRef: {name: calendars-postgres, key: DB_PASSWORD}}
 
-        # One database, two schemas. `sabre` is created by the initdb Job as the owning
-        # role; Django keeps `public`. Both pods must agree, and they read the same key.
+        # Django keeps `public`; the initdb Job creates `sabre`.
         CALDAV_DB_SCHEMA: sabre
-        # The prefix Django's proxy strips before forwarding; SabreDAV builds its own hrefs
-        # from it, so a mismatch produces a working PROPFIND and unreachable calendars.
+        # Must equal what Django's proxy strips, or PROPFIND works and calendars are unreachable.
         CALDAV_BASE_URI: /caldav/
-        # caldav -> backend, for scheduling callbacks. The cluster Service, not the public
-        # name: this direction never leaves the namespace.
         CALDAV_CALLBACK_BASE_URL: http://calendars-backend:80

@@ -21,6 +21,94 @@ Kustomization.
 no policy controller. The egress graph is written down so it starts working the day a
 policy-capable CNI arrives; do not cite it as segmentation.
 
+## Conventions every release follows
+
+Each of these is said here once. A release file states the value and, at most, points here
+(`apps/README.md, Conventions`); its own comments are for what is particular to that app.
+
+**`release.yaml`, the upstream chart**
+
+- **`dependsOn: [{name: <app>-deps}]`.** Every Secret the release reads, through `envFrom`
+  or a `postRenderers` patch, is created by the app's deps release.
+- **`disableWaitForJobs: true`** on install and upgrade. The charts' migrate and
+  createsuperuser Jobs carry `ttlSecondsAfterFinished`, so waiting on them races garbage
+  collection.
+- **`upgrade.remediation.retries: 0`** on every release with a schema. A Helm rollback
+  reverts the code and leaves the database migrated: fail forward, loudly, rather than run
+  old code against a new schema. `policy/config/pins.rego` requires it of any release
+  carrying a migrate Job. LiveKit and the platform layer, which migrate nothing, retry.
+- **`valuesFrom` the `<app>-sizes` ConfigMap**, key `${SIZE}` (`platform-${SIZE}` in the
+  surround). `spec.values` beats `valuesFrom`, so no sizing key may live in `release.yaml`
+  or `surround.yaml` (Sizing, below).
+- **Every image tag stated.** The La Suite charts declare `appVersion: latest`, which pins
+  nothing; each tag moves only in a reviewed commit (updatecli).
+- **Every Ingress the chart has, `enabled: false`**, even where that is already the default.
+  Routing is the surround's HTTPRoutes on the shared Gateway; stating it means a default
+  flip upstream cannot quietly publish a second, unauthenticated path.
+- **`pdb: {enabled: false}` on every component.** The surround owns disruption budgets at
+  every size; `tests/binding.py` fails a PDB from an upstream release.
+- **`serviceMedia` pointed at Garage** (Docs, Drive, Meet). Unused, since our media proxy
+  talks to the bucket itself, but the chart creates the ExternalName Service unconditionally.
+- **Read-only root filesystem**, as mijn-bureau runs these images, with an `emptyDir` for
+  each path the process writes (`/tmp`, mostly). A `securityContext` map in values is merged
+  with the chart's own, so the rest of the chart's context stands; in the Django charts the
+  backend's reaches the worker, the Jobs and the CronJobs too.
+- **`envFrom` entries are `secretRef`.** The La Suite charts' own values.yaml documents
+  `- secret: {name: …}`, which is not an `EnvFromSource`: the list goes through `toYaml`
+  verbatim and Kubernetes 1.34 rejects it (`unknown field "envFrom[0].secret"`).
+- **Mail settings are never in `envVars`.** Backend, host, port, TLS flags and the
+  from-address arrive in `<app>-smtp` (platform-deps), and a container's `env` beats
+  `envFrom` for the same name: a leftover line would silently override the relay. Only
+  branding (`DJANGO_EMAIL_BRAND_NAME`) is set in the release.
+- **`createsuperuser` is replaced** by an idempotent `manage.py shell` script. Upstream's
+  command fails once the account exists, and the Job is not a Helm hook, so that is a failed
+  Job on every reconcile; each release says what else is wrong with it for that app.
+- **Jobs with a stable name are hooks** (`helm.sh/hook` with `before-hook-creation`). A
+  Job's `spec.template` is immutable, and a name with no chart version in it collides with
+  the previous Job until its TTL collects it: `field is immutable` on upgrade.
+- **Celery workers: no readiness probe, liveness every 5 minutes** (Docs, Messages). Each
+  probe is a full Django import, 1-1.5 s; at the chart's 10 s period that was 200-310m of
+  CPU per worker. No Service selects a worker, so readiness means nothing. The chart has
+  no value for the liveness period, so a `postRenderers` patch sets `periodSeconds: 300`.
+- **A chart with no `envFrom`** (Drive, Meet) gets one from a `postRenderers` patch rather
+  than forty `secretKeyRef`s. **The name selector is the security boundary:** kustomize
+  matches `name` as a full-string regex, so `<app>-backend.*` selects the backend, its Jobs
+  and its CronJobs and not `<app>-frontend`, which renders for the browser and must never
+  hold the database password. A CronJob is a second target because its pod spec sits a
+  level deeper. `tests/check-secrets.py` asserts both after a chart bump.
+
+**`deps.yaml`, platform-deps**
+
+- **`cache: {uses: [cache, broker]}`** for a Celery app: the cache evicts, the broker must
+  not, or queued tasks are silently dropped (`platform/valkey/README.md`).
+- **`objectstore.mode: "${S3_MODE}"`** is the organisation's (`objectStore.mode`): `garage`
+  provisions a bucket and a key, `external` reshapes the organisation's credential. Quoted
+  in a flow map, where `${` is not valid YAML.
+- **`smtp: {enabled: true}`** only reshapes the relay account into the names the app reads;
+  the account itself is applied by hand into office-data once (`docs/install.md`).
+- **`generated` is an ordered list that can never gain an entry.** `dataFrom` order is part
+  of the spec, and `refreshInterval: "0"` means written once, not re-drawn on a spec change:
+  an entry added later never appears while ESO reports `secret synced`. Everything it will
+  ever hold is there before the first install (`charts/platform-deps/values.yaml`).
+
+**`surround.yaml`, platform-app**
+
+- **Routes are grouped by backend, not by path.** A BackendTrafficPolicy attaches to an
+  HTTPRoute, and an upload path wants a body limit that a websocket path must not have.
+- **`/static` on the backend route** is whitenoise serving Django's admin CSS. It is not in
+  upstream's Ingress set, which is why `/admin` renders unstyled there.
+- **`staticFiles: {enabled: true}`** serves the switcher's two files from the app's own
+  origin (The switcher, below).
+- **`external: 443` in the egress list** is OIDC over the public issuer, unless the file
+  says otherwise.
+
+**`kustomization.yaml`**
+
+- **The `<app>-sizes` ConfigMap**: one key per size file, `disableNameSuffixHash` so the
+  HelmReleases can name it, and `reconcile.fluxcd.io/watch: Enabled` so a size change
+  upgrades now rather than at the next 30-minute interval. Every file under `sizes/` is
+  ConfigMap data verbatim: even a comment there changes what the cluster applies.
+
 ## Adding an application
 
 A directory here, and one entry in `charts/control-plane/apps.yaml` — its default, hosts,

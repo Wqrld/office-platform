@@ -8,7 +8,6 @@ spec:
   interval: 30m
   dependsOn: [{name: messages}]
   chartRef: {kind: HelmChart, name: platform-app, namespace: flux-system}
-  # The disruption budgets come with the size (sizes/platform-large.yaml; none below).
   valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "platform-${SIZE}"}]
   values:
     app: messages
@@ -39,10 +38,8 @@ spec:
         spec:
           parentRefs: [{name: office, namespace: office-system, sectionName: smtp}]
           rules: [{backendRefs: [{name: messages-mta-in, port: 25}]}]
-      # Envoy terminates the TCP connection, so without this the MTA sees Envoy as every
-      # sender. The Gateway's Service keeps the client address (Envoy Gateway's default
-      # externalTrafficPolicy is Local), and this hands it on; the MTA expects the header
-      # (release.yaml).
+      # Hands the sender's address on: Envoy terminates TCP, and its Service keeps the client
+      # address (externalTrafficPolicy Local by default). The MTA expects it (release.yaml).
       - apiVersion: gateway.envoyproxy.io/v1alpha1
         kind: BackendTrafficPolicy
         metadata: {name: messages-smtp, namespace: office-messages}

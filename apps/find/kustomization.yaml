@@ -6,7 +6,6 @@ resources:
   - release.yaml
   - surround.yaml
 
-# The size files, one ConfigMap key each; each HelmRelease picks its key with `${SIZE}`.
 configMapGenerator:
   - name: find-sizes
     namespace: office-find
@@ -19,4 +18,4 @@ configMapGenerator:
       - platform-large=sizes/platform-large.yaml
     options:
       disableNameSuffixHash: true
-      labels: {reconcile.fluxcd.io/watch: Enabled}   # a size change upgrades now, not in 30m
+      labels: {reconcile.fluxcd.io/watch: Enabled}

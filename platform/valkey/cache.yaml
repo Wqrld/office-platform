@@ -1,8 +1,4 @@
-# Two instances, not one. Eviction policy and persistence are per-instance settings; a
-# logical DB number does not separate them. An evicting broker silently drops queued
-# Celery tasks, which presents as "some uploads never get processed" (history/design/06-datastores.md).
-#
-# This one is the Django cache: evicting, no persistence, losing it is harmless.
+# The Django cache: evicting, no persistence, harmless to lose. Why two instances: README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: valkey-cache, namespace: office-data}
@@ -13,8 +9,7 @@ spec:
       chart: valkey
       version: "0.12.0"
       sourceRef: {kind: HelmRepository, name: valkey, namespace: flux-system}
-  # `auth.aclUsers`: one per app with a password here, rendered by the tenants release
-  # from charts/control-plane/apps.yaml (charts/platform-tenants/templates/valkey.yaml).
+  # `auth.aclUsers`, one per app, from the tenants release (README.md, Adding an application).
   valuesFrom:
     - {kind: ConfigMap, name: valkey-cache-acl-values}
   install: {disableWaitForJobs: true}

@@ -24,7 +24,7 @@ spec:
     # One bucket for the three storages Messages has: AWS_S3_* here, and the imports and
     # blob-offload storages pointed at the same keys in release.yaml. Private: uploads go
     # through the backend, so nothing presigns an upload and there is no publicEndpoint.
-    objectstore: {enabled: true, mode: "${S3_MODE}"}   # quoted: `${` is not valid inside a flow map
+    objectstore: {enabled: true, mode: "${S3_MODE}"}
 
     # OPENSEARCH_URL with the credential in it. Messages verifies the server's certificate
     # (Find does not), so the cluster's private CA comes along in a Secret of its own.
@@ -38,9 +38,8 @@ spec:
     # go this way: MTA_OUT_MODE=direct delivers to recipients' MX itself (release.yaml).
     smtp: {enabled: true}
 
-    # Ordered lists that can never gain an entry (`refreshInterval: "0"`, see Calendars'
-    # deps.yaml). Three Secrets, so each workload reads only what it needs: the MTA gets
-    # the MDA secret and not Django's key, rspamd gets its controller password alone.
+    # Three Secrets, so each workload reads only its own: the MTA gets the MDA secret and
+    # not Django's key, rspamd its controller password alone.
     generated:
       messages-django:
         - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}

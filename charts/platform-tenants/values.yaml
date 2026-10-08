@@ -1,39 +1,18 @@
-# One entry per application, in the spelling charts/control-plane/apps.yaml documents: that
-# table is the registry, and the control plane hands this chart every app's provisioning
-# fields as TENANTS_JSON (platform/tenants.yaml, `apps: ${TENANTS_JSON}`). Helm merges them
-# over the one entry here, Keycloak's own database — no app, so in no app table.
-# Provisioned whether an app is enabled or not, so a disabled app comes back with its data
-# (adr/0107). The shapes, in one line each:
-#
-#   postgres: {extensions: [...]}  a role and a database on the shared cluster
-#   cache: [cache, broker]         one generated password per Valkey instance, and an ACL
-#                                  user there with `valkeyAcl` below (templates/valkey.yaml)
-#   acl: {<instance>: "+cmd ..."}  added to that instance's shared line for this app
-#   oidc: {...}                    a client in the realm, its secret generated here and read
-#                                  back by the app (templates/keycloak.yaml); `shape`
-#                                  lasuite (default), login or resource-server
-#   search: [pattern, ...]         an OpenSearch user whose role grants exactly these index
-#                                  patterns (templates/opensearch.yaml) — the tenant boundary
-#   bucket: true                   may create a bucket and a key on the platform's Garage
+# What the platform provisions per application. values.schema.json describes each key; an
+# entry's shape is charts/control-plane/apps.yaml's header, which hands every app over as
+# TENANTS_JSON (platform/tenants.yaml). Keycloak's database is the one entry of its own.
 apps:
   keycloak:
     postgres: {}
 
-# Each Valkey instance's ACL line for every app that has a password there, before the
-# app's own `acl` extras. Rendered as `valkey-<instance>-acl-values`, the ConfigMap the
-# instance's HelmRelease reads its `auth.aclUsers` from (platform/valkey/).
+# Each instance's ACL line, before an app's `acl` extras. No ambient access: these ACLs are
+# the only isolation between apps (adr/0103). `+flushdb` for Django's `cache.clear()`.
 valkeyAcl:
-  # No ambient access: with no NetworkPolicy enforcement on this cluster (adr/0103), these
-  # ACLs are the only isolation between applications.
   default: "off -@all"
-  # `+flushdb` on the cache only: Django's `cache.clear()` calls it and fails with
-  # `ConnectionInterrupted` without it. Queued work lives on the broker, which never gets it.
   cache: "~* &* +@all -@dangerous +flushdb"
   broker: "~* &* +@all -@dangerous"
 
-# Valkey passwords drawn before generation was per app live in `valkey-<instance>-users`
-# next to `default`. Live, and a re-draw logs every user out, so they stay there.
-legacyValkeyUsers: [docs]
+legacyValkeyUsers: [docs]        # drawn before per-app generation; a re-draw logs users out
 
 domain: ""                       # ${BASE_DOMAIN}; the clients' URLs are https://<app>.<domain>
 objectStore: garage              # ${S3_MODE}; grants only exist when the platform runs the store
@@ -43,19 +22,14 @@ postgresCluster: office-pg
 garageCluster: office-s3
 passwordGenerator: office-password
 
-# The realm reconcile Job (templates/keycloak.yaml). keycloak-config-cli is built against
-# one Keycloak minor; the newest release (6.5.1) is built for 26.5 and runs against the
-# 26.7 server this platform pins (verified against a 26.7.3 container). Move it with
-# Keycloak (platform/identity/vendor/keycloak-operator).
+# The realm reconcile Job. keycloak-config-cli moves with Keycloak (schema).
 keycloak:
   url: http://keycloak-service.office-identity.svc:8080
   adminSecret: keycloak-bootstrap-admin
   smtpSecret: smtp-credentials
   image: docker.io/adorsys/keycloak-config-cli:6.5.1-26.5.5
 
-# The OpenSearch security reconcile Job (templates/opensearch.yaml). The image is the
-# server's own, for securityadmin.sh and hash.sh at the server's version; keep it at the
-# tag platform/opensearch/cluster.yaml runs.
+# The OpenSearch security reconcile Job. The image stays at the server's tag (schema).
 opensearch:
   host: opensearch-cluster-master.office-data.svc
   adminTlsSecret: opensearch-admin-tls

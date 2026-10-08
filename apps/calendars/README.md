@@ -33,8 +33,41 @@ the same tag that publishes the images — and one pin moves both.
 ## Pins
 
 The chart declares `appVersion: latest`, so the three image tags are stated in `release.yaml`,
-without a `v` (`v0.1.1` publishes `…-backend:0.1.1`), and updatecli tracks the FORK's tags:
-upstream's newest, `v0.1.0`, predates the health endpoints the chart's probes need.
+without a `v` (`type=semver,pattern={{version}}` publishes `v0.1.1` as `…-backend:0.1.1`),
+and updatecli tracks the FORK's tags.
+
+**The registry is the fork's, and has to be.** The chart is built from the fork at `fe564fd`,
+and `dockerflow`, which serves the `/__heartbeat__` and `/__lbheartbeat__` probes the chart
+configures by default, was added after upstream's `v0.1.0`. Against
+`ghcr.io/suitenumerique/calendars-backend:0.1.0` both probes 404 and liveness restarts the
+pod in a loop. Upstream's `:main` does not help: it was last built 2026-06-24 from
+`9bb5200`, before that commit.
+
+**`0.1.1` is `fe564fd` plus one CI fix**, so the images declare `USER 1001:127` and run
+non-root as Docs' do. Upstream's CI builds without `DOCKER_USER`, so its images run as root
+and the chart's own `runAsNonRoot: true` cannot start them: a `CreateContainerConfigError`
+with no logs (chart change 6). `runAsUser: 1001` on backend and frontend states the user in
+values, so an upstream image starts too.
+
+All of this collapses when the chart PR lands and upstream cuts a release carrying both:
+three tags move and the repositories go back to `suitenumerique`.
+
+## Gotchas
+
+- **The frontend keeps `NET_BIND_SERVICE` in its bounding set, temporarily.**
+  `/usr/bin/caddy` carries the file capability `cap_net_bind_service=ep`, and with
+  `drop: [ALL]` under no_new_privs the kernel refuses the exec: `exec /usr/bin/caddy:
+  operation not permitted`, a CrashLoopBackOff with that one log line. Measured: dropping
+  ALL reproduces it, adding this one capability back fixes it. It is never used (the server
+  listens on :8080); Docs avoids the problem with `nginx-unprivileged`, which has no file
+  caps. Delete it when the image stops shipping the capability (chart change 8).
+- **The createsuperuser Job runs `migrate` first.** Both Jobs are hooks in the same phase
+  and Helm orders same-weight hooks by name, so `…-createsuperuser` runs before
+  `…-migrate` on a fresh install; `migrate` is idempotent. The account's `organization` (a
+  non-null FK, keyed by email domain and created on first OIDC login for real users) is
+  made by the Job, because this account never logs in through OIDC.
+- **Invitation and RSVP mail is sent by the Dramatiq worker**, which reads only the shared
+  `backend.envFrom`/`envVars`, not `backend.django.*`; `calendars-smtp` is attached there.
 
 ## CalDAV is never routed from outside
 
@@ -79,8 +112,9 @@ table fills up, not after.
   this; it is the fourth reason to fix it. Narrowing to `~calendar*` per app is one line per
   user in `platform/valkey/*.yaml`.
 - **Silent login is off, and cannot be turned on from values.** An anonymous visitor with a
-  live Keycloak session still sees the home page and a login button. It needs three changes in
-  the application itself (`release.yaml`, the OIDC block).
+  live Keycloak session still sees the home page and a login button. Drive's
+  `FRONTEND_SILENT_LOGIN_ENABLED` has no counterpart here at any version; it needs three
+  changes in the application itself.
 - **Sizing is unmeasured.** The numbers in `release.yaml` and the overlays are starting
   points, not `measure.py` output. The three install Jobs inherit `backend.resources` and run
   alongside the workloads, so the install **peak** is roughly one extra backend over the

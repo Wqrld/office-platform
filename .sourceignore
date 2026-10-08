@@ -1,28 +1,19 @@
-# Kept out of the platform source as Flux fetches it: what runs in CI, or is run by hand
-# from a checkout. The cluster reads infra/, platform/ and apps/, minus the
-# operator scripts and test fixtures listed at the end.
+# Kept out of the platform source as Flux fetches it: CI, checks, docs and what is run
+# by hand from a checkout. The cluster reads infra/, platform/ and apps/.
 /.github/
 /updatecli/
-# The checks themselves, and the rules they run. Rendering, diffing, the binding check and
-# the size-profile assertions all read this repo from outside it; nothing in the cluster
-# reads them back.
 /tests/
 /policy/
 /docs/
 /examples/
-# The size-profile measuring tool, the DNS check, and the pinned chart cache. `.charts/`
-# is hundreds of megabytes of upstream Helm charts that must never travel in the artifact.
 /measure.py
 /dns.py
 /.charts/
 /built/
-# Run by hand from a checkout, or read by nothing.
 **/README.md
 /apps/drive/e2e.py
 /apps/drive/sample.odt
 /platform/identity/vendor/keycloak-operator/update.sh
-
-# Run by hand from a checkout.
 /install.sh
 /preflight.py
 /cluster.yaml

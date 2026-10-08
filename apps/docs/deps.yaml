@@ -1,4 +1,4 @@
-# Docs' prerequisites.
+# Docs' prerequisites. Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: docs-deps, namespace: office-docs}
@@ -12,15 +12,11 @@ spec:
 
     postgres: {enabled: true}
 
-    # Two instances: the cache evicts and does not persist, the broker must not evict —
-    # an evicting broker silently drops queued Celery tasks.
     cache: {enabled: true, uses: [cache, broker]}
 
-    # The legacy bucket was called `docs` and the restored database refers to its objects
-    # by exactly that name, so the alias is not free to change.
-    # `mode` is the organisation's (control-plane `objectStore.mode`): garage provisions a
-    # bucket and a key here; external reshapes their S3 credential instead.
-    objectstore: {enabled: true, mode: "${S3_MODE}", quota: {maxSize: 20Gi}}   # quoted: `${` is not valid inside a flow map
+    # The restored database names its objects in the legacy bucket `docs`, so the alias is
+    # not free to change.
+    objectstore: {enabled: true, mode: "${S3_MODE}", quota: {maxSize: 20Gi}}
 
     # Login matches by sub, then email, so the restored database's users keep their accounts.
     # storeRefreshToken: search forwards the user's access token to Find, and `search` is
@@ -28,14 +24,11 @@ spec:
     # after login the token introspects as inactive and search falls back to titles.
     oidc: {enabled: true, storeRefreshToken: true}
 
-    # The relay account itself is applied by hand into office-data once and is not in git —
-    # docs/install.md. This only reshapes it into the DJANGO_EMAIL_* names Docs reads.
     smtp: {enabled: true}
 
-    # A LIST, not a map: `dataFrom` is ordered and its order is part of the spec, so a
-    # re-sort would make ESO draw new values — logging every user out and breaking
-    # collaborative editing until both the backend and the y-provider restart.
-    # These draw names match the objects already in the cluster.
+    # Re-sorting would make ESO draw new values: every user logged out, and collaborative
+    # editing broken until the backend and the y-provider restart. The draw names match
+    # the live objects.
     generated:
       docs-django:
         - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}

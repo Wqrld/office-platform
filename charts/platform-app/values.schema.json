@@ -24,6 +24,7 @@
     },
 
     "routes": {
+      "description": "One entry per HTTPRoute, grouped by BACKEND rather than one per path: the Envoy traffic policies attach to an HTTPRoute, and an upload path wants a body limit a websocket path must not have.",
       "type": "array",
       "items": {
         "type": "object",
@@ -38,7 +39,7 @@
             "description": "Short form: <host>.<baseDomain>, defaulting to the app. `hostname`, if set, wins.",
             "type": "string"
           },
-          "hostname": {"type": "string"},
+          "hostname": {"description": "A full hostname, for a host outside <baseDomain>.", "type": "string"},
           "backend": {
             "type": "object",
             "additionalProperties": false,
@@ -58,8 +59,8 @@
             "description": "Envoy holds the whole request and rejects anything larger — nginx's client_max_body_size.",
             "type": "string"
           },
-          "timeout": {"type": "string"},
-          "websocket": {"type": "boolean"}
+          "timeout": {"description": "Request timeout: slow is not hung.", "type": "string"},
+          "websocket": {"description": "No buffering, no request timeout, the long `websocketIdleTimeout`.", "type": "boolean"}
         },
         "allOf": [
           {
@@ -76,6 +77,7 @@
     "websocketIdleTimeout": {"type": "string"},
 
     "pdb": {
+      "description": "Set by the size profile together with the release's replicas: the surround cannot read another release's replica count, so \"a PDB only when replicas > 1\" is not a decision it can make.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -97,6 +99,7 @@
     },
 
     "networkPolicy": {
+      "description": "NOT ENFORCED on this cluster: Flannel ships no policy controller (adr/0103). Emitted because the egress graph is real knowledge and costs nothing to express; never cite it as segmentation.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -148,6 +151,7 @@
     },
 
     "mediaProxy": {
+      "description": "The backend for the `/media` route, for an application that authorises attachments by subrequest, as La Suite's do; adr/0109 says why this pod belongs to the surround.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -157,7 +161,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "service": {"type": "string"},
+            "service": {"description": "Resolved inside the release namespace.", "type": "string"},
             "port": {"type": "integer", "minimum": 1, "maximum": 65535},
             "path": {
               "description": "Must end in `/`: nginx joins it with nothing, and the view reads the real URL from X-Original-URL.",
@@ -172,11 +176,12 @@
           "properties": {
             "host": {"type": "string"},
             "port": {"type": "integer", "minimum": 1, "maximum": 65535},
-            "bucket": {"type": "string"}
+            "bucket": {"description": "No default: silently proxying the wrong bucket is worse than failing.", "type": "string"}
           }
         },
-        "maxBodySize": {"type": "string"},
+        "maxBodySize": {"description": "Caps the auth subrequest's own body, not the download. Uploads do not pass through here.", "type": "string"},
         "locations": {
+          "description": "One nginx prefix location per entry; the longest prefix wins regardless of order. `headers` are added on top of the Content-Security-Policy every location gets.",
           "type": "array",
           "items": {
             "type": "object",
@@ -195,14 +200,15 @@
     },
 
     "staticFiles": {
+      "description": "A few files served from the application's own origin, for frontends that take a URL rather than content: the switcher's scripts (apps/README.md, The switcher). Enabling it also adds the `<app>-static` route at `path`. The files come from a kustomize configMapGenerator, so they stay real, lintable files.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "enabled": {"type": "boolean"},
         "replicas": {"type": "integer", "minimum": 1},
         "path": {"type": "string", "pattern": "^/"},
-        "filesConfigMap": {"type": "string"},
-        "servicesConfigMap": {"type": "string"},
+        "filesConfigMap": {"description": "ConfigMap whose keys are the filenames to serve; default <app>-gaufre.", "type": "string"},
+        "servicesConfigMap": {"description": "The switcher's service list (apps/services.yaml), served in the same directory; \"\" for none.", "type": "string"},
         "maxAge": {"type": "integer", "minimum": 0},
         "image": {"type": "string"},
         "priorityClassName": {"type": "string"},

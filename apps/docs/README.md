@@ -19,6 +19,29 @@ spec, where the field is `secretRef`. Kubernetes 1.34 rejects the documented for
 `appVersion` is `latest`, so `image.tag`, `frontend.image.tag` and `yProvider.image.tag`
 are all pinned explicitly.
 
+## Search needs a 20-minute token, with Find in its audience
+
+Both are on Docs' client in `charts/control-plane/apps.yaml`.
+
+- **`accessTokenLifespan: 1200`, and it must exceed 900.** At login mozilla-django-oidc
+  sets `oidc_id_token_expiration = now + OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS`, whose default
+  is 900 s and which Docs does not expose, so the refresh middleware does nothing for the
+  first 15 minutes. At the realm's 300 s the token dies at minute 5 and search silently
+  falls back to titles until minute 15. After the first refresh lasuite tracks the real
+  `expires_in`, so only that first window is wrong.
+- **`audiences: [find]`.** Without `find` in the token's `aud`, Keycloak refuses to
+  introspect a Docs token for Find and answers `active: false`: Find 400s, and Docs
+  swallows that into the title-only fallback. Verified: a fresh token introspects as
+  inactive until the mapper exists.
+
+## The search-flags Job
+
+`backend.job` is the chart's generic job slot (unused upstream, `command: []`), so no
+`extraObjects` is needed for it. Without `flag_find_full_text_search` the whole feature is
+dark: `_get_search_type()` returns TITLE and Docs never calls Find. The `waffle_flag` CLI
+is unreliable, so the Job uses the ORM; it is a hook because its name never changes
+(`apps/README.md`, Conventions).
+
 ## Celery OOMKills itself on the chart defaults
 
 The default `celery` args carry no `--concurrency`, so it preforks one process per CPU —

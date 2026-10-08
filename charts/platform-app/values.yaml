@@ -1,5 +1,6 @@
-# The application this surround wraps. It creates nothing that runs — it creates everything
-# around what the upstream chart's release created (history/design/04-platform-charts.md).
+# The surround: everything around what the upstream chart's release created, nothing that
+# is the application itself (history/design/04-platform-charts.md). values.schema.json
+# describes each key.
 app: ""
 tenant: office
 baseDomain: ""                     # supplied as ${BASE_DOMAIN} by the app file
@@ -9,40 +10,21 @@ gateway:
   namespace: office-system
   sectionName: https
 
-# One entry per HTTPRoute. Routes are grouped by BACKEND rather than one-per-path because
-# the Envoy traffic policies attach to an HTTPRoute: an upload path wants a body limit and
-# a websocket path must not have one, so they cannot share an object.
-#
-#   - name: api                    -> HTTPRoute <app>-api  (omit `name` for the bare <app>)
-#     host: docs                   -> docs.<baseDomain>; default: the app. Or `hostname:` for a full name
-#     backend: {name: docs-backend, port: 80}
-#     paths: [/api, /admin]
-#     requestBuffer: 100Mi         -> BackendTrafficPolicy: reject bodies above this
-#     timeout: 300s                -> request timeout; slow is not hung
-#     websocket: true              -> no buffering, no request timeout, long idle timeout
-#     deny: [/admin, /metrics]     -> 403 at the edge, ahead of `paths`, no backendRef
+# One HTTPRoute per entry, grouped by backend; each field is in the schema. For example:
+#   - {name: api, backend: {name: docs-backend, port: 80}, paths: [/api], requestBuffer: 100Mi}
 routes: []
 
 websocketIdleTimeout: 24h
 
 pdb:
-  # The surround cannot read the upstream release's replica count — it is in another
-  # release's values — so "PDB only when replicas > 1" is not a decision it can make. The
-  # size profile sets replicas and this together. Always maxUnavailable, never minAvailable:
-  # a minAvailable PDB on a single replica blocks every drain.
-  enabled: false
-  maxUnavailable: 1
+  enabled: false                   # set by the size profile, with the replicas
+  maxUnavailable: 1                # never minAvailable: on one replica it blocks every drain
   components: {}                   # name -> selector labels
 
 networkPolicy:
-  # NOT ENFORCED on this cluster: Flannel ships no policy controller (adr/0103). Emitted
-  # because the egress graph is real knowledge and expressing it costs nothing — but do not
-  # claim network segmentation anywhere on the strength of it.
-  enabled: true
-  # Each entry is one of:
-  #   {datastore: postgres|cache|objectstore}   resolved from `datastores` below
-  #   {app: collabora, port: 9980}              another app's namespace
-  #   {external: true, port: 443}               off-cluster
+  enabled: true                    # NOT ENFORCED on this cluster (adr/0103)
+  # {datastore: postgres|cache|objectstore|opensearch}, {identity: true},
+  # {app: collabora, port: 9980} or {external: true, port: 443}
   egress: []
   datastores:
     postgres:    {namespace: office-data, port: 5432}
@@ -52,40 +34,24 @@ networkPolicy:
   identity:      {namespace: office-identity, port: 8080}
   namespaceLabel: kubernetes.io/metadata.name
 
-# The backend for the `/media` route. Off unless the application authorises attachments by
-# subrequest, which La Suite's do — adr/0109 explains why this one running pod belongs to
-# the surround rather than to the application's own release.
+# The `/media` route's backend (adr/0109).
 mediaProxy:
   enabled: false
   replicas: 1
-  # `service` is resolved inside the release namespace; `path` must end in `/`, because
-  # nginx joins it with nothing — the view reads the real URL from X-Original-URL.
-  auth: {service: "", port: 80, path: ""}
+  auth: {service: "", port: 80, path: ""}   # `path` must end in `/`
   objectstore:
     host: office-s3.office-data.svc.cluster.local
     port: 3900
     bucket: ""                     # no default: silently proxying the wrong bucket is worse
-  # Caps the auth subrequest's own body, not the download. Uploads do not pass through here.
-  maxBodySize: 10m
-  # One nginx prefix location per entry. Longest prefix wins regardless of order, so
-  # /media/preview/ and /media/ can both be listed. `headers` are added on top of the
-  # Content-Security-Policy every location gets.
-  #   - {path: /media/, headers: {Content-Disposition: attachment}}
-  locations: []
+  maxBodySize: 10m                 # the auth subrequest's body, not the download
+  locations: []                    # e.g. {path: /media/, headers: {Content-Disposition: attachment}}
   image: docker.io/nginxinc/nginx-unprivileged:1.29-alpine
   priorityClassName: office-app
   resources:
     requests: {cpu: 10m, memory: 32Mi}
     limits: {memory: 128Mi}
 
-# A few files served from the application's own origin, for frontends that take a URL
-# rather than content — the switcher's scripts (apps/README.md, The switcher). Turning it on
-# also adds the `static` route (`<app>-static`, `<app>.<baseDomain>` + `path`), so a
-# surround says only `staticFiles: {enabled: true}`.
-#
-# The ConfigMap is made by kustomize from real files (`configMapGenerator`), so they stay
-# lintable JavaScript rather than block scalars inside a HelmRelease. `servicesConfigMap`
-# is the switcher's service list (apps/services.yaml), served beside them.
+# A few files from the app's own origin, plus the `static` route (apps/README.md, The switcher).
 staticFiles:
   enabled: false
   replicas: 1

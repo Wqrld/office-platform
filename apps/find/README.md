@@ -49,6 +49,13 @@ unconditionally, so the `services` M2M stays empty.
   the published image is `lasuite/find`. Overridden in `release.yaml`.
 - **Find must be reached over its public URL.** See the header of `surround.yaml`.
 - **The chart has no `envFrom`**, so every variable is an explicit `secretKeyRef`.
+- **Its OpenSearch role needs `cluster_composite_ops`**, which every tenant role carries
+  (`charts/platform-tenants`): the bulk indexing path uses it, and without it
+  `manage.py index` fails on the first batch. The index grant stays `find-*` and nothing
+  else.
+- **Its OIDC client is a resource server**: it only introspects tokens other clients
+  issued, authenticating to the introspection endpoint with its secret alone, so it needs
+  no grant. Its client id, `find`, is also the audience Docs' tokens carry for it.
 
 ## Bringing it up
 
