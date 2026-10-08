@@ -61,7 +61,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: realm-7ad8cec4df
+  name: realm-<hash>
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -296,6 +296,8 @@ data:
       ssl: $(env:SMTP_SSL)
       starttls: $(env:SMTP_STARTTLS)
       user: $(env:SMTP_USER)
+    ssoSessionIdleTimeout: 43200
+    ssoSessionMaxLifespan: 43200
     supportedLocales:
     - en
     - nl
@@ -366,7 +368,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: realm-7ad8cec4df
+  name: realm-<hash>
   namespace: office-identity
   labels:
     helm.sh/chart: platform-tenants-<version>
@@ -446,14 +448,14 @@ spec:
             - {name: config, mountPath: /config, readOnly: true}
             - {name: tmp, mountPath: /tmp}
       volumes:
-        - {name: config, configMap: {name: realm-7ad8cec4df}}
+        - {name: config, configMap: {name: realm-<hash>}}
         - {name: tmp, emptyDir: {}}
 ---
 # Source: platform-tenants/templates/opensearch.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: opensearch-security-1171d76e05
+  name: opensearch-security-<hash>
   namespace: office-data
   labels:
     helm.sh/chart: platform-tenants-<version>

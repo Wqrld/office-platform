@@ -5,6 +5,10 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Fix: Docs' full-text search returned 401 once the user had gone 30 minutes without a
+  search, until they logged in again. The Keycloak session (SSO idle timeout and max
+  lifespan) now lasts 12 hours, as long as the Docs session (`docs/adr/0116`).
+
 ## 2.3.2 — 2026-10-07
 
 - Fix: upgrading `platform-tenants` failed on the `realm-<hash>` Job whenever only the chart

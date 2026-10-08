@@ -24,6 +24,13 @@ loginWithEmailAllowed: true
 resetPasswordAllowed: true
 duplicateEmailsAllowed: false
 rememberMe: true
+# At least the apps' own sessions (SESSION_COOKIE_AGE, 12h in Docs and Meet), not
+# Keycloak's 30 min idle / 10 h max: Docs refreshes the user's token only when they
+# search, so a shorter Keycloak session dies under a live Docs one and every search 401s
+# — "Token is not active" — until the user logs in again (docs/adr/0116). The RememberMe
+# variants are unset (0), so they fall back to these.
+ssoSessionIdleTimeout: 43200
+ssoSessionMaxLifespan: 43200
 revokeRefreshToken: true
 # Rotation stays on, but zero reuse cannot survive a browser. Docs searches as you type,
 # so several XHRs hit the refresh middleware at once; the first rotates the token and

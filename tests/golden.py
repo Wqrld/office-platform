@@ -25,6 +25,11 @@ deletes them:
     pinned at the chart's version, which moves for the same reason.
     Only a tag equal to the current chart version is replaced; an upstream pin is not.
 
+  * `realm-<hash>` and `opensearch-security-<hash>` — platform-tenants hashes the chart
+    version into these Job names so that every release runs them afresh (2.3.2), so they
+    move on every publish too. What the hash covers is still in the golden in full: the
+    realm ConfigMap's data and both Jobs' specs.
+
 The chart NAME is kept. Only the version is replaced.
 """
 import difflib
@@ -41,11 +46,15 @@ GOLDEN = HERE / "golden"
 # platform-app-0.2.4 -> platform-app-<version>. Anchored to our own chart names so an
 # upstream chart label passing through extraObjects is left alone.
 CHART_LABEL = re.compile(r"^(\s*helm\.sh/chart:\s*)(platform-(?:deps|app|tenants))-\S+$", re.M)
+# The platform-tenants Jobs whose names hash .Chart.Version (templates/keycloak.yaml,
+# templates/opensearch.yaml).
+JOB_HASH = re.compile(r"\b(realm|opensearch-security)-[0-9a-f]{10}\b")
 VERSION = re.search(r"^version: (\S+)", (HERE.parent / "charts/control-plane/Chart.yaml").read_text(), re.M).group(1)
 
 
 def normalise(text: str) -> str:
     text = CHART_LABEL.sub(r"\1\2-<version>", text)
+    text = JOB_HASH.sub(r"\1-<hash>", text)
     return text.replace(f'tag: "v{VERSION}"', 'tag: "v<version>"')
 
 
