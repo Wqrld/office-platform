@@ -1,20 +1,12 @@
 # Find
 
-Cross-app full-text search (Django + OpenSearch, BM25). Today it has exactly one consumer,
-Docs, and one index prefix, `find-*`.
+## What runs
 
-## The one departure from adr/0104
+`find.${BASE_DOMAIN}`: cross-app full-text search (Django + OpenSearch, BM25) — the backend
+and its `migrate` Job, which also registers Docs. Today it has exactly one consumer, Docs,
+and one index prefix, `find-*`. Docs reaches it over its public URL (`surround.yaml`).
 
-0104 says prod pins a **release tag**. `suitenumerique/find` has never cut one — zero git
-tags, zero releases, and a single floating `main` tag on Docker Hub. So `release.yaml` pins a
-**commit**, and the image by digest. This is a narrow exception, not a new default.
-
-It also raises the stakes on 0104's compensating controls: with no version signal at all,
-`tests/render-diff.sh` on bump and `tests/binding.py` are the only things between an upstream
-force-push and a broken release. The two pins correspond today; nothing enforces that they
-keep corresponding.
-
-## Two asymmetric auth paths
+### Two asymmetric auth paths
 
 Worth knowing before changing anything here — the tenant boundary is the index name, never a
 request parameter.
@@ -39,12 +31,38 @@ We deliberately do **not** copy the reference deployment's
 over every other. `get_opensearch_indices` already adds the caller's own name
 unconditionally, so the `services` M2M stays empty.
 
-## Gotchas paid for once
+## Pins and forks
+
+Upstream chart `src/helm/find` pinned to commit `025e6d02ea08c46ef831a70f0ae1a41036c5a7c9`
+of `main` (`suitenumerique-find` in `charts/control-plane/templates/sources.yaml`); image
+`lasuite/find:main` pinned by digest in `release.yaml`. No fork.
+
+### The one departure from adr/0104
+
+0104 says prod pins a **release tag**. `suitenumerique/find` has never cut one — zero git
+tags, zero releases, and a single floating `main` tag on Docker Hub. So `release.yaml` pins a
+**commit**, and the image by digest. This is a narrow exception, not a new default.
+
+It also raises the stakes on 0104's compensating controls: with no version signal at all,
+`tests/render-diff.sh` on bump and `tests/binding.py` are the only things between an upstream
+force-push and a broken release. The two pins correspond today; nothing enforces that they
+keep corresponding.
+
+## Install order / first admin
+
+Find must exist before Docs' flag Job and reindex run — `docs: {requires: [find]}` in the
+control plane's app table makes `app-docs` wait for `app-find`. Its realm client
+and OpenSearch user are the tenants chart's (`oidc` and `search` in
+`charts/control-plane/apps.yaml`), applied by its reconcile Jobs. No admin account: the
+migrate Job registers Docs as its one service.
+
+## Gotchas
+
+Paid for once.
 
 - **The migrate Job is immutable.** It is named `find-backend-migrate-<chartVersion>`, which
-  never moves, and a Job's `spec.template` cannot be patched — so every env change fails the
-  upgrade with `field is immutable` unless `migrateJobAnnotations` makes it a Helm hook with
-  `before-hook-creation`.
+  never moves, so every env change fails the upgrade with `field is immutable` unless
+  `migrateJobAnnotations` makes it a hook (`apps/README.md`, Conventions).
 - **The chart's default image does not exist.** `lasuite/find-backend` 404s on Docker Hub;
   the published image is `lasuite/find`. Overridden in `release.yaml`.
 - **Find must be reached over its public URL.** See the header of `surround.yaml`.
@@ -57,14 +75,7 @@ unconditionally, so the `services` M2M stays empty.
   issued, authenticating to the introspection endpoint with its secret alone, so it needs
   no grant. Its client id, `find`, is also the audience Docs' tokens carry for it.
 
-## Bringing it up
-
-Find must exist before Docs' flag Job and reindex run — `docs: {requires: [find]}` in the
-control plane's app table makes `app-docs` wait for `app-find`. Its realm client
-and OpenSearch user are the tenants chart's (`oidc` and `search` in
-`charts/control-plane/apps.yaml`), applied by its reconcile Jobs.
-
-## Known limitations, recorded not fixed
+### Known limitations, recorded not fixed
 
 - REST TLS to OpenSearch is **unverified** — `verify_certs=False` is hardcoded and there is
   no CA setting. Encryption yes, server authentication no. See `adr/0111`.
@@ -74,3 +85,8 @@ and OpenSearch user are the tenants chart's (`oidc` and `search` in
   API; Find does not.
 - The `groups` ACL field is mapped, filtered on, and never populated (`views.py` hardcodes
   `groups = []`). Team-based access does not work; only per-user `sub` matching does.
+
+## Upstream PRs
+
+None recorded. When upstream tags a release, the source goes back to a tag like every other
+(adr/0104).

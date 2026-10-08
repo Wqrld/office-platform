@@ -1,10 +1,13 @@
 # LiveKit — the SFU behind Meet
 
-`office-livekit`: `livekit` (the server, chart `livekit-server`) and `livekit-egress` (the
-recorder, chart `egress`), both from `livekit/livekit-helm` at a pinned commit. Meet is the
-only consumer. Design context: docs/app-inventory.md "livekit — the Gateway API exception".
+## What runs
 
-## Where the traffic goes
+`office-livekit`: `livekit` (the server, chart `livekit-server`) and `livekit-egress` (the
+recorder, chart `egress`). Meet is the only consumer. Two releases, not three: no deps
+release — its Valkey user and API secret are assembled in `secrets.yaml`. Design context:
+docs/app-inventory.md "livekit — the Gateway API exception".
+
+### Where the traffic goes
 
 | What | Address | Why |
 |---|---|---|
@@ -19,7 +22,46 @@ covers them. `./dns.py default --check` knows about both.
 `turn.` SAN on a listener LiveKit does not own buys nothing. Clients behind a firewall
 that blocks all UDP fall back to ICE/TCP 7881 and nothing else.
 
-## What is done against the charts' grain, and why
+### Credentials
+
+- API key `office` / secret from `meet-service-tokens` (`platform/secrets/service-tokens.yaml`,
+  key `livekit`). LiveKit, egress and Meet's backend read the same value; the same pair
+  signs the webhooks LiveKit sends Meet.
+- Valkey user `livekit` on the broker instance, db 1 (`cache: [broker]` in
+  `charts/control-plane/apps.yaml`).
+- Egress holds **no S3 credentials**: Meet's backend passes bucket, endpoint and keys in
+  each egress request.
+
+## Pins and forks
+
+Both charts from `livekit/livekit-helm` at commit `8f0ad0809c2be8cbed375a6f8bef10625e5e8a2b`
+(`livekit-helm` in `charts/control-plane/templates/sources.yaml`, which says why a commit:
+the Helm repository's index stopped updating, and no tag names the chart we deploy). Images
+pinned separately in `release.yaml`, because the charts' appVersion lags them:
+`livekit/livekit-server:v1.13.9`, `livekit/egress:v1.15.0`. No fork.
+
+Chart bump checklist (the commit in `charts/control-plane/templates/sources.yaml` is moved by hand):
+render with `tests/binding.py`, then check the livekit Deployment still has `LIVEKIT_CONFIG`
+as `env[0]` and the same port names; check egress's `EGRESS_CONFIG_BODY` likewise.
+
+## Install order / first admin
+
+Internal: never chosen, pulled in by Meet's `requires` (`charts/control-plane/apps.yaml`).
+No admin account. After an install, verify:
+
+```sh
+kubectl -n office-system get gateway office -o jsonpath='{.status.listeners[*].name}'   # rtc-tcp rtc-udp turn-udp among them
+kubectl -n office-livekit get tcproute,udproute                                        # all Accepted
+curl -s https://livekit.${BASE_DOMAIN}                    # OK
+kubectl -n office-livekit logs deploy/livekit | head       # "starting LiveKit server", nodeIP ${GATEWAY_IP}
+```
+In a call, `chrome://webrtc-internals` shows the selected candidate pair against
+`${GATEWAY_IP}`, and the Envoy pod's access log a 7882 session per participant; block
+UDP 7882 to see it fall back to TURN 3478 then TCP 7881.
+
+## Gotchas
+
+### What is done against the charts' grain, and why
 
 All three are `postRenderers` in release.yaml and are the whole reason that file is long.
 
@@ -36,33 +78,7 @@ All three are `postRenderers` in release.yaml and are the whole reason that file
 3. **No chart LoadBalancer.** Its modes are cloud-specific; `type: disable` leaves the
    ClusterIP the signaling and media routes point at; surround.yaml adds TURN's.
 
-Chart bump checklist (the commit in `charts/control-plane/templates/sources.yaml` is moved by hand):
-render with `tests/binding.py`, then check the livekit Deployment still has `LIVEKIT_CONFIG`
-as `env[0]` and the same port names; check egress's `EGRESS_CONFIG_BODY` likewise.
-
-## Credentials
-
-- API key `office` / secret from `meet-service-tokens` (`platform/secrets/service-tokens.yaml`,
-  key `livekit`). LiveKit, egress and Meet's backend read the same value; the same pair
-  signs the webhooks LiveKit sends Meet.
-- Valkey user `livekit` on the broker instance, db 1 (`cache: [broker]` in
-  `charts/control-plane/apps.yaml`).
-- Egress holds **no S3 credentials**: Meet's backend passes bucket, endpoint and keys in
-  each egress request.
-
-## Verifying
-
-```sh
-kubectl -n office-system get gateway office -o jsonpath='{.status.listeners[*].name}'   # rtc-tcp rtc-udp turn-udp among them
-kubectl -n office-livekit get tcproute,udproute                                        # all Accepted
-curl -s https://livekit.${BASE_DOMAIN}                    # OK
-kubectl -n office-livekit logs deploy/livekit | head       # "starting LiveKit server", nodeIP ${GATEWAY_IP}
-```
-In a call, `chrome://webrtc-internals` shows the selected candidate pair against
-`${GATEWAY_IP}`, and the Envoy pod's access log a 7882 session per participant; block
-UDP 7882 to see it fall back to TURN 3478 then TCP 7881.
-
-## Known limits
+### Known limits
 
 - Single replica by design at every size: a UDPRoute to one pod. Scaling out is a
   multi-node LiveKit design, not a profile change.
@@ -71,3 +87,7 @@ UDP 7882 to see it fall back to TURN 3478 then TCP 7881.
   under CRI-O by default — an `emptyDir` in `Memory` mounted there is the usual fix).
 - `terminationGracePeriodSeconds` is an hour on egress on purpose: a recording in flight is
   one someone asked for.
+
+## Upstream PRs
+
+None recorded.

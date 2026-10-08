@@ -1,17 +1,32 @@
 # Collabora Online
 
-The WOPI editor Drive embeds. Chart `collabora-online` 1.3.2 from Collabora's own Helm
-repository, image `collabora/code:26.04.3.2.1`.
+## What runs
 
-Collabora is not a La Suite application and it **does** publish a chart repository, so
-`adr/0104` (charts from pinned git tags) does not apply — this is an ordinary pinned
-`HelmRelease`. It has no database, no cache, no bucket and no OIDC client: it holds no
+`collabora.${BASE_DOMAIN}`: the WOPI editor Drive embeds — one coolwsd pod, by design (One
+replica, below). It has no database, no cache, no bucket and no OIDC client: it holds no
 state at all and never talks to Keycloak. Drive mints a short-lived WOPI access token and
-Collabora authenticates back to Drive with that alone.
+Collabora authenticates back to Drive with that alone. `collabora-deps` therefore holds only
+the generated admin credential, and `office-collabora` enforces PSA `baseline`, not
+`restricted` (the four capabilities, below).
+
+## Pins and forks
+
+Chart `collabora-online` 1.3.5 from Collabora's own Helm repository, image
+`collabora/code:26.04.3.2.1`, both pinned in `release.yaml`. Collabora is not a La Suite
+application and it **does** publish a chart repository, so `adr/0104` (charts from pinned
+git tags) does not apply — this is an ordinary pinned `HelmRelease`. No fork.
+
+## Install order / first admin
+
+No `requires` of its own; Drive requires it (`charts/control-plane/apps.yaml`), because
+Drive's `configure-wopi` Job calls its discovery at install. There is no first admin: the
+admin console is off (below).
+
+## Gotchas
 
 Everything below cost time to find.
 
-## It will not start on this cluster without four capabilities
+### It will not start on this cluster without four capabilities
 
 The stock image fails with `Setting ShutdownRequestFlag: Failed to spawn coolforkit`, a
 few hundred lines into an otherwise healthy startup log, **whether or not** a
@@ -50,7 +65,7 @@ capabilities does. The container still runs as uid 1001 with an empty permitted 
 Verified working after the change: `Forked kit`, `Have 1 spare child`, and the kit reports
 `adms_seccomp=ok adms_contained=ok`.
 
-## The jail is copied, not bind-mounted, and that is expected here
+### The jail is copied, not bind-mounted, and that is expected here
 
 The log carries these at startup and they are **not** errors to chase:
 
@@ -66,7 +81,7 @@ kit reports `adms_bindmounted=slow`. Documents open correctly; the first open of
 is slower and each jail costs disk. Revisit only if document-open latency becomes a real
 complaint.
 
-## One replica, and it is not a sizing decision
+### One replica, and it is not a sizing decision
 
 Every viewer of a document must reach the pod that holds it. nginx does that by hashing
 `$arg_WOPISrc`; Envoy Gateway's consistent hash can key on a header, a cookie or the source
@@ -78,7 +93,7 @@ Raising the replica count requires solving affinity first — the chart's `rever
 sidecar (an in-namespace nginx that hashes `WOPISrc`) is the intended answer, and the WOPI
 proof key stops being optional at the same moment.
 
-## `server_name` is mandatory
+### `server_name` is mandatory
 
 Without it, `/hosting/discovery` advertises the editor at `https://localhost:9980/...`,
 which is the URL the browser is then told to load. Verified:
@@ -89,14 +104,14 @@ urlsrc="https://collabora.example.org/browser/cc5614c67e/cool.html?"     # with 
 urlsrc="https://localhost:9980/browser/4610258811/cool.html?"            # without
 ```
 
-## The alias group list is an allow-list only in `groups` mode
+### The alias group list is an allow-list only in `groups` mode
 
 `--o:storage.wopi.alias_groups.mode=groups` is what makes `aliasgroups` mean "refuse any
 other WOPI host". Without that flag the list is advisory and Collabora will fetch and edit
 a document from any host that asks — on a public address, that is an open
 document-conversion service run at our expense.
 
-## The admin console is off, in three places
+### The admin console is off, in three places
 
 It sits on the same host and port as the editor, at `/browser/dist/admin/admin.html`, with
 `/cool/adminws` and `/cool/getMetrics` beside it. `getMetrics` enumerates every open
@@ -112,7 +127,7 @@ rule matches the raw path — so `/browser/dist%2Fadmin/admin.html` slipped past
 reached coolwsd, which answered 401. Measured. Turning the console off removes the target
 instead of chasing path spellings.
 
-## No WOPI proof key
+### No WOPI proof key
 
 The chart can generate one, and its own values file says not to under Flux: the generator
 reads the previous Secret back from the live cluster, which `helm template` does not do, so
@@ -122,3 +137,7 @@ We do not need one. Drive does not verify the `X-WOPI-Proof` header — its own 
 pass `proof_keys: {}` — and with one replica coolwsd's per-process ephemeral key is
 self-consistent. This decision is tied to the replica count: revisit both together, never
 one alone.
+
+## Upstream PRs
+
+None recorded.

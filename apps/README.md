@@ -21,6 +21,10 @@ Kustomization.
 no policy controller. The egress graph is written down so it starts working the day a
 policy-capable CNI arrives; do not cite it as segmentation.
 
+Each app's `README.md` has the same five sections — **What runs · Pins and forks · Install
+order / first admin · Gotchas · Upstream PRs** — and one with nothing to say says so in a
+line. A convention below is not re-explained there.
+
 ## Conventions every release follows
 
 Each of these is said here once. A release file states the value and, at most, points here

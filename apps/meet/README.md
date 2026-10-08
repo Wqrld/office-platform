@@ -1,23 +1,25 @@
 # Meet — video calls, with transcripts delivered to Docs
 
-`office-meet`: La Suite Meet at the pinned git tag (chart `src/helm/meet`), plus our own
-`meet-whisperx` Deployment for speech-to-text. LiveKit (`apps/livekit`) carries the media.
+## What runs
 
-## Files
+`office-meet`, at `meet.${BASE_DOMAIN}`: La Suite Meet (chart `src/helm/meet`), plus our own
+`meet-whisperx` Deployment for speech-to-text. LiveKit (`apps/livekit`) carries the media.
 
 | File | What |
 |---|---|
 | `deps.yaml` | Postgres, Valkey cache, Garage bucket `meet`, OIDC client, SMTP, generated Django secrets |
 | `summary-secret.yaml` | the summary service's Secret: its tenant table, tokens and broker URLs (the other shared tokens are `shared:` in `deps.yaml`) |
 | `release.yaml` | the upstream chart; secrets attached by `postRenderers` (the chart has no `envFrom`) |
+| `summary-sitecustomize.py` | raises the summary worker's hard-coded speech-to-text timeout (whisperx on CPU, below) |
 | `whisperx.yaml` | the STT API: PVC for models, Deployment, Service |
+| `whisperx-sitecustomize.py` | fixes the whisperx image's CPU start |
 | `surround.yaml` | routes and the (unenforced) egress policy |
 | `default.conf` | the frontend nginx config, upstream's plus the switcher injection |
 
 The switcher scripts are `apps/switcher.js` (the button) and `apps/gaufre.js` (the panel),
 shared with the other apps (`apps/README.md`, The switcher).
 
-## The transcript pipeline
+### The transcript pipeline
 
 ```
 browser: "start transcript"
@@ -39,26 +41,7 @@ browser: "start transcript"
   in Docs as-is, owned by whoever pressed the button.
 - Screen recording is not enabled (`RECORDING_WORKER_CLASSES` lists `transcript` only).
 
-## whisperx on CPU — what to expect
-
-No GPU on this node. `lasuite/whisper-api:v1.2.0` (the last tag; 9 GB, CUDA base, falls
-back to CPU) with `--model small`. The summary worker gives up on a transcription after
-**ten minutes** (a hard-coded read timeout), and pyannote diarization on CPU is the slow
-half — so a long meeting can fail transcription outright rather than slowly. If that is the
-complaint: a GPU node, or `WHISPERX_BASE_URL` at an external WhisperX-compatible endpoint
-(the summary service expects `response_format=diarized_json`, which plain OpenAI does not
-return). `main` upstream made the model an env var (`TRANSCRIBE_MODEL`) — the first tag past
-v1.2.0 changes `args` in whisperx.yaml.
-
-First start downloads the models into the PVC (minutes); the startup probe allows 20.
-**One size at every profile.** It is the one workload that is not a chart, so `sizes/`
-cannot reach it, and a chart for one Deployment is a fifth chart to publish, pin and
-source for three numbers; and the numbers are the model's, not the user count's — `small`
-is ~2Gi resident whether five people or five hundred are meeting, and more people at once
-is a GPU or an external endpoint (above), not a bigger pod.
-`whisperx-sitecustomize.py` fixes the image's CPU start (it passes a torch dtype where CTranslate2 wants a string) and picks `int8`. `HF_TOKEN` is required and is the one by-hand credential — `docs/install.md` §4c.
-
-## The gaufre
+### The gaufre
 
 Meet ships no switcher and no hook for one. `default.conf` adds a `sub_filter` that appends
 `<script src="/custom/switcher.js">` to every HTML response and serves `/custom/` from a
@@ -68,14 +51,23 @@ over the image's `default.conf` via `frontend.extraVolumes`) and the service lis
 `src/frontend/default.conf`. The mount point in the page is `nav > div` (layout/Header.tsx);
 in a call there is no header and the button falls back to a fixed position.
 
-## Gotchas
+## Pins and forks
 
-- **`env` beats `envFrom` once, on purpose.** The transcript pipeline sets
-  `AWS_S3_ENDPOINT_URL` in `envVars` over the one `meet-s3` carries (`release.yaml`,
-  `summaryEnv`). Any other name that is both in an `envVars` block and in a patched-in
-  Secret is a bug: the Secret's value is silently ignored.
+Chart at git tag `v1.34.0` (`suitenumerique-meet` in
+`charts/control-plane/templates/sources.yaml`); every image tag in `release.yaml` is the
+same version, moved together by `updatecli/updatecli.d/meet.yaml`. whisperx is
+`lasuite/whisper-api:v1.2.0`, the last tag; `main` upstream made the model an env var
+(`TRANSCRIBE_MODEL`) — the first tag past v1.2.0 changes `args` in whisperx.yaml. No fork.
 
-## Verifying
+## Install order / first admin
+
+`meet: {requires: [docs, livekit]}` in `charts/control-plane/apps.yaml`: transcripts go to
+Docs, the media to LiveKit. `HF_TOKEN` is required, the one by-hand credential —
+`docs/install.md` §4c. First start downloads the models into the PVC (minutes); the startup probe allows 20. The
+admin account is the `createsuperuser` Job's, replaced as every release's is
+(`apps/README.md`, Conventions).
+
+### Verifying
 
 ```sh
 kubectl -n office-meet get pods                         # backend, frontend, summary, celery-transcribe-default, celery-summary-backend, whisperx Running; 4 at 0 replicas
@@ -86,3 +78,35 @@ End to end: sign in at `https://meet.${BASE_DOMAIN}`, start a meeting, start a t
 talk, stop it. Backend logs show the `egress_ended` webhook; `meet-celery-transcribe-default`
 logs the whisperx call; a document titled with the room and date appears in Docs; the panel
 in Meet says it was sent.
+
+## Gotchas
+
+- **`env` beats `envFrom` once, on purpose.** The transcript pipeline sets
+  `AWS_S3_ENDPOINT_URL` in `envVars` over the one `meet-s3` carries (`release.yaml`,
+  `summaryEnv`). Any other name that is both in an `envVars` block and in a patched-in
+  Secret is a bug: the Secret's value is silently ignored.
+
+### whisperx on CPU — what to expect
+
+No GPU on this node. `lasuite/whisper-api:v1.2.0` (9 GB, CUDA base, falls back to CPU) with
+`--model small`. Upstream's summary worker gives up on a transcription after **ten minutes**
+(a hard-coded read timeout); `summary-sitecustomize.py` raises it to an hour
+(`WHISPERX_READ_TIMEOUT`), and pyannote diarization on CPU is the slow half — so a long
+meeting can still fail transcription outright rather than slowly. If that is the
+complaint: a GPU node, or `WHISPERX_BASE_URL` at an external WhisperX-compatible endpoint
+(the summary service expects `response_format=diarized_json`, which plain OpenAI does not
+return).
+
+**One size at every profile.** It is the one workload that is not a chart, so `sizes/`
+cannot reach it, and a chart for one Deployment is a fifth chart to publish, pin and
+source for three numbers; and the numbers are the model's, not the user count's — `small`
+is ~2Gi resident whether five people or five hundred are meeting, and more people at once
+is a GPU or an external endpoint (above), not a bigger pod.
+`whisperx-sitecustomize.py` fixes the image's CPU start (it passes a torch dtype where
+CTranslate2 wants a string) and picks `int8`.
+
+## Upstream PRs
+
+None recorded. One to propose: make the summary worker's speech-to-text timeout a setting
+(`whisperx_timeout` in `summary/core/config.py`, one line at the call site); when it lands,
+`summary-sitecustomize.py` goes (its docstring).

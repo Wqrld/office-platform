@@ -29,7 +29,7 @@ spec:
     smtp: {enabled: true}
 
     # No DJANGO_SERVER_TO_SERVER_API_TOKENS: upstream's dev values set it, but
-    # SERVER_TO_SERVER_API_TOKENS appears nowhere in Drive v0.21.2.
+    # SERVER_TO_SERVER_API_TOKENS appears nowhere in Drive v0.23.0-office.6.
     generated:
       drive-django:
         - {env: DJANGO_SECRET_KEY, draw: secretkey, generator: office-token-50}
