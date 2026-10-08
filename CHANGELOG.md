@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.3.3 — 2026-10-08
+
 - Security: every response carries HSTS (1 year) and `X-Content-Type-Options: nosniff`;
   realm passwords need 12 characters, not the username or email, and not one of the last
   3 (checked at the next change); app pods no longer mount a Kubernetes API token.
