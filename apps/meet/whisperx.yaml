@@ -76,9 +76,11 @@ spec:
           readinessProbe:
             httpGet: {path: /health, port: http}
             periodSeconds: 30
+          # Read-only root; torch and matplotlib write their caches under $HOME.
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: {drop: [ALL]}
+            readOnlyRootFilesystem: true
           # The same at every size — the model decides, not the head count (README.md).
           resources:
             requests: {cpu: 500m, memory: 3Gi}
@@ -86,11 +88,14 @@ spec:
           volumeMounts:
             - {name: models, mountPath: /data/models}
             - {name: tmp, mountPath: /tmp}
+            - {name: home, mountPath: /home/whisperuser}
             - {name: office, mountPath: /etc/office/sitecustomize.py, subPath: whisperx-sitecustomize.py, readOnly: true}
       volumes:
         - name: models
           persistentVolumeClaim: {claimName: meet-whisperx-models}
         - name: tmp
+          emptyDir: {}
+        - name: home
           emptyDir: {}
         - name: office
           configMap: {name: meet-patches}

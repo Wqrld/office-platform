@@ -10,6 +10,9 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
   Each gets an emptyDir at /tmp; Calendars' Caddy also at its two XDG directories.
   Calendars' backend and frontend state `runAsUser: 1001`, so an upstream image runs
   non-root too.
+- Security: read-only root filesystems for the rest of the apps too: Messages' frontend,
+  MTA and MPA, Projects, Calendars' caldav, Meet's whisperx, LiveKit egress, the Keycloak
+  operator and Garage. Still writable: Collabora, Keycloak, OpenSearch.
 
 ## 2.3.3 — 2026-10-08
 

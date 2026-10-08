@@ -285,6 +285,16 @@ spec:
         runAsUser: 33
         runAsGroup: 33
         capabilities: {drop: ["ALL"], add: []}
+        readOnlyRootFilesystem: true
+      # Apache's pid and lock dirs (/var/run and /var/lock link into /run) and PHP's temp.
+      extraVolumes:
+        - {name: apache-run, emptyDir: {}}
+        - {name: apache-lock, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+      extraVolumeMounts:
+        - {name: apache-run, mountPath: /run/apache2}
+        - {name: apache-lock, mountPath: /run/lock/apache2}
+        - {name: tmp, mountPath: /tmp}
 
       # Same immutability reason as the two backend Jobs, on the key that reaches this one.
       initdbJobAnnotations:

@@ -141,6 +141,9 @@ spec:
       image:
         repository: ghcr.io/wqrld/messages-frontend
         tag: "0.9.0-office.1"
+      # Read-only root. Caddy keeps its autosave and storage under $HOME (/home/nonroot).
+      securityContext: {readOnlyRootFilesystem: true}
+      persistence: {home: {type: emptyDir, mountPath: /home/nonroot}}
       envVars:
         # Caddy proxies /api and /admin itself; surround.yaml sends /api past it, so this
         # carries the admin and the health checks.
@@ -155,6 +158,8 @@ spec:
       image:
         repository: ghcr.io/wqrld/messages-mta-in-py
         tag: "0.9.0-office.1"
+      securityContext: {readOnlyRootFilesystem: true}
+      persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
       envFrom:
         - {secretRef: {name: messages-mda}}
       envVars:
@@ -182,6 +187,14 @@ spec:
       image:
         repository: ghcr.io/wqrld/messages-mpa
         tag: "0.9.0-office.1"
+      # Read-only root. rspamd's maps and hyperscan cache, its pid and sockets, nginx's
+      # temp paths, and start.sh's rendered servers.conf (/tmp) are all it writes.
+      securityContext: {readOnlyRootFilesystem: true}
+      persistence:
+        tmp: {type: emptyDir, mountPath: /tmp}
+        rspamd: {type: emptyDir, mountPath: /var/lib/rspamd}
+        rspamd-run: {type: emptyDir, mountPath: /run/rspamd}
+        nginx: {type: emptyDir, mountPath: /var/lib/nginx}
       envFrom:
         - {secretRef: {name: messages-mpa}}
       envVars:

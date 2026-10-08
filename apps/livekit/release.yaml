@@ -137,6 +137,14 @@ spec:
                 path: /spec/template/spec/containers/0/env/0/valueFrom
                 value:
                   secretKeyRef: {name: egress-config, key: config.yaml}
+              # Read-only root (securityContext below). The chart has no volumes: Chrome,
+              # PulseAudio and the entrypoint write only under $HOME and /tmp.
+              - op: add
+                path: /spec/template/spec/volumes
+                value: [{name: home, emptyDir: {}}, {name: tmp, emptyDir: {}}]
+              - op: add
+                path: /spec/template/spec/containers/0/volumeMounts
+                value: [{name: home, mountPath: /home/egress}, {name: tmp, mountPath: /tmp}]
 
   # Sizing — replicas, resources — comes from sizes/egress-<size>.yaml, a key of the
   # `livekit-sizes` ConfigMap.
@@ -171,3 +179,4 @@ spec:
     securityContext:
       allowPrivilegeEscalation: false
       capabilities: {drop: [ALL]}
+      readOnlyRootFilesystem: true

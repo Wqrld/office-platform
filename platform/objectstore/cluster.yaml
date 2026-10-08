@@ -37,6 +37,7 @@ spec:
     containerSecurityContext:
       allowPrivilegeEscalation: false
       capabilities: {drop: ["ALL"]}
+      readOnlyRootFilesystem: true     # a static binary; it writes only its two volumes
     # Sized for this node, not aspirationally: Longhorn has ~85Gi free with the legacy
     # stack still running, and Docs' entire media set is ~100MB. Growing a Longhorn
     # volume is an online expand; shrinking one is a rebuild.

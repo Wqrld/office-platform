@@ -52,6 +52,11 @@ spec:
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
+        readOnlyRootFilesystem: true
+      # The app also logs to /app/logs/projects.log.
+      persistence:
+        tmp: {type: emptyDir, mountPath: /tmp}
+        logs: {type: emptyDir, mountPath: /app/logs}
 
       envFrom:
         - {secretRef: {name: projects-postgres}}
