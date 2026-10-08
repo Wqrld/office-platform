@@ -51,9 +51,10 @@ Calendars' ConfigMap is substituted over.
 
 ## Sizing
 
-Three sizes — `small` (5-50 people, one node), `medium` (50-500, the measured one), `large`
-(500-5,000, HA) — selected per cluster by one value, `size`, in its `cluster.yaml`. Every
-app carries its own three, in the upstream chart's own values shape, and nothing else:
+Three sizes — `small` (5-50 people, one node), `medium` (50-500, the measured one; still one
+replica of everything, no HA), `large` (500-5,000, HA except the object store; adr/0115) —
+selected per cluster by one value, `size`, in its `cluster.yaml`. Every app carries its own
+three, in the upstream chart's own values shape, and nothing else:
 
 ```
 apps/<app>/sizes/<size>.yaml            the app's release: replicas, resources, concurrency
@@ -76,7 +77,7 @@ with the probes the chart dereferences with no nil guard — is restated whole i
 file. The fix is upstream (adr/0108).
 
 `platform/overlays/size-<size>/` still sizes the platform layer as a kustomize component:
-CNPG instances, Garage nodes and Keycloak replicas are plain manifests, three targets, not
+CNPG instances, Keycloak replicas and Garage storage are plain manifests, three targets, not
 thirty. `meet-whisperx`, the one workload that is not a chart, is one size at every profile
 (`apps/meet/README.md`).
 
