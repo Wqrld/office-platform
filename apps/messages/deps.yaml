@@ -1,5 +1,5 @@
-# Messages' prerequisites. Django and Celery like Docs, but not Docs' spellings everywhere,
-# so `env: messages` is a family of its own (charts/platform-deps/templates/_profiles.tpl):
+# Messages — release 1 of 3. Django and Celery like Docs, but not Docs' spellings, so
+# `env: messages` is a family of its own (charts/platform-deps/templates/_profiles.tpl):
 # CELERY_BROKER_URL without the DJANGO_ prefix, and OpenSearch as one URL.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

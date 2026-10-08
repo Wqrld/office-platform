@@ -1,5 +1,5 @@
-# Docs, from DINUM's in-tree chart (`src/helm/impress`, named `docs`) at its pinned git tag
-# (adr/0104). Conventions every release follows: apps/README.md.
+# Docs — release 2 of 3: the application, from DINUM's in-tree chart (`src/helm/impress`,
+# named `docs`) at its pinned git tag (adr/0104). Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -19,13 +19,13 @@ spec:
     disableWaitForJobs: true
     remediation:
       retries: 0
-  valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
   postRenderers:
     - kustomize:
         patches:
           - target: {kind: Deployment, name: docs-celery-worker}
             patch: |
               - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
+  valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
   values:
     image:
       tag: v5.7.0
@@ -48,10 +48,6 @@ spec:
       pdb: {enabled: false}
       securityContext: {readOnlyRootFilesystem: true}
       persistence: &tmp {tmp: {type: emptyDir, mountPath: /tmp}}
-
-      celery:
-        probes: {readiness: null, liveness: {timeoutSeconds: 30}}
-
       envFrom:
         - {secretRef: {name: docs-postgres}}
         - {secretRef: {name: docs-cache}}
@@ -105,6 +101,10 @@ spec:
         SPECTACULAR_SETTINGS_ENABLE_DJANGO_DEPLOY_CHECK: "false"
         # A theme edit is invisible until this expires or the key is deleted (README.md).
         THEME_CUSTOMIZATION_CACHE_TIMEOUT: "86400"
+
+      celery:
+        probes: {readiness: null, liveness: {timeoutSeconds: 30}}
+
       createsuperuser:
         command:
           - /bin/sh

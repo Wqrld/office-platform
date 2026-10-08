@@ -1,4 +1,4 @@
-# Docs' surround. Conventions: apps/README.md.
+# Docs — release 3 of 3: the surround. Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: docs-platform, namespace: office-docs}

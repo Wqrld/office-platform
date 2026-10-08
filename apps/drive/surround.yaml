@@ -1,4 +1,4 @@
-# Drive's surround: routes, the media proxy, the static-file server.
+# Drive — release 3 of 3: the surround, with the media proxy and the static-file server.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: drive-platform, namespace: office-drive}

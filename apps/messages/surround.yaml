@@ -1,4 +1,4 @@
-# Messages' surround. HTTPS for the web app, and the one thing no other app has: SMTP,
+# Messages — release 3 of 3: HTTPS for the web app, and what no other app has: SMTP,
 # through the Gateway's `smtp` listener on 25, as LiveKit's media goes through its L4
 # listeners (adr/0113) — one address per cluster, whatever the provider.
 apiVersion: helm.toolkit.fluxcd.io/v2

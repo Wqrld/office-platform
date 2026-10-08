@@ -1,7 +1,6 @@
-# Meet, from La Suite's in-tree chart (`src/helm/meet`) at its pinned git tag (adr/0104).
-# Nine Deployments, four at `replicas: 0` (workloads not deployed, not a size). The chart
-# has no `envFrom`, so the patches below add it (apps/README.md, Conventions). `env` beating
-# `envFrom` is relied on once, on purpose (AWS_S3_ENDPOINT_URL); any other overlap is a bug.
+# Meet — release 2 of 3: the application, from La Suite's in-tree chart (`src/helm/meet`) at
+# its pinned git tag (adr/0104). Nine Deployments, four at `replicas: 0`, not a size. The
+# chart has no `envFrom`: the patches add it (apps/README.md, Conventions).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -22,8 +21,6 @@ spec:
     disableWaitForJobs: true
     remediation:
       retries: 0
-
-  valuesFrom: [{kind: ConfigMap, name: meet-sizes, valuesKey: "${SIZE}"}]
   postRenderers:
     - kustomize:
         patches:
@@ -61,7 +58,7 @@ spec:
                 value:
                   - {secretRef: {name: meet-s3}}
                   - {secretRef: {name: meet-summary}}
-
+  valuesFrom: [{kind: ConfigMap, name: meet-sizes, valuesKey: "${SIZE}"}]
   values:
     # The backend's (and the Celery backend's); every other tag overrides it. All the same
     # version, moved together by updatecli/updatecli.d/meet.yaml.
@@ -214,16 +211,16 @@ spec:
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
-      envVars:
-        <<: *summaryEnv
-        # summary-sitecustomize.py raises the call's hard-coded ten-minute read timeout.
-        PYTHONPATH: /etc/office
-        WHISPERX_READ_TIMEOUT: "3600"
       extraVolumes:
         - name: office
           configMap: {name: meet-patches}
       extraVolumeMounts:
         - {name: office, mountPath: /etc/office/sitecustomize.py, subPath: summary-sitecustomize.py, readOnly: true}
+      envVars:
+        <<: *summaryEnv
+        # summary-sitecustomize.py raises the call's hard-coded ten-minute read timeout.
+        PYTHONPATH: /etc/office
+        WHISPERX_READ_TIMEOUT: "3600"
       instances:
         - {name: default, extraEnvVars: {}}
 

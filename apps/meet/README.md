@@ -68,6 +68,13 @@ over the image's `default.conf` via `frontend.extraVolumes`) and the service lis
 `src/frontend/default.conf`. The mount point in the page is `nav > div` (layout/Header.tsx);
 in a call there is no header and the button falls back to a fixed position.
 
+## Gotchas
+
+- **`env` beats `envFrom` once, on purpose.** The transcript pipeline sets
+  `AWS_S3_ENDPOINT_URL` in `envVars` over the one `meet-s3` carries (`release.yaml`,
+  `summaryEnv`). Any other name that is both in an `envVars` block and in a patched-in
+  Secret is a bug: the Secret's value is silently ignored.
+
 ## Verifying
 
 ```sh

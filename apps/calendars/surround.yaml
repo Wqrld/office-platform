@@ -1,4 +1,5 @@
-# Calendars' surround. No media proxy: nothing declares a file field, so `/media` is empty.
+# Calendars — release 3 of 3: the surround. No media proxy: nothing declares a file field,
+# so `/media` is empty.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: calendars-platform, namespace: office-calendars}

@@ -26,6 +26,23 @@ policy-capable CNI arrives; do not cite it as segmentation.
 Each of these is said here once. A release file states the value and, at most, points here
 (`apps/README.md, Conventions`); its own comments are for what is particular to that app.
 
+**Every file**
+
+- **One header, at most three lines**, naming the app and the release:
+  `# <App> — release 1 of 3: …` in `deps.yaml`, `# <App> — release 2 of 3: <what it runs>,
+  from <chart source> (adr/0104). …` in `release.yaml`, `# <App> — release 3 of 3: …` in
+  `surround.yaml`; the rest of it is what is particular to the app, or where that is
+  written down (its README). `kustomization.yaml` has none. A longer story goes in the
+  app's README.
+- **One key order.** Under `spec`: `interval`, `dependsOn`, `chart`, `install`/`upgrade`,
+  `postRenderers`, `valuesFrom`, `values`. Under `values`: `image`, the Ingresses, then
+  each component as (`enabled`) `image`, `pdb`, `securityContext`, `persistence` (or
+  `extraVolumes`/`extraVolumeMounts`), `envFrom`, `envVars`, and anything else after.
+  Collabora's and LiveKit's charts, one component at the top level, keep those keys in
+  that order among their other settings.
+- **A block written three times is written once**, as a YAML anchor within the file
+  (`&restricted`, `&readOnly`, `&tmp`). Anchors do not cross a `---`.
+
 **`release.yaml`, the upstream chart**
 
 - **`dependsOn: [{name: <app>-deps}]`.** Every Secret the release reads, through `envFrom`

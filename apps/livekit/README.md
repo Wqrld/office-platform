@@ -31,7 +31,8 @@ All three are `postRenderers` in release.yaml and are the whole reason that file
    the chart declares container ports from values, the process reads the Secret, and the
    Service is hand-written.
 2. **No hostPort, no hostNetwork.** The chart wants `hostNetwork: true` and emits
-   `hostPort` even without it; PSA baseline refuses both. The ports list is replaced.
+   `hostPort` even without it; PSA baseline refuses both. The ports list is replaced
+   whole, so a port a chart bump adds cannot slip through.
 3. **No chart LoadBalancer.** Its modes are cloud-specific; `type: disable` leaves the
    ClusterIP the signaling and media routes point at; surround.yaml adds TURN's.
 

@@ -1,6 +1,6 @@
-# Release 2 of 3: Messages, from the in-tree chart (`src/helm/messages`, copied from Docs')
-# at the fork's git tag until the upstreaming PR lands (adr/0104). README.md has the five
-# workloads. Conventions: apps/README.md.
+# Messages — release 2 of 3: the application, from the in-tree chart (`src/helm/messages`,
+# copied from Docs') at the fork's git tag until the upstreaming PR lands (adr/0104).
+# README.md for the five workloads and the pins. Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -20,14 +20,13 @@ spec:
     disableWaitForJobs: true
     remediation:
       retries: 0
-  valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "${SIZE}"}]
-
   postRenderers:
     - kustomize:
         patches:
           - target: {kind: Deployment, name: messages-celery-worker}
             patch: |
               - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
+  valuesFrom: [{kind: ConfigMap, name: messages-sizes, valuesKey: "${SIZE}"}]
   values:
     # The fork's images, one tag for all five (README.md, Pins).
     image:
@@ -46,13 +45,11 @@ spec:
       securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
 
-      # The chart's default is Docs' `/__lbheartbeat__`, which Messages 404s. Drop once the
-      # fork's chart says `/__heartbeat__`.
-      probes:
-        liveness: {path: /__heartbeat__}
-
-      celery:
-        probes: {readiness: null, liveness: {timeoutSeconds: 30}}
+      # OPENSEARCH_CA_CERTS (messages-opensearch) names this file.
+      extraVolumes:
+        - {name: opensearch-ca, secret: {secretName: messages-opensearch-ca}}
+      extraVolumeMounts:
+        - {name: opensearch-ca, mountPath: /etc/opensearch-ca, readOnly: true}
 
       envFrom:
         - {secretRef: {name: messages-postgres}}
@@ -63,12 +60,6 @@ spec:
         - {secretRef: {name: messages-smtp}}
         - {secretRef: {name: messages-django}}
         - {secretRef: {name: messages-mda}}
-
-      # OPENSEARCH_CA_CERTS (messages-opensearch) names this file.
-      extraVolumes:
-        - {name: opensearch-ca, secret: {secretName: messages-opensearch-ca}}
-      extraVolumeMounts:
-        - {name: opensearch-ca, mountPath: /etc/opensearch-ca, readOnly: true}
 
       # Shared by the backend, the worker and both Jobs.
       envVars:
@@ -112,13 +103,21 @@ spec:
         STORAGE_MESSAGE_BLOBS_ACCESS_KEY: {secretKeyRef: {name: messages-s3, key: AWS_S3_ACCESS_KEY_ID}}
         STORAGE_MESSAGE_BLOBS_SECRET_KEY: {secretKeyRef: {name: messages-s3, key: AWS_S3_SECRET_ACCESS_KEY}}
 
+      # The chart's default is Docs' `/__lbheartbeat__`, which Messages 404s. Drop once the
+      # fork's chart says `/__heartbeat__`.
+      probes:
+        liveness: {path: /__heartbeat__}
+
+      celery:
+        probes: {readiness: null, liveness: {timeoutSeconds: 30}}
+
     frontend:
-      pdb: {enabled: false}
       image:
         repository: ghcr.io/wqrld/messages-frontend
         tag: "0.9.0-office.1"
-      # Caddy keeps its autosave and storage under $HOME.
+      pdb: {enabled: false}
       securityContext: {readOnlyRootFilesystem: true}
+      # Caddy keeps its autosave and storage under $HOME.
       persistence: {home: {type: emptyDir, mountPath: /home/nonroot}}
       envVars:
         # The admin and health checks go through Caddy; /api bypasses it (surround.yaml).
@@ -129,12 +128,16 @@ spec:
 
     mtaIn:
       enabled: true
-      pdb: {enabled: false}
       image:
         repository: ghcr.io/wqrld/messages-mta-in-py
         tag: "0.9.0-office.1"
+      pdb: {enabled: false}
       securityContext: {readOnlyRootFilesystem: true}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
+      extraVolumes:
+        - {name: tls, secret: {secretName: messages-mx-tls}}
+      extraVolumeMounts:
+        - {name: tls, mountPath: /tls, readOnly: true}
       envFrom:
         - {secretRef: {name: messages-mda}}
       envVars:
@@ -149,19 +152,15 @@ spec:
         # unless the domain publishes MTA-STS or DANE (README.md, Known gaps).
         PYMTA_TLS_CERT_FILE: /tls/tls.crt
         PYMTA_TLS_KEY_FILE: /tls/tls.key
-      extraVolumes:
-        - {name: tls, secret: {secretName: messages-mx-tls}}
-      extraVolumeMounts:
-        - {name: tls, mountPath: /tls, readOnly: true}
 
     mpa:
       enabled: true
-      pdb: {enabled: false}
       image:
         repository: ghcr.io/wqrld/messages-mpa
         tag: "0.9.0-office.1"
-      # rspamd's maps, cache, pid and sockets, nginx's temp paths, start.sh's servers.conf.
+      pdb: {enabled: false}
       securityContext: {readOnlyRootFilesystem: true}
+      # rspamd's maps, cache, pid and sockets, nginx's temp paths, start.sh's servers.conf.
       persistence:
         tmp: {type: emptyDir, mountPath: /tmp}
         rspamd: {type: emptyDir, mountPath: /var/lib/rspamd}

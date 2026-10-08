@@ -1,5 +1,5 @@
-# Release 2 of 3: Collabora Online. The exception to adr/0104 — not a La Suite application,
-# and it does publish a chart repository, so this is an ordinary pinned HelmRelease.
+# Collabora — release 2 of 3: Collabora Online, from its own chart repository at a pinned
+# version: not a La Suite application, so the exception to adr/0104. README.md for gotchas.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -16,6 +16,14 @@ spec:
   valuesFrom: [{kind: ConfigMap, name: collabora-sizes, valuesKey: "${SIZE}"}]
   values:
     image: {tag: "26.04.3.2.1"}   # pinned so a chart bump cannot move the application
+
+    # The chart's own `route` would have no traffic policy and no deny rule.
+    ingress: {enabled: false}
+    route: {enabled: false}
+    nginxDeny: {enabled: false}
+    reverseProxy: {enabled: false}
+    networkPolicy: {enabled: false}         # ours, in surround.yaml
+    prometheus: {servicemonitor: {enabled: false}}
 
     fullnameOverride: collabora-online
 
@@ -55,14 +63,6 @@ spec:
 
     service: {port: 9980}
     deployment: {containerPort: 9980}
-
-    # The chart's own `route` would have no traffic policy and no deny rule.
-    ingress: {enabled: false}
-    route: {enabled: false}
-    nginxDeny: {enabled: false}
-    reverseProxy: {enabled: false}
-    networkPolicy: {enabled: false}         # ours, in surround.yaml
-    prometheus: {servicemonitor: {enabled: false}}
 
     priorityClassName: office-app
 

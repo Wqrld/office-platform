@@ -1,6 +1,6 @@
-# Release 2 of 3: Find, from the upstream in-tree chart (`src/helm/find`) pinned to a COMMIT,
-# not a tag: the one departure from adr/0104, as Find has never tagged (README.md).
-# Conventions: apps/README.md.
+# Find — release 2 of 3: the application, from the upstream in-tree chart (`src/helm/find`)
+# pinned to a COMMIT, not a tag: the one departure from adr/0104, as Find has never tagged
+# (README.md). Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -24,8 +24,6 @@ spec:
     disableWaitForJobs: true
     remediation:
       retries: 0
-  valuesFrom: [{kind: ConfigMap, name: find-sizes, valuesKey: "${SIZE}"}]
-
   # The chart concatenates `repository:tag`, so the digest pin goes here. Nothing enforces
   # that it matches the GitRepository commit.
   postRenderers:
@@ -33,7 +31,7 @@ spec:
         images:
           - name: lasuite/find
             digest: sha256:37cf17a3c45759136b600cd3b22839030310ec1e79f974b568e5f1839cba7469
-
+  valuesFrom: [{kind: ConfigMap, name: find-sizes, valuesKey: "${SIZE}"}]
   values:
     image:
       # The chart's `lasuite/find-backend` has never existed on Docker Hub.
@@ -44,10 +42,6 @@ spec:
     ingressAdmin: {enabled: false}
 
     backend:
-      migrateJobAnnotations:
-        helm.sh/hook: pre-install,pre-upgrade
-        helm.sh/hook-delete-policy: before-hook-creation
-
       # The chart's default is null; the image runs as uid 1001. The migrate Job's too.
       securityContext:
         allowPrivilegeEscalation: false
@@ -56,29 +50,6 @@ spec:
         runAsNonRoot: true
         seccompProfile: {type: RuntimeDefault}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
-
-      # Migrate, then register Docs, idempotently. `client_id` MUST be `docs`, the Keycloak
-      # client, or search silently falls back to titles (README.md).
-      migrate:
-        command:
-          - /bin/sh
-          - -c
-          - |
-            python manage.py migrate --no-input
-            python manage.py shell <<'PY'
-            import os
-            from core.models import Service
-
-            service, _ = Service.objects.update_or_create(
-                name="docs",
-                defaults={
-                    "token": os.environ["FIND_SERVICE_TOKEN_DOCS"],
-                    "client_id": "docs",
-                    "is_active": True,
-                },
-            )
-            print("service registered:", service.name, service.client_id)
-            PY
 
       # No `envFrom` in the chart, so one reference per key. Feeds the migrate Job too.
       envVars:
@@ -114,3 +85,30 @@ spec:
         OIDC_RS_SCOPES:                 {secretKeyRef: {name: find-oidc, key: OIDC_RS_SCOPES}}
 
         FIND_SERVICE_TOKEN_DOCS: {secretKeyRef: {name: find-service-token, key: FIND_SERVICE_TOKEN_DOCS}}
+
+      migrateJobAnnotations:
+        helm.sh/hook: pre-install,pre-upgrade
+        helm.sh/hook-delete-policy: before-hook-creation
+
+      # Migrate, then register Docs, idempotently. `client_id` MUST be `docs`, the Keycloak
+      # client, or search silently falls back to titles (README.md).
+      migrate:
+        command:
+          - /bin/sh
+          - -c
+          - |
+            python manage.py migrate --no-input
+            python manage.py shell <<'PY'
+            import os
+            from core.models import Service
+
+            service, _ = Service.objects.update_or_create(
+                name="docs",
+                defaults={
+                    "token": os.environ["FIND_SERVICE_TOKEN_DOCS"],
+                    "client_id": "docs",
+                    "is_active": True,
+                },
+            )
+            print("service registered:", service.name, service.client_id)
+            PY

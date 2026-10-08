@@ -1,6 +1,6 @@
-# Release 2 of 3: Projects, from the in-tree chart (`src/helm/projects`, copied from Docs')
-# at the fork's git tag until the upstreaming PR lands (adr/0104). One workload, `backend`;
-# migrations run in `start.sh` (README.md). Conventions: apps/README.md.
+# Projects — release 2 of 3: the application, from the in-tree chart (`src/helm/projects`,
+# copied from Docs') at the fork's git tag until the upstreaming PR lands (adr/0104). One
+# workload, `backend`; migrations run in `start.sh`. README.md for pins.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -18,7 +18,6 @@ spec:
     remediation:
       retries: 0
   valuesFrom: [{kind: ConfigMap, name: projects-sizes, valuesKey: "${SIZE}"}]
-
   values:
     # The fork's image, until upstream tags both patches (README.md, Pins).
     image:

@@ -1,5 +1,5 @@
-# Release 2 of 3: Calendars, from the in-tree chart (`src/helm/calendars`) at the fork's git
-# tag until the upstreaming PR lands (adr/0104). README.md has the workloads and the pins.
+# Calendars — release 2 of 3: the application, from the in-tree chart (`src/helm/calendars`)
+# at the fork's git tag until the upstreaming PR lands (adr/0104). README.md for pins.
 # CALDAV IS NEVER ROUTED FROM OUTSIDE: only Django's proxy reaches it (README.md).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -30,9 +30,7 @@ spec:
               - op: add
                 path: /spec/template/spec/securityContext
                 value: {sysctls: [{name: net.ipv4.ip_unprivileged_port_start, value: "80"}]}
-
   valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "${SIZE}"}]
-
   values:
     # All three images are the fork's: upstream's lack the probes' endpoints and a non-root
     # user (README.md, Pins).
@@ -49,11 +47,6 @@ spec:
       # 1001, as Docs' images, so an upstream root image starts too (README.md, Pins).
       securityContext: {runAsUser: 1001, readOnlyRootFilesystem: true}
       persistence: {tmp: {type: emptyDir, mountPath: /tmp}}
-
-      # Stable Job names, so hooks (apps/README.md, Conventions). Reaches createsuperuser too.
-      migrateJobAnnotations:
-        helm.sh/hook: pre-install,pre-upgrade
-        helm.sh/hook-delete-policy: before-hook-creation
 
       # Shared with the worker and both backend Jobs: they need the database and CalDAV keys.
       envFrom:
@@ -90,6 +83,11 @@ spec:
 
         # backend -> caldav; CALDAV_CALLBACK_BASE_URL below is the way back. Both in-cluster.
         CALDAV_URL: http://calendars-caldav:80
+
+      # Stable Job names, so hooks (apps/README.md, Conventions). Reaches createsuperuser too.
+      migrateJobAnnotations:
+        helm.sh/hook: pre-install,pre-upgrade
+        helm.sh/hook-delete-policy: before-hook-creation
 
       # The SPA's runtime config (`/api/v1.0/config/`); reaches the backend Deployment only.
       django:
@@ -177,10 +175,6 @@ spec:
         - {name: apache-lock, mountPath: /run/lock/apache2}
         - {name: tmp, mountPath: /tmp}
 
-      initdbJobAnnotations:
-        helm.sh/hook: pre-install,pre-upgrade
-        helm.sh/hook-delete-policy: before-hook-creation
-
       # The three shared API keys, read here by SabreDAV and above by Django.
       envFrom:
         - {secretRef: {name: calendars-caldav}}
@@ -199,3 +193,7 @@ spec:
         # Must equal what Django's proxy strips, or PROPFIND works and calendars are unreachable.
         CALDAV_BASE_URI: /caldav/
         CALDAV_CALLBACK_BASE_URL: http://calendars-backend:80
+
+      initdbJobAnnotations:
+        helm.sh/hook: pre-install,pre-upgrade
+        helm.sh/hook-delete-policy: before-hook-creation

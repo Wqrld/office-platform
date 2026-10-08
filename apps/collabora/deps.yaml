@@ -1,4 +1,4 @@
-# Collabora's prerequisites: only the admin credential — it is handed a WOPI token by Drive
+# Collabora — release 1 of 3: only the admin credential; it is handed a WOPI token by Drive
 # and never talks to Keycloak. Without this the chart ships `admin` / `examplepass`.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

@@ -1,6 +1,6 @@
-# Projects' surround. One backend serves nearly everything, so the routes are split only
-# where the traffic treatment differs: uploads want a body limit, socket.io must not have
-# one or a request timeout. No media proxy: the server streams files from the bucket itself.
+# Projects — release 3 of 3. Routes split only where the treatment differs: uploads want a
+# body limit, socket.io must not have one or a request timeout. No media proxy: the server
+# streams files from the bucket itself.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: projects-platform, namespace: office-projects}

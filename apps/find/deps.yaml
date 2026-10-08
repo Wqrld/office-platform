@@ -1,4 +1,4 @@
-# Find's prerequisites.
+# Find — release 1 of 3: what it needs before it starts. Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: find-deps, namespace: office-find}

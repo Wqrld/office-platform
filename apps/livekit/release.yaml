@@ -1,16 +1,6 @@
-# Release 2 of 3 for LiveKit: the SFU and its egress worker, both from livekit/livekit-helm
-# at a pinned commit (charts/control-plane/templates/sources.yaml). No `deps` release: its
-# two inputs, a Valkey user and the API secret, are assembled in secrets.yaml.
-#
-# Against the chart's grain, in `postRenderers`:
-#   1. Config from a Secret, not the chart's ConfigMap, which would hold the Redis password
-#      and API secret. `livekit:` below is only the ports, which the Service reads too:
-#      keep them equal to secrets.yaml's.
-#   2. No hostPort. The chart emits it on every media port even without hostNetwork, and
-#      PSA baseline forbids both. The list is replaced whole, so a port a chart bump adds
-#      cannot slip through.
-#   3. No LoadBalancer: a ClusterIP Service that surround.yaml's routes point at.
-# `fullnameOverride` keeps the Service at `livekit`, the name surround.yaml and secrets.yaml use.
+# LiveKit — release 2 of 3: the SFU and its egress worker, from livekit/livekit-helm at a
+# pinned commit. No deps release: its Valkey user and API secret are assembled in
+# secrets.yaml. What `postRenderers` does against the charts' grain: README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: livekit, namespace: office-livekit}
@@ -25,7 +15,6 @@ spec:
     remediation: {retries: 3}
   upgrade:
     remediation: {retries: 3}
-
   postRenderers:
     - kustomize:
         patches:
@@ -51,17 +40,19 @@ spec:
                   - {name: rtc-udp, containerPort: 7882, protocol: UDP}
                   - {name: rtc-tcp, containerPort: 7881, protocol: TCP}
                   - {name: turn-udp, containerPort: 3478, protocol: UDP}
-
   valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "${SIZE}"}]
   values:
-    fullnameOverride: livekit
-    # ONE at every size, not a size: one address fronts one pod (apps/README.md, Sizing).
-    replicaCount: 1
     # The chart's appVersion lags what LiveKit ships; updatecli moves this.
     image:
       repository: livekit/livekit-server
       tag: v1.13.9
 
+    # The Service's name, which surround.yaml and secrets.yaml use.
+    fullnameOverride: livekit
+    # ONE at every size, not a size: one address fronts one pod (apps/README.md, Sizing).
+    replicaCount: 1
+
+    # Only the ports, which the Service reads too: keep them equal to secrets.yaml's.
     livekit:
       port: 7880
       rtc: {tcp_port: 7881, udp_port: 7882}
@@ -104,7 +95,6 @@ spec:
     remediation: {retries: 3}
   upgrade:
     remediation: {retries: 3}
-
   postRenderers:
     - kustomize:
         patches:
@@ -122,13 +112,12 @@ spec:
               - op: add
                 path: /spec/template/spec/containers/0/volumeMounts
                 value: [{name: home, mountPath: /home/egress}, {name: tmp, mountPath: /tmp}]
-
   valuesFrom: [{kind: ConfigMap, name: livekit-sizes, valuesKey: "egress-${SIZE}"}]
   values:
-    fullnameOverride: livekit-egress
     image:
       repository: livekit/egress
       tag: v1.15.0
+    fullnameOverride: livekit-egress
 
     # The chart reads `health_port` to declare the probes' port. No `prometheus_port`:
     # nothing scrapes it.

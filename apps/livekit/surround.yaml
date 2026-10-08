@@ -1,6 +1,6 @@
-# LiveKit's surround: one HTTPRoute for signaling, three L4 routes through the Gateway's
-# media listeners (adr/0113), as `extraObjects` since platform-app knows only HTTP. TURN's
-# 3478 gets a Service of its own; the chart's carries the rest.
+# LiveKit — release 3 of 3: one HTTPRoute for signaling, three L4 routes through the
+# Gateway's media listeners (adr/0113), as `extraObjects` since platform-app knows only
+# HTTP. TURN's 3478 gets a Service of its own; the chart's carries the rest.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata: {name: livekit-platform, namespace: office-livekit}

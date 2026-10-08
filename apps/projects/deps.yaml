@@ -1,5 +1,5 @@
-# Projects' prerequisites. Every spelling here is Projects' own — a Node app that takes one
-# connection string per store and an OIDC issuer — so `env: projects` is a family of its own
+# Projects — release 1 of 3. Every spelling is its own (a Node app: one connection string
+# per store, and an OIDC issuer), so `env: projects` is a family of its own
 # (charts/platform-deps/templates/_profiles.tpl).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease

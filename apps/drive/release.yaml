@@ -1,5 +1,6 @@
-# Release 2 of 3: Drive, from the in-tree chart at the fork's git tag (adr/0104): upstream
-# main plus document thumbnails (README.md, The fork). Conventions: apps/README.md.
+# Drive — release 2 of 3: the application, from the in-tree chart at the fork's git tag
+# (adr/0104): upstream main plus document thumbnails (README.md, The fork). Conventions:
+# apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -22,6 +23,33 @@ spec:
     disableWaitForJobs: true
     remediation:
       retries: 0
+  # The chart has no `envFrom`. THE NAME SELECTOR IS THE SECURITY BOUNDARY: `drive-backend.*`
+  # selects ten workloads and not `drive-frontend` (apps/README.md, Conventions).
+  postRenderers:
+    - kustomize:
+        patches:
+          - target: {kind: "Deployment|Job", name: "drive-backend.*"}
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: drive-postgres}}
+                  - {secretRef: {name: drive-cache}}
+                  - {secretRef: {name: drive-s3}}
+                  - {secretRef: {name: drive-oidc}}
+                  - {secretRef: {name: drive-django}}
+                  - {secretRef: {name: drive-smtp}}
+          - target: {kind: CronJob, name: "drive-backend.*"}
+            patch: |
+              - op: add
+                path: /spec/jobTemplate/spec/template/spec/containers/0/envFrom
+                value:
+                  - {secretRef: {name: drive-postgres}}
+                  - {secretRef: {name: drive-cache}}
+                  - {secretRef: {name: drive-s3}}
+                  - {secretRef: {name: drive-oidc}}
+                  - {secretRef: {name: drive-django}}
+                  - {secretRef: {name: drive-smtp}}
   valuesFrom: [{kind: ConfigMap, name: drive-sizes, valuesKey: "${SIZE}"}]
   values:
     # The fork's images, one tag with the chart (README.md, The fork).
@@ -141,31 +169,3 @@ spec:
       envVars:
         PORT: "8080"
         NEXT_PUBLIC_API_ORIGIN: https://drive.${BASE_DOMAIN}
-
-  # The chart has no `envFrom`. THE NAME SELECTOR IS THE SECURITY BOUNDARY: `drive-backend.*`
-  # selects ten workloads and not `drive-frontend` (apps/README.md, Conventions).
-  postRenderers:
-    - kustomize:
-        patches:
-          - target: {kind: "Deployment|Job", name: "drive-backend.*"}
-            patch: |
-              - op: add
-                path: /spec/template/spec/containers/0/envFrom
-                value:
-                  - {secretRef: {name: drive-postgres}}
-                  - {secretRef: {name: drive-cache}}
-                  - {secretRef: {name: drive-s3}}
-                  - {secretRef: {name: drive-oidc}}
-                  - {secretRef: {name: drive-django}}
-                  - {secretRef: {name: drive-smtp}}
-          - target: {kind: CronJob, name: "drive-backend.*"}
-            patch: |
-              - op: add
-                path: /spec/jobTemplate/spec/template/spec/containers/0/envFrom
-                value:
-                  - {secretRef: {name: drive-postgres}}
-                  - {secretRef: {name: drive-cache}}
-                  - {secretRef: {name: drive-s3}}
-                  - {secretRef: {name: drive-oidc}}
-                  - {secretRef: {name: drive-django}}
-                  - {secretRef: {name: drive-smtp}}
