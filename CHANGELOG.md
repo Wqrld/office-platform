@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.3.4 — 2026-10-08
+
 - Security: read-only root filesystems for Docs, Drive, Meet, Find, Calendars (not
   caldav), the LiveKit server and Messages' backend, as mijn-bureau runs the same images.
   Each gets an emptyDir at /tmp; Calendars' Caddy also at its two XDG directories.
