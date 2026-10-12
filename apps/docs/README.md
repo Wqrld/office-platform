@@ -134,21 +134,20 @@ None recorded.
 
 ## Upgrade to 6.0.0 (yhub)
 
-The collaboration server changed (adr/0118). The release itself is the steps below, in order.
-A rollback after step 2 discards the edits made in yhub since: the old y-provider reads the
-legacy objects in S3, which yhub does not write to.
+The collaboration server changed (adr/0118). Done in release 2.4.0 on the Office cluster:
 
-1. **Before the release.** Back up the `docs` database (`pg_dump`) and note the object counts
-   of the docs bucket. The legacy `{id}/file` objects and their versions must stay in place.
-2. **Deploy** with `SOFT_MIGRATION: "true"` (`apps/docs/release.yaml`, `yhub.envVars`). Then
-   check that a document opens and its content is there. The chart runs `yhub-init-db`
-   first; a `relation ... does not exist` error on a document means it did not finish.
-3. **Backfill**: `python manage.py migrate_documents --dry-run` in the backend, then the real
-   run, bounded (`--concurrency`, `--rate`). It is resumable; a refused document is retried
-   with `--retry-failed`. Progress is in the `impress_document_migration` table.
-4. **Switch off** `SOFT_MIGRATION` (a follow-up release) once the backfill covers the corpus.
-   Turning it off earlier loses nothing that is migrated, but an unmigrated document then
-   opens empty over content that is alive in S3.
+1. Backed up the `docs` database (`pg_dump -Fc`) before the release.
+2. Deployed with `SOFT_MIGRATION: "true"` (`apps/docs/release.yaml`, `yhub.envVars`). The chart
+   runs `yhub-init-db` first, then yhub serves the websocket and the document routes.
+3. The backfill (`migrate_documents`) **does not work on this store**. Its path replays S3
+   object *versions*, which are listed with `ListObjectVersions`. Garage does not implement
+   that call, and the bucket was never versioned, so there are no versions to replay in any
+   case. Every backfill attempt fails with `list_version.failed`.
+4. Therefore `SOFT_MIGRATION` **stays on**. Its lazy path (`maybeMigrate`) fetches the newest
+   object with `GetObject`, which Garage serves: a document is seeded from its legacy
+   `{id}/file` the first time someone opens it. A document nobody opens stays in S3 until then.
+   Do not turn the flag off while any document is unmigrated: it would open empty.
 
-Known gaps: `LEGACY_S3_*` reads with the docs key, not a read-only key of its own (adr/0118);
-the worker runs inside each server, not split out.
+Open items: yhub reads the legacy bucket with the docs' read-write key, which the upstream
+guide asks not to do (adr/0118). The `migrate_documents` attempt also left failure records
+in `impress_document_migration`; they are harmless and can be cleared with the table.

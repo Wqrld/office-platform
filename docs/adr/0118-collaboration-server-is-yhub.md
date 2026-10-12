@@ -27,10 +27,11 @@ talking to a server the backend no longer uses.
   user of its own.
 - **The keys are chart-generated.** `jwtKeys.enabled` makes the chart's job create the backend
   and yhub RSA keys once, in a secret both mount read-only. Keys never pass through Helm values.
-- **The migration runs in place.** `SOFT_MIGRATION=true` on yhub, reading the docs bucket
-  through the docs S3 key, before anyone signs in; then `migrate_documents` backfills the
-  corpus; then `SOFT_MIGRATION` goes false. The legacy `{id}/file` objects and their versions
-  stay where they are.
+- **The migration runs in place, lazily.** `SOFT_MIGRATION=true` on yhub reads the docs bucket
+  through the docs S3 key. A document is seeded from its newest legacy object on first open.
+  The full backfill (`migrate_documents`) replays S3 object versions, which Garage cannot list
+  and which this bucket never had, so it is not used; the flag stays on. The legacy `{id}/file`
+  objects stay where they are.
 - **One replica per size below `large`; two at `large`,** with a PDB at `large` only (ADR 0115).
   The worker runs inside each server (chart default), not as a separate deployment.
 
@@ -50,8 +51,8 @@ known gap, not the design.
   nobody has opened yet is seeded from its legacy snapshot on first open. Once it is off, a
   document the backfill has not covered opens empty, so the backfill runs in the window.
 - The `y-provider` is now only a converter; its websocket settings are gone.
-- `SOFT_MIGRATION` stays `true` until the backfill has covered the corpus, then goes false in
-  a follow-up release. Until then, a document nobody has opened is seeded from its legacy
-  snapshot on first open.
-- A read-only legacy key is still to do: a Garage grant for the migration, then a switch of
-  the `LEGACY_S3_*` source in `apps/docs/release.yaml`.
+- `SOFT_MIGRATION` stays `true`. Turning it off while a legacy document is unopened would open it
+  empty, and with no backfill there is no way to finish that by hand.
+- yhub reads the legacy bucket with the docs' read-write key while the flag is on. Upstream
+  asks for a read-only, bucket-scoped key, since yhub handles untrusted websocket traffic. That
+  is the open security item; it needs a Garage grant the tenants chart cannot express yet.
