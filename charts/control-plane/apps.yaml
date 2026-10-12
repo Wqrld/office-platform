@@ -15,7 +15,8 @@
 # What the platform provisions, in platform-tenants' spelling. Every app's fields, enabled or
 # not, reach that chart as TENANTS_JSON, so a disabled app comes back with its data
 # (adr/0107); its reconcile Jobs pick up a new entry.
-#   postgres: {extensions: [...]}  a role and a database on the shared cluster
+#   postgres: {extensions: [...], databases: [...]}  a role and a database on the shared
+#                                  cluster; `databases` adds more, owned by that role
 #   cache: [cache, broker]         a password and an ACL user per Valkey instance, with the
 #                                  instance's shared line (platform-tenants' `valkeyAcl`)
 #   acl: {<instance>: "+cmd ..."}  added to that shared line, on that instance only
@@ -62,8 +63,12 @@ docs:
   requires: [find]
   hosts: [docs]
   switcher: {name: Docs, logo: /assets/icon-docs.svg, maturity: stable}
-  postgres: {extensions: [pg_trgm, unaccent]}
+  # yhub (the collaboration server) keeps its own database, `yhub`, in the docs role's
+  # cluster; its schema is created by its init job. `+info +keys`: yhub's redis client
+  # runs INFO on connect and KEYS to find its streams, both @dangerous (apps/docs/README.md).
+  postgres: {extensions: [pg_trgm, unaccent], databases: [yhub]}
   cache: [cache, broker]
+  acl: {cache: "+info +keys"}
   bucket: true
   oidc:
     description: Docs — samen werken aan documenten

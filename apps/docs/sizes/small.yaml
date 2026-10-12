@@ -22,6 +22,11 @@ yProvider:
   resources:
     requests: {cpu: 25m, memory: 160Mi}
     limits: {memory: 384Mi}
+yhub:
+  replicas: 1
+  resources:
+    requests: {cpu: 25m, memory: 128Mi}
+    limits: {memory: 384Mi}
 docSpec:
   replicas: 1
   resources:

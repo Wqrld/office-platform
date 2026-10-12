@@ -5,6 +5,13 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- ⚠️ Docs 6.0.0: the collaboration server is yhub (`docs/adr/0118`). The editor's websocket
+  and document routes go to it; the `y-provider` only converts. Before this release reaches a
+  cluster, do the steps in `apps/docs/README.md` (Upgrade to 6.0.0): the `yhub` database and
+  its keys come with it. Documents must be migrated before `SOFT_MIGRATION` is turned off, or
+  they open empty. Valkey's `docs` user gets `+info +keys` on the `cache` instance for yhub.
+- Checks: `startup.py` knows that a Role letting a release create a Secret produces the
+  Secret it names, as the chart's JWT job does.
 - Maintenance: nothing a cluster applies changes. `measure.py` now counts Drive's and
   Meet's CronJobs, which it missed before, so its totals rise (small: 2270m / 16544Mi for
   the apps). Every script takes `--help`; `release.sh` runs on macOS; the label domain

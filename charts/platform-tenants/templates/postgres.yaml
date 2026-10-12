@@ -53,4 +53,21 @@ spec:
     - {name: {{ . }}, ensure: present}
     {{- end }}
   {{- end }}
+{{- /* A further database of the same role, for a service that keeps its own schema next to
+     the app's (apps/docs: yhub). Owned by the app's role, so its init job needs no CREATEDB. */}}
+{{- range $db := $t.postgres.databases }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: {{ printf "%s-%s" $app $db }}
+  namespace: {{ $.Values.namespaces.data }}
+  labels: {{- include "platform.labels" $ | nindent 4 }}
+spec:
+  cluster: {name: {{ $.Values.postgresCluster }}}
+  name: {{ $db }}
+  owner: {{ $app }}
+  ensure: present
+  databaseReclaimPolicy: retain
+{{- end }}
 {{- end }}{{ end }}

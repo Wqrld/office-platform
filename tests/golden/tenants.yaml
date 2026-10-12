@@ -328,7 +328,7 @@ data:
       aclUsers:
         default: {permissions: "off -@all"}
         calendars: {permissions: "~* &* +@all -@dangerous +flushdb"}
-        docs: {permissions: "~* &* +@all -@dangerous +flushdb"}
+        docs: {permissions: "~* &* +@all -@dangerous +flushdb +info +keys"}
         drive: {permissions: "~* &* +@all -@dangerous +flushdb"}
         find: {permissions: "~* &* +@all -@dangerous +flushdb"}
         meet: {permissions: "~* &* +@all -@dangerous +flushdb"}
@@ -563,6 +563,25 @@ spec:
   extensions:
     - {name: pg_trgm, ensure: present}
     - {name: unaccent, ensure: present}
+---
+# Source: platform-tenants/templates/postgres.yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: docs-yhub
+  namespace: office-data
+  labels:
+    helm.sh/chart: platform-tenants-<version>
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: office
+    app.kubernetes.io/name: tenants
+    app.kubernetes.io/instance: tenants
+spec:
+  cluster: {name: office-pg}
+  name: yhub
+  owner: docs
+  ensure: present
+  databaseReclaimPolicy: retain
 ---
 # Source: platform-tenants/templates/postgres.yaml
 # Extensions are created here by the operator, so the role never needs SUPERUSER.

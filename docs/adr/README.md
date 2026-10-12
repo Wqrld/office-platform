@@ -23,6 +23,7 @@ this implements). Each names what it amends.
 | [0115](0115-sizes-as-built.md) | accepted | **Only `large` scales out**: `medium` is one replica and no PDBs, like `small`; no HPA or Pooler at any size, Garage one node |
 | [0116](0116-sso-session-outlives-app-sessions.md) | accepted | **The Keycloak session outlives the apps' sessions**: SSO idle and max lifespan are 12 h, so Docs' search can always refresh its token |
 | [0117](0117-label-domain-stays.md) | accepted | The `office.haaijer.dev/*` label domain stays: renaming it detaches every route unless done in two releases |
+| [0118](0118-collaboration-server-is-yhub.md) | accepted | **Docs' collaboration server is yhub**: its own database and Valkey prefix, routes split by upstream's list, legacy documents migrated in place |
 
 Superseded from the design set: `0002` (library chart per component) → `0104` and the
 three charts in `charts/`; `0012` (upstream La Suite charts) → `0104`; `0013` (Kyverno

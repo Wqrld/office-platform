@@ -53,6 +53,14 @@ def test_needs_skips_optional_and_reads_every_source():
     ({"kind": "GarageKey", "metadata": {"name": "a"}, "spec": {"secretTemplate": {"name": "b"}}},
      {("Secret", "b")}),
     ({"kind": "Deployment", "metadata": {"name": "a"}, "spec": {}}, set()),
+    # A Job's Role creates the Secret at run time: the names it may read are what it makes.
+    ({"kind": "Role", "metadata": {"name": "j"}, "rules": [
+        {"apiGroups": [""], "resources": ["secrets"], "verbs": ["create"]},
+        {"apiGroups": [""], "resources": ["secrets"], "resourceNames": ["keys"], "verbs": ["get"]}]},
+     {("Secret", "keys")}),
+    ({"kind": "Role", "metadata": {"name": "r"}, "rules": [
+        {"apiGroups": [""], "resources": ["secrets"], "resourceNames": ["x"], "verbs": ["get"]}]},
+     set()),
 ])
 def test_produces(obj, want):
     assert startup.produces(obj) == want

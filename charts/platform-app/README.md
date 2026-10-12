@@ -32,10 +32,10 @@ routes:
     paths: [/api, /admin, /static]
     requestBuffer: 100Mi                  # reject bodies above this
     timeout: 300s                         # slow is not hung
-  - name: collaboration
+  - name: collaboration-ws
     host: docs
-    backend: {name: docs-y-provider, port: 443}
-    paths: [/collaboration/ws, /collaboration/api]
+    backend: {name: docs-yhub, port: 443}
+    paths: [/collaboration/ws/]
     websocket: true                       # no buffer, no request timeout, long idle
 ```
 

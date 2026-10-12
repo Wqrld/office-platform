@@ -23,6 +23,13 @@ yProvider:
   resources:
     requests: {cpu: 250m, memory: 512Mi}
     limits: {memory: 1Gi}
+yhub:
+  # Two replicas share the load through redis; each also runs a worker (chart default),
+  # so both persist. Scaling above one is budgeted in platform-large.yaml.
+  replicas: 2
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {memory: 1Gi}
 docSpec:
   replicas: 2
   resources:

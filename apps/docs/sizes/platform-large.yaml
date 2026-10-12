@@ -20,6 +20,10 @@ pdb:
     # Scaled above one in large.yaml, so budgeted here. Their component labels are
     # `celery-worker` and `docspec`, neither of which is the values key that sets their
     # replicas (`celery`, `docSpec`).
+    # The collaboration server, scaled to two in large.yaml (adr/0118).
+    yhub:
+      {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
+       app.kubernetes.io/component: yhub}
     celery-worker:
       {app.kubernetes.io/name: docs, app.kubernetes.io/instance: docs,
        app.kubernetes.io/component: celery-worker}

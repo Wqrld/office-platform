@@ -60,7 +60,8 @@ Five workloads and **five routes on one hostname**:
 | `/api` | backend | |
 | `/admin` | backend | |
 | `/media` | backend | large uploads — needs a body-size allowance |
-| `/collaboration/ws` | yprovider | **websocket, needs a long timeout** |
+| `/collaboration/ws/` | yhub | **websocket, needs a long timeout** |
+| `/collaboration/{ydoc,activity,changeset,rollback,jwks}/` | yhub | the document routes the browser calls; the rest of `/collaboration/` stays in-cluster |
 
 Plus: a Celery worker; `docspec` on port 4000 (document conversion); Django `migrate`; a
 `waffle` flag bootstrap Job that must set `flag_find_full_text_search` — the

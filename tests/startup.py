@@ -116,6 +116,15 @@ def produces(d: dict) -> set[tuple[str, str]]:
         return {("Secret", d["spec"]["secretName"])}
     if k == "GarageKey":
         return {("Secret", (d["spec"].get("secretTemplate") or {}).get("name") or n)}
+    if k == "Role":
+        # A Job that creates its Secret at run time (the chart's jwt-keys job) is not in the
+        # manifest: its Role says so. A Role allowed to `create` secrets produces the ones it
+        # names with `get` — the Job is the only thing that can create them.
+        rules = d.get("rules") or []
+        if any("secrets" in r.get("resources", []) and "create" in r.get("verbs", []) for r in rules):
+            return {("Secret", name) for r in rules
+                    if "secrets" in r.get("resources", []) and "get" in r.get("verbs", [])
+                    for name in r.get("resourceNames", [])}
     return set()
 
 

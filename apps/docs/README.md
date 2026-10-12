@@ -3,8 +3,9 @@
 ## What runs
 
 `docs.${BASE_DOMAIN}`: DINUM's Docs (`impress`) — the Django backend, its Celery worker,
-the frontend, the `yProvider` collaboration server, and three Jobs (`migrate`,
-`createsuperuser`, and the search-flags Job below). The usual three releases
+the frontend, the `yProvider` (the conversion service only), `yhub` (the collaboration
+server: websocket, documents, its own `yhub` database, adr/0118), and three Jobs (`migrate`,
+`createsuperuser`, and the search-flags Job below), with the `yhub-init-db` Job. The usual three releases
 (`apps/README.md`); beside them, `oidc-refresh-key.yaml` is the Fernet key for the OIDC
 refresh token search needs.
 
@@ -27,9 +28,9 @@ from `static.suite.anct.gouv.fr` — without it there is no switcher) and the se
 
 ## Pins and forks
 
-Upstream chart `src/helm/impress` at git tag `v5.7.0` (`suitenumerique-docs` in
-`charts/control-plane/templates/sources.yaml`); `image.tag`, `frontend.image.tag` and
-`yProvider.image.tag` are `v5.7.0` too (`apps/README.md`, Conventions). No fork. On a
+Upstream chart `src/helm/impress` at git tag `v6.0.0` (`suitenumerique-docs` in
+`charts/control-plane/templates/sources.yaml`); `image.tag`, `frontend.image.tag`,
+`yProvider.image.tag` and `yhub.image.tag` are `v6.0.0` too (`apps/README.md`, Conventions). No fork. On a
 bump, read Gotchas, The theme file, first.
 
 ## Install order / first admin
@@ -130,3 +131,24 @@ whose `theme_customization` key is what the frontend actually renders.
 ## Upstream PRs
 
 None recorded.
+
+## Upgrade to 6.0.0 (yhub)
+
+The collaboration server changed (adr/0118). The release itself is the steps below, in order.
+A rollback after step 2 discards the edits made in yhub since: the old y-provider reads the
+legacy objects in S3, which yhub does not write to.
+
+1. **Before the release.** Back up the `docs` database (`pg_dump`) and note the object counts
+   of the docs bucket. The legacy `{id}/file` objects and their versions must stay in place.
+2. **Deploy** with `SOFT_MIGRATION: "true"` (`apps/docs/release.yaml`, `yhub.envVars`). Then
+   check that a document opens and its content is there. The chart runs `yhub-init-db`
+   first; a `relation ... does not exist` error on a document means it did not finish.
+3. **Backfill**: `python manage.py migrate_documents --dry-run` in the backend, then the real
+   run, bounded (`--concurrency`, `--rate`). It is resumable; a refused document is retried
+   with `--retry-failed`. Progress is in the `impress_document_migration` table.
+4. **Switch off** `SOFT_MIGRATION` (a follow-up release) once the backfill covers the corpus.
+   Turning it off earlier loses nothing that is migrated, but an unmigrated document then
+   opens empty over content that is alive in S3.
+
+Known gaps: `LEGACY_S3_*` reads with the docs key, not a read-only key of its own (adr/0118);
+the worker runs inside each server, not split out.

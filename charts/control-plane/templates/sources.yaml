@@ -39,7 +39,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/docs
-  ref: {tag: v5.7.0}
+  ref: {tag: v6.0.0}
   ignore: |
     /*
     !/src/helm
