@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.4.0 — 2026-10-12
+
 - ⚠️ Docs 6.0.0: the collaboration server is yhub (`docs/adr/0118`). The editor's websocket
   and document routes go to it; the `y-provider` only converts. Before this release reaches a
   cluster, do the steps in `apps/docs/README.md` (Upgrade to 6.0.0): the `yhub` database and
