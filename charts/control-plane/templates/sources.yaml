@@ -36,7 +36,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/docs
-  ref: {tag: v5.7.0}
+  ref: {tag: v6.0.1}
   ignore: |
     /*
     !/src/helm
@@ -65,7 +65,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/find
-  ref: {branch: main, commit: 025e6d02ea08c46ef831a70f0ae1a41036c5a7c9}
+  ref: {branch: main, commit: bb2aa09693e11aa0158068de8794da34efd1c917}
   ignore: |
     /*
     !/src/helm
@@ -167,7 +167,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/meet
-  ref: {tag: v1.34.0}
+  ref: {tag: v1.35.0}
   ignore: |
     /*
     !/src/helm

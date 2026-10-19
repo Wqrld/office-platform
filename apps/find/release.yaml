@@ -43,7 +43,7 @@ spec:
     - kustomize:
         images:
           - name: lasuite/find
-            digest: sha256:37cf17a3c45759136b600cd3b22839030310ec1e79f974b568e5f1839cba7469
+            digest: sha256:8984e29eb115ecbd7c669793fe33195e3e41ab01dc1edd9d377dcbc3f0de781e
 
   values:
     image:

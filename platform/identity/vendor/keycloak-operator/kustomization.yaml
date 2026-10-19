@@ -3,7 +3,7 @@
 # ships with (adr/0104's sibling problem: no chart, so the tag is the pin).
 #
 # The five files beside this one are byte-identical copies of
-#   https://github.com/keycloak/keycloak-k8s-resources/tree/26.8.0/kubernetes
+#   https://github.com/keycloak/keycloak-k8s-resources/tree/26.8.1/kubernetes
 # Do not hand-edit them. `update.sh` in this directory re-downloads all five at the newest
 # tag and rewrites this comment, atomically — run it by hand or let CI do it weekly.
 # Everything we change about the operator is expressed here instead.
