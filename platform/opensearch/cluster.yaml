@@ -13,6 +13,8 @@ spec:
       sourceRef: {kind: HelmRepository, name: opensearch, namespace: flux-system}
   install: {disableWaitForJobs: true}
   upgrade: {disableWaitForJobs: true}
+  # A hand-scaled or hand-edited datastore is put back, and Flux says so (adr/0119).
+  driftDetection: {mode: enabled}
   values:
     singleNode: true
     replicas: 1
