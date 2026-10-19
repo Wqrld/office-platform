@@ -1,0 +1,28 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: blackbox, namespace: office-monitoring}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: prometheus-blackbox-exporter
+      version: "11.20.0"
+      sourceRef: {kind: HelmRepository, name: prometheus-community, namespace: flux-system}
+  values:
+    fullnameOverride: blackbox
+    podSecurityContext: {seccompProfile: {type: RuntimeDefault}}
+    resources:
+      requests: {cpu: 5m, memory: 16Mi}
+      limits: {memory: 64Mi}
+    config:
+      modules:
+        # Up is any answer a user's browser would render: a 302 to the login is followed,
+        # Garage's 403 at its root passes. A timeout, a DNS or TLS error, or the
+        # Gateway's 5xx for a backend that is down fails.
+        http_lt500:
+          prober: http
+          timeout: 10s
+          http:
+            valid_status_codes: [200, 204, 400, 401, 403, 404, 405, 429]
+            follow_redirects: true
+            preferred_ip_protocol: ip4

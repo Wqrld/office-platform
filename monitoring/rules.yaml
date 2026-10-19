@@ -1,0 +1,80 @@
+# The symptoms a user would notice, one rule for every workload (adr/0119). Substitution
+# is off: the annotations are Prometheus templates. Metric names are kube-state-metrics
+# 2.20's, and cluster/monitoring/release.yaml allowlists exactly these.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: office
+  namespace: office-monitoring
+  labels:
+    office.haaijer.dev/monitoring: "true"
+  annotations:
+    kustomize.toolkit.fluxcd.io/substitute: disabled
+spec:
+  groups:
+    - name: office
+      rules:
+        - alert: OfficePodCrashLooping
+          expr: max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace=~"office-.*", reason="CrashLoopBackOff"}) == 1
+          for: 10m
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }}: container {{ $labels.container }} is crash-looping"
+        - alert: OfficeWorkloadDown
+          expr: |
+            (kube_deployment_spec_replicas{namespace=~"office-.*"} > 0 and kube_deployment_status_replicas_available == 0)
+            or (kube_statefulset_replicas{namespace=~"office-.*"} > 0 and kube_statefulset_status_replicas_available == 0)
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.deployment }}{{ $labels.statefulset }} has no available replica"
+        - alert: OfficeWorkloadDegraded
+          expr: |
+            kube_deployment_status_replicas_available{namespace=~"office-.*"} < kube_deployment_spec_replicas
+            or kube_statefulset_status_replicas_available{namespace=~"office-.*"} < kube_statefulset_replicas
+          for: 15m
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.deployment }}{{ $labels.statefulset }} runs {{ $value }} replica(s), fewer than it should"
+        # CNPG's Postgres is bare Pods: its -rw Service is what watches the database. The
+        # -ro Service is empty by design until a size runs replicas.
+        - alert: OfficeServiceWithoutEndpoints
+          expr: |
+            kube_endpoint_info{namespace=~"office-.*", endpoint!~".*-ro"}
+            unless on (namespace, endpoint) kube_endpoint_address{ready="true"}
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.endpoint }}: the Service has no ready endpoint"
+        - alert: OfficeNodeUnhealthy
+          expr: |
+            kube_node_status_condition{condition=~"DiskPressure|MemoryPressure|PIDPressure", status="true"} == 1
+            or kube_node_status_condition{condition="Ready", status!="true"} == 1
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "node {{ $labels.node }}: {{ $labels.condition }} is {{ $labels.status }}"
+        - alert: OfficeProbeFailing
+          expr: probe_success == 0
+          for: 5m
+          labels: {severity: critical}
+          annotations:
+            summary: "{{ $labels.instance }} does not answer below 500"
+        - alert: OfficeVolumeFilling
+          expr: kubelet_volume_stats_used_bytes{namespace=~"office-.*"} / kubelet_volume_stats_capacity_bytes > 0.85
+          for: 30m
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} is {{ $value | humanizePercentage }} full"
+        - alert: OfficeCertificateExpiring
+          expr: probe_ssl_earliest_cert_expiry - time() < 14 * 86400
+          for: 1h
+          labels: {severity: warning}
+          annotations:
+            summary: "{{ $labels.instance }}: the certificate expires in {{ $value | humanizeDuration }}"
+        # Always firing, so a silent Alertmanager can be noticed from outside (docs/install.md).
+        - alert: Watchdog
+          expr: vector(1)
+          labels: {severity: none}
+          annotations:
+            summary: "Always firing: the alerting pipeline is alive"

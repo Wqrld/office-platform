@@ -1,0 +1,18 @@
+# Failed reconciliations, as alerts. An app's failing HelmRelease reaches this through
+# its layer's health check, which names it: an Alert cannot select every namespace.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata: {name: alertmanager, namespace: flux-system}
+spec:
+  type: alertmanager
+  address: http://alertmanager-operated.office-monitoring.svc:9093/api/v2/alerts
+---
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata: {name: reconcile-failures, namespace: flux-system}
+spec:
+  providerRef: {name: alertmanager}
+  eventSeverity: error
+  eventSources:
+    - {kind: Kustomization, name: "*"}
+    - {kind: HelmRelease, name: "*"}

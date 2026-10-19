@@ -1,0 +1,9 @@
+# Without node-exporter nothing here needs the host (adr/0119), so the usual level.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: office-monitoring
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

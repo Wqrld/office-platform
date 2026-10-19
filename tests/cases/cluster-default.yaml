@@ -8,3 +8,4 @@ gateway:
   tlsIssuer: letsencrypt-gateway
 size: medium
 smtp: {configured: true}
+monitoring: {email: ops@example.org}

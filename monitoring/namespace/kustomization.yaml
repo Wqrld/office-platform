@@ -1,0 +1,5 @@
+# Under `external` only: under `platform` the namespace is cluster/monitoring's, and two
+# Kustomizations owning one Namespace fight over it.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources: [../../cluster/monitoring/namespace.yaml]

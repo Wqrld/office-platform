@@ -1,0 +1,46 @@
+# Alertmanager's whole configuration, rendered by External Secrets from the relay account
+# Keycloak uses (platform/identity/smtp.yaml): an AlertmanagerConfig can read the password
+# from a Secret, but not the host, username or sender. No `$` but the recipient, so
+# substitution stays on; with no `monitoring.email` the receiver has nowhere to send.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: {name: alertmanager-office, namespace: office-monitoring}
+spec:
+  refreshInterval: 1h
+  secretStoreRef: {kind: ClusterSecretStore, name: office-data}
+  target:
+    name: alertmanager-office
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        alertmanager.yaml: |
+          global:
+            smtp_smarthost: {{ printf "%s:%s" .host .port | toJson }}
+            smtp_from: {{ .from | toJson }}
+            smtp_auth_username: {{ .username | toJson }}
+            smtp_auth_password: {{ .password | toJson }}
+            smtp_require_tls: {{ .useTLS }}
+          route:
+            receiver: email
+            group_by: [alertname, namespace]
+            repeat_interval: 4h
+            routes:
+              - {receiver: "null", matchers: ["alertname = Watchdog"]}
+          receivers:
+            - name: "null"
+            - name: email
+              {{- with "${ALERT_EMAIL}" }}
+              email_configs: [{to: {{ toJson . }}, send_resolved: true}]
+              {{- end }}
+          inhibit_rules:
+            - source_matchers: ["alertname = OfficeWorkloadDown"]
+              target_matchers: ["alertname = OfficeWorkloadDegraded"]
+              equal: [namespace, deployment, statefulset]
+  data:
+    - {secretKey: host,     remoteRef: {key: smtp-credentials, property: host}}
+    - {secretKey: port,     remoteRef: {key: smtp-credentials, property: port}}
+    - {secretKey: username, remoteRef: {key: smtp-credentials, property: username}}
+    - {secretKey: password, remoteRef: {key: smtp-credentials, property: password}}
+    - {secretKey: useTLS,   remoteRef: {key: smtp-credentials, property: useTLS}}
+    - {secretKey: from,     remoteRef: {key: smtp-credentials, property: from}}

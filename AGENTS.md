@@ -22,7 +22,7 @@ scripts need Python 3 + PyYAML.
 | `./tests/render.py <case>` (`--list` for names) | what does this case render to? (every chart check renders through it) |
 | `./tests/schema.py` | do the schemas — and the control plane's refusals — still reject a bad values file? |
 | `./tests/golden.py [--update]` | did this template change alter the output? `--update`, then read the diff |
-| `./tests/build.py [dir]` | does every layer of every cluster build, with no `${VAR}` left unresolved, and do the app table, `apps/`, the example and the updatecli pins agree? (CI: `built`) |
+| `./tests/build.py [dir]` | does every layer of every cluster build, with no `${VAR}` left unresolved, do the app table, `apps/`, the example and the updatecli pins agree, and is monitoring still a leaf? (CI: `built`) |
 | `./tests/kubeconform.sh [dir…]` | is what the charts render and what Flux would apply valid for the API server? (CI: `tests/golden built`) |
 | `./tests/render-diff.sh [base]` | what does this change do to what the clusters actually apply? (never fails; CI posts it to the job summary) |
 | `./tests/binding.py [app…]` | does our surround still attach to what the upstream charts create? (the only check that notices an upstream rename) |
@@ -34,7 +34,7 @@ scripts need Python 3 + PyYAML.
 | `ruff check .` and `shellcheck install.sh release.sh tests/*.sh …` | is the Python and shell lint-clean? (CI: `lint`) |
 | `conftest verify --policy policy/charts && conftest verify --policy policy/config` | do the static rules still fire, both directions? |
 | `conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/` | does the rendered output satisfy them? |
-| `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ tests/golden/` | are the pins and remediation settings still as decided? |
+| `conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ cluster/ monitoring/ tests/golden/` | are the pins and remediation settings still as decided? |
 
 CI also runs `helm lint --strict` on each chart (`platform-app` needs
 `--values tests/cases/minimal-app.yaml`, `control-plane` needs
@@ -79,7 +79,9 @@ charts/
   platform-app/    the surround: HTTPRoutes, NetworkPolicy, PDB
   platform-tenants/ what the platform provisions per app: database, cache users, OIDC secret, grant
 examples/          cluster.yaml — the one file an organisation keeps, in a source of its own
-cluster/           what the platform installs when the cluster lacks it: Envoy Gateway, MetalLB (adr/0112)
+cluster/           what the platform installs when the cluster lacks it: Envoy Gateway, MetalLB,
+                   the Prometheus stack (adr/0112, adr/0119)
+monitoring/        rules, probes and alert routing — a leaf nothing depends on (adr/0119)
 infra/             operators (CNPG, ESO, the Garage operator; cert-manager when asked)
 platform/          shared stateful layer — gateway, postgres, valkey, search, keycloak, and
                    the datastores of every app whether enabled or not; objectstore/ is its
@@ -95,7 +97,9 @@ tests/             every check above, and the cases and goldens they share
 renders the Flux sources, a `cluster-vars` ConfigMap (substituted into every layer via
 `postBuild`), and one Kustomization per layer and per enabled app. Reconcile order:
 `cluster-*` → `infra` → `platform` → `objectstore` → `app-<name>`, with the dependencies
-between applications as `dependsOn` edges from `charts/control-plane/apps.yaml`. Cluster
+between applications as `dependsOn` edges from `charts/control-plane/apps.yaml`.
+`cluster-monitoring` → `monitoring` is a leaf beside them: nothing waits for it, and
+`tests/build.py` fails if anything starts to (adr/0119). Cluster
 singletons (the Gateway, PriorityClasses, ClusterIssuers) are plain manifests in
 `platform/`, not a chart (adr/0101).
 

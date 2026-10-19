@@ -22,6 +22,9 @@ data:
   ACME_EMAIL: "ops@example.org"
   S3_MODE: "garage"
   TLS_HOSTS: "[\"id.example.org\",\"s3.example.org\",\"calendars.example.org\",\"collabora.example.org\",\"docs.example.org\",\"drive.example.org\",\"find.example.org\",\"livekit.example.org\",\"meet.example.org\",\"projects.example.org\"]"
+  MONITORING_MODE: "platform"
+  ALERT_EMAIL: ""
+  PROBE_TARGETS: "[\"https://id.example.org/\",\"https://s3.example.org/\",\"https://calendars.example.org/\",\"https://collabora.example.org/\",\"https://docs.example.org/\",\"https://drive.example.org/\",\"https://find.example.org/\",\"https://livekit.example.org/\",\"https://meet.example.org/\",\"https://projects.example.org/\"]"
   GATEWAY_CERTS: "[{\"kind\":\"Secret\",\"name\":\"office-tls\"}]"
   SERVICES_JSON: "{\"services\":[{\"logo\":\"https://calendars.example.org/favicon.png\",\"maturity\":\"beta\",\"name\":\"Calendars\",\"url\":\"https://calendars.example.org\"},{\"logo\":\"https://docs.example.org/assets/icon-docs.svg\",\"maturity\":\"stable\",\"name\":\"Docs\",\"url\":\"https://docs.example.org\"},{\"logo\":\"https://drive.example.org/assets/logo-icon_beta.svg\",\"maturity\":\"stable\",\"name\":\"Drive\",\"url\":\"https://drive.example.org\"},{\"logo\":\"https://meet.example.org/favicon-32x32.png\",\"maturity\":\"beta\",\"name\":\"Meet\",\"url\":\"https://meet.example.org\"},{\"logo\":\"https://projects.example.org/oss/light/logomark.svg\",\"maturity\":\"beta\",\"name\":\"Projects\",\"url\":\"https://projects.example.org\"},{\"maturity\":\"stable\",\"name\":\"Account\",\"url\":\"https://id.example.org/realms/office/account\"}]}"
   TENANTS_JSON: "{\"calendars\":{\"acl\":{\"broker\":\"+keys\"},\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Calendars — agenda's delen en vergaderingen plannen\"},\"postgres\":{}},\"collabora\":{},\"docs\":{\"acl\":{\"cache\":\"+info +keys\"},\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"accessTokenLifespan\":1200,\"audiences\":[\"find\"],\"description\":\"Docs — samen werken aan documenten\"},\"postgres\":{\"databases\":[\"yhub\"],\"extensions\":[\"pg_trgm\",\"unaccent\"]}},\"drive\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Drive — bestanden delen en samen bewerken\"},\"postgres\":{\"extensions\":[\"ltree\",\"pg_trgm\",\"unaccent\"]}},\"find\":{\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Find — zoeken over alle applicaties\",\"shape\":\"resource-server\"},\"postgres\":{},\"search\":[\"find-*\"]},\"livekit\":{\"cache\":[\"broker\"]},\"meet\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Meet — videovergaderen\"},\"postgres\":{\"extensions\":[\"pg_trgm\"]}},\"messages\":{\"bucket\":true,\"cache\":[\"cache\",\"broker\"],\"oidc\":{\"description\":\"Messages — gedeelde mailboxen\"},\"postgres\":{\"extensions\":[\"unaccent\"]},\"search\":[\"messages\"]},\"projects\":{\"acl\":{\"cache\":\"+info\"},\"bucket\":true,\"cache\":[\"cache\"],\"oidc\":{\"description\":\"Projects — borden, lijsten en kaarten voor projectbeheer\",\"redirect\":\"/oidc-callback\",\"shape\":\"login\"},\"postgres\":{}}}"
@@ -271,6 +274,18 @@ spec:
   url: https://valkey.io/valkey-helm/
 ---
 # Source: control-plane/templates/sources.yaml
+# kube-prometheus-stack (under monitoring.mode: platform) and the blackbox exporter.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: prometheus-community
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 24h
+  url: https://prometheus-community.github.io/helm-charts
+---
+# Source: control-plane/templates/sources.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
@@ -509,6 +524,12 @@ spec:
 #             is what lets a disabled app come back with its data.
 # objectstore Garage, only when the platform runs the object store itself.
 #
+# Monitoring is a leaf (adr/0119): nothing depends on either of its layers, so a stack that
+# will not start blocks no release.
+# cluster-monitoring  kube-prometheus-stack, under `monitoring.mode: platform`.
+# monitoring  the rules, the probes and the blackbox exporter, under platform or external;
+#             with the alert routing under platform, the namespace under external.
+#
 # There is deliberately no `crds` layer yet. Every CRD relied on is either pre-existing in
 # the cluster or installed by an operator chart on first install; the layer arrives the
 # first time a CRD upgrade needs managing separately.
@@ -649,6 +670,45 @@ spec:
   components: ["../overlays/size-small"]
   dependsOn:
     - {name: platform}
+  postBuild:
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/layers.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cluster-monitoring
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: GitRepository, name: office-config}
+  path: ./cluster/monitoring
+  postBuild:
+    substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
+---
+# Source: control-plane/templates/layers.yaml
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: monitoring
+  namespace: flux-system
+  annotations: {helm.sh/resource-policy: keep}
+spec:
+  interval: 30m
+  retryInterval: 2m
+  timeout: 10m
+  prune: true
+  wait: true
+  sourceRef: {kind: GitRepository, name: office-config}
+  path: ./monitoring
+  components: ["./alerting"]
+  dependsOn:
+    - {name: cluster-monitoring}
   postBuild:
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
 ---

@@ -221,8 +221,8 @@ instead.
 ### observability
 
 Not an app. Ships Grafana dashboards as `GrafanaDashboard` CRs. **47,885 lines of vendored
-dashboard JSON — do not port it.** Use `grafanaCom: {id: …}` or `url:` references and keep
-only genuinely custom dashboards in git.
+dashboard JSON — do not port it.** The platform alerts instead, and ships no dashboards
+(`docs/adr/0119`, `monitoring/`).
 
 ## Upstream gotchas
 

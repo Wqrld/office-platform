@@ -1,0 +1,11 @@
+# The defaults on a cluster whose own Prometheus operator is already watched: the rules
+# and probes only, no stack and no routing (adr/0119).
+domain: example.org
+storageClass: longhorn
+gateway:
+  ip: 192.0.2.10
+  acmeEmail: ops@example.org
+  tlsIssuer: letsencrypt-gateway
+size: medium
+smtp: {configured: true}
+monitoring: {mode: external}

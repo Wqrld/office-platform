@@ -5,6 +5,20 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- ⚠️ Monitoring, on by default (`docs/adr/0119`). Upgrading installs Prometheus,
+  Alertmanager, kube-state-metrics and a blackbox exporter in `office-monitoring` unless
+  `cluster.yaml` sets `monitoring.mode: none`. They alert, by email to `monitoring.email`,
+  on a crash-looping pod, a workload with no available replica, a Service with no ready
+  endpoint, a public host that does not answer below 500, a node condition, a degraded
+  Longhorn volume, a full volume, and a certificate within 14 days of expiry. Measured on a
+  ~50-pod cluster: about 1,100 series, 120 Mi and 0.02 cores in use; 160 Mi and 35m
+  requested, plus 6 Gi of volumes. A cluster that already runs a Prometheus operator must
+  choose `mode: external` (the rules and probes only) or remove its operator first:
+  `preflight.py` refuses otherwise. `preflight.py` also warns when a Longhorn node's
+  kubelet has no graceful shutdown.
+- The Valkey instances and OpenSearch correct drift: a hand-scaled or hand-edited
+  datastore is put back, and Flux reports it.
+
 ## 2.4.0 — 2026-10-12
 
 - ⚠️ Docs 6.0.0: the collaboration server is yhub (`docs/adr/0118`). The editor's websocket

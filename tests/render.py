@@ -190,6 +190,7 @@ def install_file(env: Mapping[str, str]) -> list[dict]:
                     "loadBalancer": {"kind": e("LB_KIND"), "install": install,
                                      "pool": [f"{e('GATEWAY_IP')}/32"]}}
     v["smtp"] = {"configured": bool(e("SMTP_HOST"))}
+    v["monitoring"] = {"mode": "platform", "email": e("ALERT_EMAIL", e("ACME_EMAIL"))}
     v["source"] = {"url": e("SOURCE_URL")}
     if e("SOURCE_SECRET"):
         v["source"]["secretRef"] = e("SOURCE_SECRET")

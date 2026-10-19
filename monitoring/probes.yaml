@@ -1,0 +1,16 @@
+# Every public host, through DNS, the certificate, the Gateway and the route, as a user
+# reaches it. Block style: a flow map cannot hold a plain ${} (platform/tenants.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: public-hosts
+  namespace: office-monitoring
+  labels:
+    office.haaijer.dev/monitoring: "true"
+spec:
+  interval: 60s
+  module: http_lt500
+  prober: {url: blackbox.office-monitoring.svc:9115}
+  targets:
+    staticConfig:
+      static: ${PROBE_TARGETS}

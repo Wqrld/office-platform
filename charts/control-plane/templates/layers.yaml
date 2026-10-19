@@ -6,6 +6,10 @@
 {{- $infraComponents := ternary (list "./cert-manager") (list) .Values.cluster.certManager.install }}
 {{- $platformComponents := list (printf "./overlays/%s" $profile) }}
 {{- if not .Values.smtp.configured }}{{ $platformComponents = append $platformComponents "./overlays/smtp-placeholder" }}{{ end }}
+{{- $monitoring := include "platform.monitoringMode" . }}
+{{- $monitoringComponents := list }}
+{{- if eq .Values.storageClass "longhorn" }}{{ $monitoringComponents = append $monitoringComponents "./longhorn" }}{{ end }}
+{{- $monitoringComponents = append $monitoringComponents (ternary "./alerting" "./namespace" (eq $monitoring "platform")) }}
 # The layers, in reconcile order. Each waits for the previous one to be healthy.
 #
 # cluster-*   what the cluster lacks and the platform was asked to install — Envoy Gateway,
@@ -21,6 +25,12 @@
 #             the datastores and credentials of EVERY application, enabled or not, which
 #             is what lets a disabled app come back with its data.
 # objectstore Garage, only when the platform runs the object store itself.
+#
+# Monitoring is a leaf (adr/0119): nothing depends on either of its layers, so a stack that
+# will not start blocks no release.
+# cluster-monitoring  kube-prometheus-stack, under `monitoring.mode: platform`.
+# monitoring  the rules, the probes and the blackbox exporter, under platform or external;
+#             with the alert routing under platform, the namespace under external.
 #
 # There is deliberately no `crds` layer yet. Every CRD relied on is either pre-existing in
 # the cluster or installed by an operator chart on first install; the layer arrives the
@@ -41,4 +51,13 @@
 ---
 {{ include "platform.kustomization" (dict "root" . "name" "objectstore" "path" "./platform/objectstore"
      "components" (list (printf "../overlays/%s" $profile)) "dependsOn" (list "platform")) }}
+{{- end }}
+{{- if eq $monitoring "platform" }}
+---
+{{ include "platform.kustomization" (dict "root" . "name" "cluster-monitoring" "path" "./cluster/monitoring") }}
+{{- end }}
+{{- if ne $monitoring "none" }}
+---
+{{ include "platform.kustomization" (dict "root" . "name" "monitoring" "path" "./monitoring" "components" $monitoringComponents
+     "dependsOn" (ternary (list "cluster-monitoring") (list) (eq $monitoring "platform"))) }}
 {{- end }}

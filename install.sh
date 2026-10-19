@@ -7,7 +7,8 @@
 # Optional: SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD
 # SMTP_FROM SMTP_TLS=starttls|ssl, HF_TOKEN, VERSION, SOURCE_URL (a fork; public, or with the
 # Flux git Secret SOURCE_SECRET already in flux-system),
-# SIZE=small|medium|large, STORAGE_CLASS, TLS_ISSUER, GATEWAY_CLASS, OUT=cluster.yaml.
+# SIZE=small|medium|large, STORAGE_CLASS, TLS_ISSUER, GATEWAY_CLASS, ALERT_EMAIL (default
+# ACME_EMAIL), OUT=cluster.yaml.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,7 +47,8 @@ fi
 kubectl cluster-info >/dev/null
 
 echo "== 2. $OUT"
-export DOMAIN ACME_EMAIL GATEWAY_IP STORAGE_CLASS INSTALL LB_KIND SOURCE_URL SOURCE_SECRET VERSION OUT
+ALERT_EMAIL="${ALERT_EMAIL:-$ACME_EMAIL}"
+export DOMAIN ACME_EMAIL ALERT_EMAIL GATEWAY_IP STORAGE_CLASS INSTALL LB_KIND SOURCE_URL SOURCE_SECRET VERSION OUT
 # examples/cluster.yaml with the answers above; refused values fail here, before any apply.
 python3 "$HERE/tests/render.py" --install "$OUT"
 "$HERE/preflight.py" "$OUT"

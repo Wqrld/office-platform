@@ -1,0 +1,5 @@
+# The platform's definition of "working" (adr/0119): rules, probes, and the blackbox
+# exporter they need, read by this platform's Prometheus or the cluster's own.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [blackbox.yaml, probes.yaml, rules.yaml]

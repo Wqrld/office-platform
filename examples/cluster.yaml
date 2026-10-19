@@ -61,4 +61,5 @@ spec:
       certManager: {install: true}
       loadBalancer: {kind: metallb, install: true, pool: ["10.0.0.5/32", "10.0.0.6/32"]}
     smtp: {configured: false}          # true once the smtp-credentials Secret exists
+    monitoring: {mode: platform, email: ops@example.org}   # or external, or none (docs/install.md, Monitoring)
     # source: {url: ssh://git@github.com/example-org/office-platform, secretRef: office-platform-git}

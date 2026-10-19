@@ -25,6 +25,14 @@ spec:
   interval: 24h
   url: https://valkey.io/valkey-helm/
 ---
+# kube-prometheus-stack (under monitoring.mode: platform) and the blackbox exporter.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+{{ include "platform.metadata" "prometheus-community" }}
+spec:
+  interval: 24h
+  url: https://prometheus-community.github.io/helm-charts
+---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "opensearch" }}

@@ -132,6 +132,44 @@ wrong client secret.
 First run: `gateway.tlsIssuer: letsencrypt-gateway-staging` proves the chain without
 spending rate limit; switch to `letsencrypt-gateway` and delete the `office-tls` Secret.
 
+## Monitoring
+
+`monitoring.mode` in `cluster.yaml` (`docs/adr/0119`):
+
+- **`platform`** (the default): Prometheus, Alertmanager and kube-state-metrics in
+  `office-monitoring`, plus the platform's rules and one probe per public host. Alerts go
+  to `monitoring.email` through the SMTP relay above, so with `smtp.configured: false`
+  they are evaluated but not delivered. Refused when another Prometheus operator's CRDs
+  are on the cluster (`preflight.py`): two operators fight over them.
+- **`external`**: your Prometheus operator runs the platform's rules. The platform ships
+  the `PrometheusRule`s, the `Probe` and the blackbox exporter it needs, and, on Longhorn,
+  a `ServiceMonitor` for its volume metrics, all in `office-monitoring` and labelled
+  `office.haaijer.dev/monitoring: "true"`. Your Prometheus must select that label for
+  rules, probes and service monitors in that namespace, and must collect
+  kube-state-metrics' pod, deployment, statefulset, endpoint and node series and the
+  kubelet's `kubelet_volume_stats_*`. `monitoring.email` is refused: routing is your
+  Alertmanager's. Flux's failed reconciliations reach it with two objects you add:
+
+  ```yaml
+  apiVersion: notification.toolkit.fluxcd.io/v1beta3
+  kind: Provider
+  metadata: {name: alertmanager, namespace: flux-system}
+  spec: {type: alertmanager, address: http://<your-alertmanager>:9093/api/v2/alerts}
+  ---
+  apiVersion: notification.toolkit.fluxcd.io/v1beta3
+  kind: Alert
+  metadata: {name: reconcile-failures, namespace: flux-system}
+  spec:
+    providerRef: {name: alertmanager}
+    eventSeverity: error
+    eventSources: [{kind: Kustomization, name: "*"}, {kind: HelmRelease, name: "*"}]
+  ```
+- **`none`**: nothing, and `preflight.py` says so.
+
+`Watchdog` always fires. Under `platform` it goes nowhere until the schema takes a heartbeat
+URL; to notice a dead Alertmanager today, route it to a dead-man's-switch service from your
+own Alertmanager, or watch `https://<alertmanager>/api/v2/alerts` from outside.
+
 ## Traps
 
 - **`smtp.configured: true` with no Secret** is every backend pod in

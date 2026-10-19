@@ -19,4 +19,4 @@ spec:
       max_connections: "200"        # Django + Celery across apps; no pooler yet, see README
   enableSuperuserAccess: false    # nothing reads the superuser Secret; the operator creates extensions itself
   monitoring:
-    enablePodMonitor: false         # no Prometheus on this cluster yet (adr/0103 sibling)
+    enablePodMonitor: false         # no rule reads it yet; it comes with backup alerts (adr/0119)

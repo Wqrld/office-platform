@@ -26,7 +26,7 @@ those signals.
 
 ## Decision
 - **Monitoring is chosen in `cluster.yaml`, like the cluster services (`0112`).**
-  `monitoring.mode` is `platform | external | off`, and `monitoring.email` says where alerts
+  `monitoring.mode` is `platform | external | none`, and `monitoring.email` says where alerts
   go.
   - `platform` adds two layers. `cluster-monitoring` installs kube-prometheus-stack
     (Prometheus, Alertmanager, kube-state-metrics; no Grafana, no node-exporter) into
@@ -39,34 +39,38 @@ those signals.
     Alertmanager, so the platform does not touch it, and the schema refuses
     `monitoring.email` in this mode. `preflight.py` checks that the CRDs are there and that
     the cluster's Prometheus selects the platform's objects, since its label selectors often
-    ignore them silently. It warns, but cannot ensure, that Longhorn's and cert-manager's
+    ignore them silently. It warns, but cannot ensure, that Longhorn's
     metrics are collected: the rules built on them never fire without those metrics.
-  - `off` emits nothing, and `preflight.py` says so.
+  - `none` emits nothing, and `preflight.py` says so. Not `off`: YAML 1.1, which Helm
+    reads, turns an unquoted `off` into `false`.
 - **The default is `platform`, at every size.** A cluster without alerts is the failure this
   ADR answers, so it must be a choice someone writes down, not where they land by default.
   Every size runs one replica of each component.
 - **Monitoring is a leaf: nothing waits for it.** No layer or app `dependsOn` either
   monitoring layer, and nothing outside them emits a monitoring CRD. A chart that will not
   install, or a Prometheus that will not start, therefore blocks no release, and
-  `mode: off` changes no other layer's output. Everything the rules need comes from inside
+  `mode: none` changes no other layer's output. Everything the rules need comes from inside
   the two layers or from `cluster-vars`.
 - **Nothing is collected unless a rule reads it.** Each metric source arrives with the first
   rule that uses it, and leaves with the last. At this decision that means:
   - **kube-state-metrics:** workloads, endpoints and node conditions.
   - **The kubelet's own endpoint:** volume usage.
-  - **The blackbox exporter:** the Probes.
-  - **Longhorn and cert-manager:** a component each, emitted when the cluster uses them.
+  - **The blackbox exporter:** the Probes, and the certificate each host serves.
+  - **Longhorn:** a component, emitted when the volumes are Longhorn's.
 
   Not collected: the control plane (API server, etcd, scheduler, controller-manager,
   kube-proxy, CoreDNS), the kubelet's per-container cAdvisor series, node-exporter, and
-  datastore exporters, CNPG's included.
+  datastore exporters, CNPG's included, and cert-manager. The probes read the certificate
+  users are actually served, which is the symptom, and they do so on clusters whose
+  cert-manager the platform did not install as well.
   - Node health comes from the kubelet's own conditions (`DiskPressure`, `MemoryPressure`,
     `PIDPressure`, `Ready`), and Longhorn's disk usage covers the disk the volumes live on.
   - Leaving node-exporter out also means nothing here needs host access, so
     `office-monitoring` runs under the same Pod Security level as every other namespace
     (`0102`).
 - **The rules alert on symptoms, and the same rule covers every workload.** The `monitoring`
-  layer carries one PrometheusRule over the `office-*` namespaces:
+  layer carries one PrometheusRule over the `office-*` namespaces, and the Longhorn
+  component one of its own:
   - a pod crash-looping;
   - a Deployment or StatefulSet with no available replica, and, separately, one below its
     desired count for 15 minutes;
@@ -75,7 +79,7 @@ those signals.
   - a probe failing;
   - a Longhorn volume degraded or faulted, and a Longhorn disk more than 85 % full;
   - a PVC more than 85 % full;
-  - the SAN certificate within 14 days of expiry;
+  - a served certificate within 14 days of expiry, as the probe sees it;
   - a `Watchdog` that always fires, so a silent Alertmanager can be noticed from outside.
 
   CNPG runs Postgres as bare Pods, not as a Deployment or StatefulSet, so the endpoint rule
@@ -91,8 +95,9 @@ those signals.
   TLS or DNS error, or the Gateway's 5xx for a backend that is down. Whether the app behind
   the host works properly is a check specific to that app; see "What this layer is for".
 - **Flux reports through Alertmanager under `platform` only.** A notification-controller
-  `Provider` of type `alertmanager` and one `Alert` forward failed reconciliations and
-  corrected drift. Under `external` the platform does not know the cluster's Alertmanager,
+  `Provider` of type `alertmanager` and one `Alert`, in `flux-system`, forward failed
+  reconciliations of every Kustomization. An `Alert` cannot select every namespace, so an
+  app's failing HelmRelease arrives through its layer's health check, which names it. Under `external` the platform does not know the cluster's Alertmanager,
   so `docs/install.md` gives the two objects an organisation adds itself. The endpoint and
   workload rules catch the outages a failed reconcile leaves behind in either mode.
 - **The datastore releases turn on drift detection** (`driftDetection.mode: enabled`) on
@@ -104,7 +109,9 @@ those signals.
   mutate their own objects too often for drift to mean anything there.
 - **Under `platform`, alerts go out by email through the platform's SMTP relay**, the
   `smtp-credentials` Secret Keycloak already uses, read into `office-monitoring` through the
-  same ClusterSecretStore. No new secret. A webhook receiver can be added later as a Secret
+  same ClusterSecretStore. No new secret. External Secrets renders Alertmanager's whole
+  configuration from it: an `AlertmanagerConfig` can take the password from a Secret, but
+  not the host, username or sender. A webhook receiver can be added later as a Secret
   reference.
 - **Prometheus and Alertmanager run at `office-data` priority.** It ranks them above the
   apps, so an application's memory pressure cannot evict the thing that reports it. It does
@@ -113,6 +120,9 @@ those signals.
   `$labels` and `$value`, so the PrometheusRule carries
   `kustomize.toolkit.fluxcd.io/substitute: disabled`, as would any custom Alertmanager
   template. The Probe's targets and the alert recipient are substituted as usual.
+- **Only what carries `office.haaijer.dev/monitoring: "true"` is selected**, by our
+  Prometheus and, under `external`, by theirs: an upstream chart's ServiceMonitor is not
+  collected because it exists.
 - **Out of scope:** dashboards (the inventory's rule still holds, so no vendored JSON), log
   collection, tracing, and node configuration. The kubelet's shutdown settings are a
   `preflight.py` check, not an alert.
@@ -158,15 +168,18 @@ reviewer can apply: a new ServiceMonitor without a rule that reads its series is
 cAdvisor and node-exporter are most of a default install's series, and the control-plane
 scrapes are much of the rest. None of the alerts above reads them.
 
-Weight, estimated for a platform-only cluster of about 50 pods with the scrapes above, and
-not yet measured:
-- **Series:** 5–15k, mostly kube-state-metrics.
-- **Memory:** about 150–300 Mi for Prometheus, plus about 100–150 Mi for the rest combined.
-- **CPU:** about 0.1–0.2 cores.
-- **Disk:** well under 1 GB over the 7 days.
+Weight, measured on the reference cluster (about 50 pods, every app) 20 minutes after the
+install, with kube-state-metrics and the kubelet allowlisted to the series the rules read:
+- **Series:** 1,055 in the head.
+- **Memory:** 54 Mi for Prometheus, 68 Mi for the other four pods combined.
+- **CPU:** 14m in total.
+- **Disk:** under 1 GB over the 7 days at that rate; 6 Gi of volumes are reserved.
+
+The estimate before the allowlists was 5–15k series and 250–450 Mi. A 24-hour measurement,
+over head compactions, replaces these figures before this is accepted.
 
 Against `./measure.py render --size small` (3.47 cores and 21.2 Gi requested, platform and
-apps), that is about 2 % of memory and under 6 % of CPU. `small` is also the size most
+apps), the requests (35m and 160 Mi) are about 1 % of either. `small` is also the size most
 likely to be a single unattended VPS, the install that most needs an alert, so making
 monitoring start at `medium` would cut it from the clusters that need it most. The figures
 are replaced by measured ones before this is accepted.
@@ -193,15 +206,15 @@ deliver them, and `preflight.py` warns about that combination.
   operator (v0.90.1, no objects of any of its CRDs); it was removed on 2026-10-19, so the
   reference cluster runs `platform`.
 - `control-plane` grows the `monitoring` block in its schema, two cluster-vars (the mode, and
-  the probe targets derived from `TLS_HOSTS`) and the two layers. `platform-app` does not
+  the alert recipient and the probe targets derived from `TLS_HOSTS`) and the two layers. `platform-app` does not
   change. Every `cluster-*` case gets a golden update. `tests/cases/` gains a case with
-  `mode: external` and one with `mode: off`, and `tests/schema.py` checks that `email` is
+  `mode: external` and one with `mode: none`, and `tests/schema.py` checks that `email` is
   refused with `external`. A check asserts that no object outside `cluster/monitoring/` and
   `monitoring/` uses a `monitoring.coreos.com` kind, and that no Kustomization depends on
   either layer.
 - `policy/config` gains a rule that the HelmReleases under `platform/valkey/` and
   `platform/opensearch/` set drift detection.
-- Like every layer, `monitoring` is `keep`. Switching the mode to `off` leaves the stack
+- Like every layer, `monitoring` is `keep`. Switching the mode to `none` leaves the stack
   running until someone runs `flux delete ks`.
 - The Watchdog only helps if something outside the cluster expects it. Until the schema
   takes a heartbeat URL, wiring it up is the organisation's job, documented in

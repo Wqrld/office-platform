@@ -127,7 +127,7 @@ jobs:
       - name: rendered output
         run: conftest test --policy policy/charts --parser yaml --all-namespaces tests/golden/
       - name: pins and remediation
-        run: conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ tests/golden/
+        run: conftest test --policy policy/config --parser yaml --all-namespaces apps/ platform/ infra/ cluster/ monitoring/ tests/golden/
 
   secrets:
     name: gitleaks

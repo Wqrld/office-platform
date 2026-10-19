@@ -94,6 +94,26 @@ follow the selection when a Kustomization cannot drop a list item.
 {{- end }}
 
 {{/*
+What the blackbox exporter probes (monitoring/probes.yaml): every host above at its root,
+as JSON, so the Probe's target list follows the selection the way the SAN list does.
+*/}}
+{{- define "platform.probeTargets" -}}
+{{- $urls := list }}
+{{- range include "platform.tlsHosts" . | fromJsonArray }}{{ $urls = append $urls (printf "https://%s/" .) }}{{ end }}
+{{- $urls | toJson }}
+{{- end }}
+
+{{/*
+`monitoring.mode`, refusing an `email` that mode would ignore: under external the
+cluster's own Alertmanager routes alerts, so an address here would deliver nothing.
+*/}}
+{{- define "platform.monitoringMode" -}}
+{{- $m := .Values.monitoring }}
+{{- if and (eq $m.mode "external") $m.email }}{{ fail "monitoring.email is set, but under mode: external the cluster's own Alertmanager routes alerts; remove it" }}{{ end }}
+{{- $m.mode }}
+{{- end }}
+
+{{/*
 The Gateway's certificateRefs as JSON: office-tls, then `gateway.extraCertificates`.
 */}}
 {{- define "platform.gatewayCerts" -}}

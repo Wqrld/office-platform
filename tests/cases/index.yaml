@@ -56,6 +56,20 @@ cases:
       Every app including the ones off by default (Messages), at `large`: the one cluster
       that builds every directory under apps/ and every size's PDBs for them.
 
+  - name: cluster-external
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: >-
+      The defaults under `monitoring.mode: external` — the rules and probes, for the
+      cluster's own Prometheus; no stack, no routing.
+
+  - name: cluster-none
+    chart: control-plane
+    release: platform
+    namespace: flux-system
+    description: The defaults with monitoring off (`mode` none) — every other layer exactly cluster-default's.
+
   # ---- the two shapes that are live today -------------------------------------------
   - name: docs-deps
     chart: platform-deps

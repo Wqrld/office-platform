@@ -26,6 +26,10 @@ cluster:
     pool: []                      # for MetalLB: "10.0.0.5/32", "10.0.0.5-10.0.0.6"
 smtp:
   configured: false               # false ships a placeholder relay (docs/install.md, "Mail")
+# Alerts on what users notice (adr/0119): the platform's own stack, rules for the cluster's, or none.
+monitoring:
+  mode: platform                  # platform | external | none
+  email: ""                       # where alerts go, through the smtp relay; platform only
 
 # ---------------------------------------------------------------- platform defaults
 source:

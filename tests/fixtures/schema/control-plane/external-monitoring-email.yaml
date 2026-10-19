@@ -1,0 +1,4 @@
+# expect: under mode: external the cluster's own Alertmanager routes alerts
+domain: example.org
+gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
+monitoring: {mode: external, email: ops@example.org}

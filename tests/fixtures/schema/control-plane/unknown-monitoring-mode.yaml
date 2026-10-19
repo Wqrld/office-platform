@@ -1,0 +1,4 @@
+# expect: value must be one of 'platform', 'external', 'none'
+domain: example.org
+gateway: {ip: 10.0.0.5, acmeEmail: ops@example.org}
+monitoring: {mode: prometheus}

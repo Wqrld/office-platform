@@ -27,6 +27,16 @@ charts:
     chart: valkey
     files: [platform/valkey/cache.yaml, platform/valkey/broker.yaml]
 
+  - id: kube-prometheus-stack
+    repo: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    files: [cluster/monitoring/release.yaml]
+
+  - id: prometheus-blackbox-exporter
+    repo: https://prometheus-community.github.io/helm-charts
+    chart: prometheus-blackbox-exporter
+    files: [monitoring/blackbox.yaml]
+
   # Collabora is the one upstream application that DOES publish a chart repository, so it
   # goes in this table rather than getting a pipeline of its own. Its image tag is pinned
   # separately in the release and must be checked against the new chart's appVersion when

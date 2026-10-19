@@ -19,6 +19,9 @@ data:
   ACME_EMAIL: {{ .Values.gateway.acmeEmail | quote }}
   S3_MODE: {{ .Values.objectStore.mode | quote }}
   TLS_HOSTS: {{ include "platform.tlsHosts" . | quote }}
+  MONITORING_MODE: {{ include "platform.monitoringMode" . | quote }}
+  ALERT_EMAIL: {{ .Values.monitoring.email | quote }}
+  PROBE_TARGETS: {{ include "platform.probeTargets" . | quote }}
   GATEWAY_CERTS: {{ include "platform.gatewayCerts" . | quote }}
   SERVICES_JSON: {{ include "platform.servicesJson" . | quote }}
   TENANTS_JSON: {{ include "platform.tenantsJson" . | quote }}

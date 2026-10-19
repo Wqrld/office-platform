@@ -139,6 +139,32 @@
         }
       }
     },
+    "monitoring": {
+      "description": "Alerts on what users notice (adr/0119). platform: the platform runs Prometheus and Alertmanager in office-monitoring and mails alerts to `email`. external: the cluster's own Prometheus operator picks up the platform's rules and probes, and routes them itself. none: nothing; preflight.py says so.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "platform",
+            "external",
+            "none"
+          ]
+        },
+        "email": {
+          "description": "Where alerts go, through the platform's SMTP relay. Only under platform: under external the cluster's Alertmanager routes them.",
+          "anyOf": [
+            {
+              "const": ""
+            },
+            {
+              "type": "string",
+              "format": "email"
+            }
+          ]
+        }
+      }
+    },
     "source": {
       "description": "Where the platform's source is fetched from, at the tag of this chart's version: this repository, or a fork of it.",
       "type": "object",

@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: longhorn
+  namespace: office-monitoring
+  labels:
+    office.haaijer.dev/monitoring: "true"
+spec:
+  namespaceSelector: {matchNames: [longhorn-system]}
+  selector: {matchLabels: {app: longhorn-manager}}
+  endpoints:
+    - port: manager
+      metricRelabelings:
+        - {sourceLabels: [__name__], regex: "longhorn_volume_robustness|longhorn_disk_(usage|capacity)_bytes", action: keep}

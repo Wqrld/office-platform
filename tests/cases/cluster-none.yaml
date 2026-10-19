@@ -1,0 +1,11 @@
+# The defaults with monitoring.mode: none: build.py asserts every other layer is cluster-default's,
+# byte for byte (adr/0119, a leaf).
+domain: example.org
+storageClass: longhorn
+gateway:
+  ip: 192.0.2.10
+  acmeEmail: ops@example.org
+  tlsIssuer: letsencrypt-gateway
+size: medium
+smtp: {configured: true}
+monitoring: {mode: none}

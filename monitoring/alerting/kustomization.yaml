@@ -1,0 +1,4 @@
+# Under `platform` only: under `external` routing is the cluster's own Alertmanager's.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources: [alertmanager.yaml, flux.yaml]

@@ -1,0 +1,97 @@
+# Prometheus, Alertmanager and kube-state-metrics, collecting only what a rule in
+# monitoring/rules.yaml reads (adr/0119): no Grafana, node-exporter, cAdvisor or control
+# plane. The rules, probes and alert routing are the `monitoring` layer.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata: {name: kube-prometheus-stack, namespace: office-monitoring}
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: kube-prometheus-stack
+      version: "92.10.1"
+      sourceRef: {kind: HelmRepository, name: prometheus-community, namespace: flux-system}
+  install: {crds: Create}
+  upgrade: {crds: CreateReplace}
+  values:
+    fullnameOverride: kps
+    # Selects what carries this label and nothing else, here and under `external`
+    # (preflight.py): an upstream chart's ServiceMonitor is not ours to scrape.
+    commonLabels: &ours {office.haaijer.dev/monitoring: "true"}
+    defaultRules: {create: false}
+    grafana: {enabled: false}
+    nodeExporter: {enabled: false}
+    kubeApiServer: {enabled: false}
+    kubeControllerManager: {enabled: false}
+    kubeEtcd: {enabled: false}
+    kubeScheduler: {enabled: false}
+    kubeProxy: {enabled: false}
+    coreDns: {enabled: false}
+    kubelet:
+      serviceMonitor:
+        cAdvisor: false
+        probes: false
+        metricRelabelings:
+          - {sourceLabels: [__name__], regex: "kubelet_volume_stats_(used|capacity)_bytes", action: keep}
+    kube-state-metrics:
+      collectors: [deployments, endpoints, nodes, pods, statefulsets]
+      metricAllowlist:
+        - kube_pod_container_status_waiting_reason
+        - kube_deployment_spec_replicas
+        - kube_deployment_status_replicas_available
+        - kube_statefulset_replicas
+        - kube_statefulset_status_replicas_available
+        - kube_endpoint_info
+        - kube_endpoint_address
+        - kube_node_status_condition
+      prometheus: {monitor: {additionalLabels: *ours}}
+      resources:
+        requests: {cpu: 5m, memory: 16Mi}
+        limits: {memory: 64Mi}
+    prometheusOperator:
+      admissionWebhooks: {enabled: false}
+      tls: {enabled: false}
+      serviceMonitor: {selfMonitor: false}
+      resources:
+        requests: {cpu: 5m, memory: 24Mi}
+        limits: {memory: 128Mi}
+    # Requests near what a ~50-pod cluster measured (adr/0119, Reasoning), limits with room
+    # for head compaction.
+    prometheus:
+      serviceMonitor: {selfMonitor: false}
+      prometheusSpec:
+        replicas: 1
+        priorityClassName: office-data
+        retention: 7d
+        retentionSize: 4GB
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: ${STORAGE_CLASS}
+              accessModes: [ReadWriteOnce]
+              resources: {requests: {storage: 5Gi}}
+        ruleSelector: {matchLabels: *ours}
+        serviceMonitorSelector: {matchLabels: *ours}
+        podMonitorSelector: {matchLabels: *ours}
+        probeSelector: {matchLabels: *ours}
+        scrapeConfigSelector: {matchLabels: *ours}
+        resources:
+          requests: {cpu: 10m, memory: 96Mi}
+          limits: {memory: 512Mi}
+    alertmanager:
+      serviceMonitor: {selfMonitor: false}
+      alertmanagerSpec:
+        replicas: 1
+        priorityClassName: office-data
+        # monitoring/alerting renders it; until then the operator runs a config that drops everything.
+        useExistingSecret: true
+        configSecret: alertmanager-office
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: ${STORAGE_CLASS}
+              accessModes: [ReadWriteOnce]
+              resources: {requests: {storage: 1Gi}}
+        resources:
+          requests: {cpu: 5m, memory: 24Mi}
+          limits: {memory: 64Mi}
