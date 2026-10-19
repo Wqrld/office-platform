@@ -5,7 +5,8 @@
 
 Checks against the live cluster what the platform assumes and cannot install itself —
 StorageClass, GatewayClass, cert-manager with Gateway API, a LoadBalancer, DNS (`dns.py
---check`), SMTP, the Hugging Face token Meet needs — and skips what `cluster.*.install`
+--check`), SMTP, the Hugging Face token Meet needs, a Prometheus operator that suits
+`monitoring.mode`, the kubelet's graceful shutdown — and skips what `cluster.*.install`
 says the platform installs. SMTP_HOST/SMTP_PORT and HF_TOKEN come from the environment, as
 install.sh sets them. Exit 1 on any FAIL. See `docs/install.md`.
 """
@@ -128,6 +129,75 @@ def check_smtp(configured):
     say("WARN", "SMTP", "not configured — invitations and password reset will not work")
 
 
+MONITORING_NS, OURS = "office-monitoring", {"office.haaijer.dev/monitoring": "true"}
+NS_LABELS = {"kubernetes.io/metadata.name": MONITORING_NS}
+
+
+def selects(selector, labels):
+    """A Kubernetes label selector against a label set; a missing selector selects nothing."""
+    if selector is None:
+        return False
+    ok = all(labels.get(k) == v for k, v in selector.get("matchLabels", {}).items())
+    for e in selector.get("matchExpressions", []):
+        has, val = e["key"] in labels, labels.get(e["key"])
+        ok &= {"In": has and val in e.get("values", []), "NotIn": not has or val not in e.get("values", []),
+               "Exists": has, "DoesNotExist": not has}[e["operator"]]
+    return ok
+
+
+def check_monitoring(m, smtp_configured):
+    """adr/0119: platform needs the CRDs to be its own, external needs someone else's."""
+    mode = m.get("mode", "platform")
+    if mode == "none":
+        return say("WARN", "monitoring", "mode: none — nothing alerts when the platform stops serving")
+    crds = [c for c in kget("crd").get("items", []) if c["metadata"]["name"].endswith(".monitoring.coreos.com")]
+    if mode == "platform":
+        foreign = [c["metadata"]["name"] for c in crds
+                   if c["metadata"].get("labels", {}).get("helm.toolkit.fluxcd.io/namespace") != MONITORING_NS]
+        if foreign:
+            return say("FAIL", "monitoring", f"another Prometheus operator's CRDs exist ({foreign[0]}…): two operators "
+                       "fight over them; choose monitoring.mode: external, or remove it first")
+        say("PASS", "monitoring", "no other Prometheus operator")
+        if not m.get("email"):
+            say("WARN", "monitoring", "no monitoring.email: alerts are evaluated and sent nowhere")
+        elif not smtp_configured:
+            say("WARN", "monitoring", "smtp.configured is false: alerts cannot be delivered")
+        return
+    if not crds:
+        return say("FAIL", "monitoring", "mode: external, but no Prometheus operator CRDs on this cluster")
+    for p in kget("prometheus", "-A").get("items", []):
+        spec, own_ns = p["spec"], {"kubernetes.io/metadata.name": p["metadata"]["namespace"]}
+        missing = [kind for kind in ("rule", "probe", "serviceMonitor")
+                   if not selects(spec.get(f"{kind}Selector"), OURS)
+                   or not (selects(spec.get(f"{kind}NamespaceSelector"), NS_LABELS)
+                           if f"{kind}NamespaceSelector" in spec else own_ns == NS_LABELS)]
+        if not missing:
+            say("PASS", f"Prometheus {p['metadata']['namespace']}/{p['metadata']['name']}",
+                "selects the platform's rules, probes and scrapes")
+            break
+    else:
+        say("WARN", "monitoring", "no Prometheus selects PrometheusRules, Probes and ServiceMonitors labelled "
+            f"office.haaijer.dev/monitoring=true in {MONITORING_NS}: the platform's rules will never run")
+    say("WARN", "monitoring", "external: the Longhorn rules need its metrics scraped, and Flux's alerts are yours "
+        "to wire (docs/install.md, Monitoring)")
+
+
+def check_shutdown(storage_class):
+    """The 2026-10-18 outage: a reboot without graceful shutdown tore Longhorn's volumes
+    out from under Valkey. configz shows the kubelet's settings, not logind's cap on them."""
+    if storage_class != "longhorn":
+        return
+    for node in kget("nodes").get("items", []):
+        name = node["metadata"]["name"]
+        raw = kubectl("get", "--raw", f"/api/v1/nodes/{name}/proxy/configz")
+        cfg = json.loads(raw).get("kubeletconfig", {}) if raw else {}
+        if cfg.get("shutdownGracePeriod", "0s") in ("0s", "") and not cfg.get("shutdownGracePeriodByPodPriority"):
+            say("WARN", f"node {name}", "kubelet has no graceful shutdown: a reboot cuts Longhorn volumes "
+                "mid-write (adr/0119). A logind InhibitDelayMaxSec cap can still defeat it; this cannot see that")
+        else:
+            say("PASS", f"node {name}", "kubelet shuts down gracefully (logind's cap not checked)")
+
+
 def check_hf(meet):
     token = os.environ.get("HF_TOKEN")
     if not meet:
@@ -157,7 +227,10 @@ def main() -> int:
     check_cert_manager(cluster["certManager"]["install"])
     check_loadbalancer(cluster["loadBalancer"])
     check_dns(path)
-    check_smtp(v.get("smtp", defaults["smtp"])["configured"])
+    smtp = v.get("smtp", defaults["smtp"])["configured"]
+    check_smtp(smtp)
+    check_monitoring(defaults["monitoring"] | v.get("monitoring", {}), smtp)
+    check_shutdown(v.get("storageClass", defaults["storageClass"]))
     table = render.load((HERE / "charts/control-plane/apps.yaml").read_text())
     check_hf(v.get("apps", {}).get("meet", table["meet"]["default"]))
     print("\nFAIL — fix the above before applying" if failed else "\nready")
