@@ -78,7 +78,7 @@ spec:
     # ship; the image is pinned here and updatecli/updatecli.d/livekit.yaml moves it.
     image:
       repository: livekit/livekit-server
-      tag: v1.13.9
+      tag: v1.13.10
 
     livekit:
       port: 7880
