@@ -11,7 +11,7 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
   on a crash-looping pod, a workload with no available replica, a Service with no ready
   endpoint, a public host that does not answer below 500, a node condition, a degraded
   Longhorn volume, a full volume, and a certificate within 14 days of expiry. Measured on a
-  ~50-pod cluster: about 1,100 series, 120 Mi and 0.02 cores in use; 160 Mi and 35m
+  ~50-pod cluster: about 1,100 series, 120 Mi and 0.02 cores in use; 176 Mi and 30m
   requested, plus 6 Gi of volumes. A cluster that already runs a Prometheus operator must
   choose `mode: external` (the rules and probes only) or remove its operator first:
   `preflight.py` refuses otherwise. `preflight.py` also warns when a Longhorn node's

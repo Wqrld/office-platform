@@ -179,7 +179,7 @@ The estimate before the allowlists was 5–15k series and 250–450 Mi. A 24-hou
 over head compactions, replaces these figures before this is accepted.
 
 Against `./measure.py render --size small` (3.47 cores and 21.2 Gi requested, platform and
-apps), the requests (35m and 160 Mi) are about 1 % of either. `small` is also the size most
+apps), the requests (30m and 176 Mi) are about 1 % of either. `small` is also the size most
 likely to be a single unattended VPS, the install that most needs an alert, so making
 monitoring start at `medium` would cut it from the clusters that need it most. The figures
 are replaced by measured ones before this is accepted.
