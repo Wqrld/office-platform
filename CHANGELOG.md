@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.0 — 2026-10-19
+
 - ⚠️ Monitoring, on by default (`docs/adr/0119`). Upgrading installs Prometheus,
   Alertmanager, kube-state-metrics and a blackbox exporter in `office-monitoring` unless
   `cluster.yaml` sets `monitoring.mode: none`. They alert, by email to `monitoring.email`,

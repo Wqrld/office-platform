@@ -7,5 +7,5 @@ description: >-
 type: application
 # The platform version. release.sh sets both in all four charts at once; never by hand.
 # Templates read appVersion — helm-controller can suffix `version` with the source revision.
-version: 2.4.0
-appVersion: "2.4.0"
+version: 2.5.0
+appVersion: "2.5.0"
