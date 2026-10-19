@@ -32,9 +32,24 @@ versioned, tested release you install with one command.
 One login (Keycloak, OIDC) for all of them and one app switcher across them. Each app is a
 single switch in your config, so you can run the whole suite or only Docs and Drive.
 
+## What it needs
+
+You pick one of three sizes with `size` in your `cluster.yaml`. These are the numbers for
+every app enabled:
+
+| Size | For | CPU | RAM | Disk | A machine that fits |
+|---|---|---|---|---|---|
+| `small` | 5–50 people | 3.5 cores | 21 GiB | 42 GiB | one VPS: 6 cores, 32 GB, 80 GB SSD |
+| `medium` | 50–500 people | 5.4 cores | 26.5 GiB | 67 GiB | one VPS: 8 cores, 48 GB, 120 GB SSD |
+| `large` | 500–5,000 people | 31.5 cores | 81 GiB | 845 GiB | several nodes (not yet validated) |
+
+CPU and RAM are what the pods reserve (`./measure.py render --size <size>`); the last
+column adds room for Kubernetes itself. Disk is the volumes the platform claims. File
+storage grows with use, and volumes can be grown but never shrunk.
+
 ## Quick start
 
-On a fresh VPS (one machine with a public address, ≥10 cores, fast disk):
+On a fresh VPS (one machine with a public address; see [What it needs](#what-it-needs)):
 
 ```sh
 git clone https://github.com/Wqrld/office-platform && cd office-platform
