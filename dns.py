@@ -77,8 +77,8 @@ def served(docs, base_domain):
             for route in values.get("routes") or []:
                 if route.get("hostname"):
                     add(route["hostname"], owner)
-                elif route.get("host") and base:
-                    add(f"{route['host']}.{base}", owner)
+                elif base and (host := route.get("host") or values.get("app")):
+                    add(f"{host}.{base}", owner)   # `host` defaults to the app (routes.yaml)
             # TURN's hostname is on no HTTPRoute and no certificate: a UDPRoute on the same
             # Gateway (adr/0113), inside platform-app's `extraObjects`.
             if base and any(o.get("kind") == "UDPRoute" and "turn" in o["metadata"]["name"]
