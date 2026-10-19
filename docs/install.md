@@ -15,9 +15,10 @@ what each one needs from you.
 
 ## 0. The cluster underneath
 
-**Fresh VPS** (`--k3s`): one machine with a public address, ≥10 cores, fast disk. The
-script installs k3s (Flannel, local-path storage, no Traefik, no ServiceLB) and the platform
-installs the rest: Envoy Gateway, cert-manager, MetalLB with the node's address as its pool.
+**Fresh VPS** (`--k3s`): one machine with a public address, sized as in the README's What
+it needs table. The script installs k3s (Flannel, local-path storage, no Traefik, no
+ServiceLB) and the platform installs the rest: Envoy Gateway, cert-manager, MetalLB with
+the node's address as its pool.
 
 **Existing cluster** (`--existing`): a kubeconfig with cluster-admin, and
 

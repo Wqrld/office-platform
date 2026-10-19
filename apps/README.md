@@ -199,18 +199,10 @@ fronts one pod); Drive's celery-beat (two beats is two schedulers firing the sam
 Garage's `replication.factor` (cannot be changed in place — a rebuild, not a size); the
 broker's eviction policy (`noeviction` at every size, or Celery tasks are silently dropped).
 
-**Measured totals** — `./measure.py render --size <size>`, 2026-09-05, before Calendars,
-Meet and LiveKit. Requests only, which is what the scheduler admits on.
-
-| Size | Platform | Apps (install peak) | Total peak | Total steady |
-|---|---|---|---|---|
-| `small` | 700m / 2,498Mi | 570m / 4,928Mi | **1,270m / 7,426Mi** | 1,020m / 5,058Mi |
-| `medium` | 800m / 2,754Mi | 1,135m / 7,136Mi | **1,935m / 9,890Mi** | 1,435m / 6,434Mi |
-| `large` | 8,550m / 30,402Mi | 8,235m / 18,656Mi | **16,785m / 49,058Mi** | — |
-
-**Read the peak, not the steady state.** Docs' `migrate` and `createsuperuser` and Drive's
-`migrate`, `createsuperuser` and `configure-wopi` Jobs each inherit `backend.resources` and
-run alongside the workloads they are migrating for — 44% of the small profile's memory. An
-environment sized to the steady state does not come up, and it looks like a scheduling bug
-rather than a sizing one. `large` is **not validated**: one node, so its numbers are a
-shape rather than a measurement, and 17 cores says so honestly.
+**Totals** — `./measure.py render --size <size>` adds up what a size requests, which is
+what the scheduler admits on; the current figures are in the top-level README (What it
+needs). **Read the peak, not the steady state.** The `migrate` and `createsuperuser` Jobs
+(and Drive's `configure-wopi`) inherit `backend.resources` and run alongside the workloads
+they are migrating for, so an environment sized to the steady state does not come up, and
+it looks like a scheduling bug rather than a sizing one. `large` is **not validated**: its
+numbers are a shape rather than a measurement.
