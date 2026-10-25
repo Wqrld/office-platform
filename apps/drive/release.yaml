@@ -84,6 +84,9 @@ spec:
       envVars:
         DJANGO_SETTINGS_MODULE: drive.settings
         DJANGO_CONFIGURATION: Production
+        # gunicorn 25's control socket (gunicornc) defaults to $HOME/.gunicorn, and HOME is a
+        # read-only /. Nothing here manages workers at runtime: Kubernetes owns the process.
+        GUNICORN_CMD_ARGS: --no-control-socket
         DJANGO_ALLOWED_HOSTS: drive.${BASE_DOMAIN}
         DJANGO_CSRF_TRUSTED_ORIGINS: https://drive.${BASE_DOMAIN}
         DJANGO_CORS_ALLOWED_ORIGINS: https://drive.${BASE_DOMAIN}

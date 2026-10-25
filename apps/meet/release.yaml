@@ -90,6 +90,9 @@ spec:
       envVars:
         DJANGO_SETTINGS_MODULE: meet.settings
         DJANGO_CONFIGURATION: Production
+        # gunicorn 25's control socket (gunicornc) defaults to $HOME/.gunicorn, and HOME is a
+        # read-only /. Nothing here manages workers at runtime: Kubernetes owns the process.
+        GUNICORN_CMD_ARGS: --no-control-socket
         # Only the public name: SECURE_SSL_REDIRECT 301s plain http, so LiveKit's webhook
         # and the summary service's hook call it too.
         DJANGO_ALLOWED_HOSTS: meet.${BASE_DOMAIN}

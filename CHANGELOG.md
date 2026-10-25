@@ -5,6 +5,10 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Find, Meet, Drive and Messages start gunicorn with `--no-control-socket`. Gunicorn 25's
+  runtime control socket defaulted to `/.gunicorn` on a read-only root, and every start
+  logged `Control server error`. Nothing used it: Kubernetes manages the workers.
+
 ## 2.5.1 — 2026-10-25
 
 - Upstream bumps: Docs 6.0.3, Meet 1.36.3, Find `main@bb2aa09`, LiveKit server 1.13.11,

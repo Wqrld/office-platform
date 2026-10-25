@@ -55,6 +55,9 @@ spec:
       envVars:
         DJANGO_SETTINGS_MODULE: find.settings
         DJANGO_CONFIGURATION: Production
+        # gunicorn 25's control socket (gunicornc) defaults to $HOME/.gunicorn, and HOME is a
+        # read-only /. Nothing here manages workers at runtime: Kubernetes owns the process.
+        GUNICORN_CMD_ARGS: --no-control-socket
         DJANGO_ALLOWED_HOSTS: find.${BASE_DOMAIN}
         DJANGO_SECRET_KEY: {secretKeyRef: {name: find-django, key: DJANGO_SECRET_KEY}}
         LOGGING_LEVEL_LOGGERS_APP: INFO

@@ -65,6 +65,9 @@ spec:
       envVars:
         DJANGO_SETTINGS_MODULE: messages.settings
         DJANGO_CONFIGURATION: Production
+        # gunicorn 25's control socket (gunicornc) defaults to $HOME/.gunicorn, and HOME is a
+        # read-only /. Nothing here manages workers at runtime: Kubernetes owns the process.
+        GUNICORN_CMD_ARGS: --no-control-socket
         # `messages-backend` is the Host the MTA's recipient checks and deliveries arrive
         # with (mta-in below); without it every inbound message is a 400 and a 451.
         DJANGO_ALLOWED_HOSTS: messages.${BASE_DOMAIN},messages-backend
