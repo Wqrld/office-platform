@@ -28,7 +28,7 @@ spec:
   valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
   values:
     image:
-      tag: v6.0.0
+      tag: v6.0.3
 
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
@@ -207,7 +207,7 @@ spec:
               link: {label: MIT licence, href: "https://github.com/suitenumerique/docs/blob/main/LICENSE"}
 
     frontend:
-      image: {tag: v6.0.0}
+      image: {tag: v6.0.3}
       pdb: {enabled: false}
       securityContext: *readOnly
       persistence: *tmp
@@ -218,7 +218,7 @@ spec:
         PUBLISH_AS_MIT: "false"
 
     yProvider:
-      image: {tag: v6.0.0}
+      image: {tag: v6.0.3}
       pdb: {enabled: false}
       securityContext: *readOnly
       persistence: *tmp
@@ -233,7 +233,7 @@ spec:
     # stream and its own database, `yhub` on the docs role's cluster (charts/platform-tenants).
     # Its schema is made by the init-db job the chart runs before it starts.
     yhub:
-      image: {tag: v6.0.0}
+      image: {tag: v6.0.3}
       pdb: {enabled: false}          # the surround owns the budget (sizes/platform-large.yaml)
       securityContext: *readOnly
       persistence: *tmp

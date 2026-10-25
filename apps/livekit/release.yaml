@@ -45,7 +45,7 @@ spec:
     # The chart's appVersion lags what LiveKit ships; updatecli moves this.
     image:
       repository: livekit/livekit-server
-      tag: v1.13.9
+      tag: v1.13.11
 
     # The Service's name, which surround.yaml and secrets.yaml use.
     fullnameOverride: livekit

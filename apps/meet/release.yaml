@@ -62,7 +62,7 @@ spec:
   values:
     # The backend's (and the Celery backend's); every other tag overrides it. All the same
     # version, moved together by updatecli/updatecli.d/meet.yaml.
-    image: {tag: v1.34.0}
+    image: {tag: v1.36.3}
 
     ingress: {enabled: false}
     ingressWebhook: {enabled: false}
@@ -111,6 +111,8 @@ spec:
         # ---- Transcripts: this pair puts the button in the UI. No `screen_recording`: a
         # video egress is a much larger Chrome, and nothing serves its output.
         RECORDING_ENABLE: "true"
+        # 1.36 lets any authenticated participant start one; kept to room admins and owners.
+        RECORDING_AUTHENTICATED_PARTICIPANTS_ENABLED: "false"
         RECORDING_WORKER_CLASSES: '{"transcript": "core.recording.worker.services.AudioCompositeEgressService"}'
         # `/recording/<id>`, SINGULAR (routes.ts): the link atop each transcript document,
         # whose download is the media proxy (surround.yaml).
@@ -160,7 +162,7 @@ spec:
 
     # ---------------------------------------------------------------- frontend
     frontend:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -183,7 +185,7 @@ spec:
     # One image run four ways: the API the backend POSTs jobs to, and three Celery workers,
     # one per queue. The env block is anchored: the chart has no shared env for them.
     summary:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -207,7 +209,7 @@ spec:
 
     # `transcribe-queue`: download, ffmpeg (the pipeline's memory peak), whisperx, Docs.
     celeryTranscribe:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -226,7 +228,7 @@ spec:
 
     # `call-webhook-queue`: tells the backend the job finished. Tiny.
     celerySummaryBackend:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -234,7 +236,7 @@ spec:
 
     # `summarize-queue`: the LLM step, off.
     celerySummarize:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       replicas: 0
       pdb: {enabled: false}
       securityContext: *restricted
@@ -253,13 +255,13 @@ spec:
     # speakers in transcripts; diarization labels them already. Revisit if "Speaker 1" is
     # the complaint.
     agentMetadata:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       replicas: 0
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
     agentSubtitles:
-      image: {tag: v1.34.0}
+      image: {tag: v1.36.3}
       replicas: 0
       pdb: {enabled: false}
       securityContext: *restricted
