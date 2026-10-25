@@ -2,4 +2,4 @@ apiVersion: v2
 name: platform-deps
 description: Everything an app must have before it starts — datastores and the Secrets it reads.
 type: application
-version: 2.5.0
+version: 2.5.1

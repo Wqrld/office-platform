@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.1 — 2026-10-25
+
 - Upstream bumps: Docs 6.0.3, Meet 1.36.3, Find `main@bb2aa09`, LiveKit server 1.13.11,
   Collabora chart 1.3.7 with CODE 26.04.5.2.1, external-secrets 2.14.0,
   kube-prometheus-stack 92.13.1, blackbox exporter 11.20.2. Mostly security fixes. Docs'
