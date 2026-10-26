@@ -1,6 +1,6 @@
 # Keycloak's operator ships as Kustomize manifests, not a chart, pinned 1:1 to the server
 # version it runs. The five files beside this one are byte-identical copies of
-#   https://github.com/keycloak/keycloak-k8s-resources/tree/26.8.0/kubernetes
+#   https://github.com/keycloak/keycloak-k8s-resources/tree/26.8.1/kubernetes
 # Never hand-edit them: `update.sh` re-downloads all five and rewrites the tag above;
 # every change of ours is made here. The operator watches only its own namespace, so it
 # lives beside the Keycloak CR.
