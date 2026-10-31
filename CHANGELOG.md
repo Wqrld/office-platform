@@ -5,6 +5,13 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Docs `v6.0.4-office.3`. The fork's images are built with `PUBLISH_AS_MIT=false`, as
+  upstream's are: 2.5.2's frontend left out the BlockNote XL packages, so export offered only
+  Markdown and HTML and multi-column blocks were disabled. When a document already opens with
+  its title as a heading, the export dialog's "Include document title" starts unchecked and
+  presenter mode shows no generated title slide; presenter "Download PDF" prints directly
+  again (in 2.5.2 its dialog opened hidden behind the presenter). On such documents,
+  `?slide=N` links point one slide later than before.
 ## 2.5.2 — 2026-10-31
 
 - Docs from the fork `Wqrld/docs` at `v6.0.4-office.1`: upstream `main` after 6.0.4 (the

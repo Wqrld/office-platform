@@ -28,7 +28,7 @@ from `static.suite.anct.gouv.fr` — without it there is no switcher) and the se
 
 ## Pins and forks
 
-The fork's chart `src/helm/impress` at git tag `v6.0.4-office.1` (`wqrld-docs` in
+The fork's chart `src/helm/impress` at git tag `v6.0.4-office.3` (`wqrld-docs` in
 `charts/control-plane/templates/sources.yaml`); the same tag publishes the four images
 `image`, `frontend.image`, `yProvider.image` and `yhub.image` point at. On a bump, read
 Gotchas, The theme file, first.
@@ -36,10 +36,13 @@ Gotchas, The theme file, first.
 ### The fork
 
 Docs runs from `github.com/Wqrld/docs`: upstream `main` (after `v6.0.4`) plus the document
-title in exports (PDF/DOCX/ODT), with an option in the export dialog to leave it out
-(upstream #1956). The `office` branch adds one fork-only commit, `.github/workflows/ghcr.yml`,
-which publishes `ghcr.io/wqrld/docs-{backend,frontend,y-provider,yhub}` (amd64) on every
-`v*-office.*` tag. One tag pins chart and all four images.
+title in exports (PDF/DOCX/ODT/Markdown/HTML), with an option in the export dialog to leave
+it out (upstream #1956). A document that already opens with its title as a heading gets the
+option unchecked by default and no generated title slide in presenter mode. The `office`
+branch adds fork-only commits to `.github/workflows/ghcr.yml`, which publishes
+`ghcr.io/wqrld/docs-{backend,frontend,y-provider,yhub}` (amd64) on every `v*-office.*` tag,
+built with `PUBLISH_AS_MIT=false` like upstream's images (without it: no PDF/DOCX/ODT export,
+no multi-column blocks). One tag pins chart and all four images.
 
 Upstream `main` after `v6.0.4` makes yhub read a caller's abilities from the new
 `GET /documents/{id}/abilities/`, which an older backend answers with 404 (a refusal):
