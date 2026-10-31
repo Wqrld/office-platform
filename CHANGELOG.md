@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.3 — 2026-10-31
+
 - Docs `v6.0.4-office.3`. The fork's images are built with `PUBLISH_AS_MIT=false`, as
   upstream's are: 2.5.2's frontend left out the BlockNote XL packages, so export offered only
   Markdown and HTML and multi-column blocks were disabled. When a document already opens with
