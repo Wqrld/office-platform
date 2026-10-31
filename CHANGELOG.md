@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.2 — 2026-10-31
+
 - Docs from the fork `Wqrld/docs` at `v6.0.4-office.1`: upstream `main` after 6.0.4 (the
   6.0.4 security fixes, a dedicated abilities endpoint yhub now reads, BlockNote 0.56 with
   Typst PDF export, user mentions) plus the document title in exports, with an option to
