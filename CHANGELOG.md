@@ -5,6 +5,12 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Docs from the fork `Wqrld/docs` at `v6.0.4-office.1`: upstream `main` after 6.0.4 (the
+  6.0.4 security fixes, a dedicated abilities endpoint yhub now reads, BlockNote 0.56 with
+  Typst PDF export, user mentions) plus the document title in exports, with an option to
+  leave it out. Chart and the four images move with one tag (`apps/docs/README.md`, The
+  fork). No migration. The old `flux-system/suitenumerique-docs` GitRepository stays behind;
+  delete it by hand after the upgrade.
 - Find, Meet, Drive and Messages start gunicorn with `--no-control-socket`. Gunicorn 25's
   runtime control socket defaulted to `/.gunicorn` on a read-only root, and every start
   logged `Control server error`. Nothing used it: Kubernetes manages the workers.

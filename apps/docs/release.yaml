@@ -1,4 +1,4 @@
-# Docs — release 2 of 3: the application, from DINUM's in-tree chart (`src/helm/impress`,
+# Docs — release 2 of 3: the application, from the fork's in-tree chart (`src/helm/impress`,
 # named `docs`) at its pinned git tag (adr/0104). Conventions: apps/README.md.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -11,7 +11,7 @@ spec:
   chart:
     spec:
       chart: src/helm/impress
-      sourceRef: {kind: GitRepository, name: suitenumerique-docs, namespace: flux-system}
+      sourceRef: {kind: GitRepository, name: wqrld-docs, namespace: flux-system}
       reconcileStrategy: Revision
   install:
     disableWaitForJobs: true
@@ -27,8 +27,10 @@ spec:
               - {op: add, path: /spec/template/spec/containers/0/livenessProbe/periodSeconds, value: 300}
   valuesFrom: [{kind: ConfigMap, name: docs-sizes, valuesKey: "${SIZE}"}]
   values:
+    # The fork's images, one tag with the chart (README.md, The fork).
     image:
-      tag: v6.0.3
+      repository: ghcr.io/wqrld/docs-backend
+      tag: v6.0.4-office.1
 
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
@@ -207,7 +209,7 @@ spec:
               link: {label: MIT licence, href: "https://github.com/suitenumerique/docs/blob/main/LICENSE"}
 
     frontend:
-      image: {tag: v6.0.3}
+      image: {repository: ghcr.io/wqrld/docs-frontend, tag: v6.0.4-office.1}
       pdb: {enabled: false}
       securityContext: *readOnly
       persistence: *tmp
@@ -218,7 +220,7 @@ spec:
         PUBLISH_AS_MIT: "false"
 
     yProvider:
-      image: {tag: v6.0.3}
+      image: {repository: ghcr.io/wqrld/docs-y-provider, tag: v6.0.4-office.1}
       pdb: {enabled: false}
       securityContext: *readOnly
       persistence: *tmp
@@ -233,7 +235,7 @@ spec:
     # stream and its own database, `yhub` on the docs role's cluster (charts/platform-tenants).
     # Its schema is made by the init-db job the chart runs before it starts.
     yhub:
-      image: {tag: v6.0.3}
+      image: {repository: ghcr.io/wqrld/docs-yhub, tag: v6.0.4-office.1}
       pdb: {enabled: false}          # the surround owns the budget (sizes/platform-large.yaml)
       securityContext: *readOnly
       persistence: *tmp

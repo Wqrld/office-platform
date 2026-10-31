@@ -40,14 +40,17 @@ spec:
   interval: 24h
   url: https://opensearch-project.github.io/helm-charts
 ---
-# Chart lives in-tree at src/helm/impress; the git tag is the pin.
+# Docs. Chart lives in-tree at src/helm/impress. Until the title in exports lands upstream,
+# chart and images come from the FORK's git tag — the same tag publishes
+# ghcr.io/wqrld/docs-{backend,frontend,y-provider,yhub} (apps/docs/README.md, The fork), so
+# one pin moves all five. When it lands, only the url changes back to suitenumerique/docs.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
-{{ include "platform.metadata" "suitenumerique-docs" }}
+{{ include "platform.metadata" "wqrld-docs" }}
 spec:
   interval: 24h
-  url: https://github.com/suitenumerique/docs
-  ref: {tag: v6.0.3}
+  url: https://github.com/Wqrld/docs
+  ref: {tag: v6.0.4-office.1}
   ignore: |
     /*
     !/src/helm

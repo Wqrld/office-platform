@@ -28,10 +28,23 @@ from `static.suite.anct.gouv.fr` — without it there is no switcher) and the se
 
 ## Pins and forks
 
-Upstream chart `src/helm/impress` at git tag `v6.0.0` (`suitenumerique-docs` in
-`charts/control-plane/templates/sources.yaml`); `image.tag`, `frontend.image.tag`,
-`yProvider.image.tag` and `yhub.image.tag` are `v6.0.0` too (`apps/README.md`, Conventions). No fork. On a
-bump, read Gotchas, The theme file, first.
+The fork's chart `src/helm/impress` at git tag `v6.0.4-office.1` (`wqrld-docs` in
+`charts/control-plane/templates/sources.yaml`); the same tag publishes the four images
+`image`, `frontend.image`, `yProvider.image` and `yhub.image` point at. On a bump, read
+Gotchas, The theme file, first.
+
+### The fork
+
+Docs runs from `github.com/Wqrld/docs`: upstream `main` (after `v6.0.4`) plus the document
+title in exports (PDF/DOCX/ODT), with an option in the export dialog to leave it out
+(upstream #1956). The `office` branch adds one fork-only commit, `.github/workflows/ghcr.yml`,
+which publishes `ghcr.io/wqrld/docs-{backend,frontend,y-provider,yhub}` (amd64) on every
+`v*-office.*` tag. One tag pins chart and all four images.
+
+Upstream `main` after `v6.0.4` makes yhub read a caller's abilities from the new
+`GET /documents/{id}/abilities/`, which an older backend answers with 404 (a refusal):
+the backend and yhub move together, never yhub alone. The yhub metric label
+`route="document"` is `route="abilities"` from this version (no rule here uses it).
 
 ## Install order / first admin
 
