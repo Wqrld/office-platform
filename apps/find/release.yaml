@@ -30,7 +30,7 @@ spec:
     - kustomize:
         images:
           - name: lasuite/find
-            digest: sha256:8984e29eb115ecbd7c669793fe33195e3e41ab01dc1edd9d377dcbc3f0de781e
+            digest: sha256:c3d24b220c7eb306c46ed504d367f6cdda8d2e4cc2170bdfd78401f49dffd066
   valuesFrom: [{kind: ConfigMap, name: find-sizes, valuesKey: "${SIZE}"}]
   values:
     image:
