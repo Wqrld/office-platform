@@ -77,6 +77,8 @@ spec:
         LOGIN_REDIRECT_URL: https://messages.${BASE_DOMAIN}
         LOGIN_REDIRECT_URL_FAILURE: https://messages.${BASE_DOMAIN}
         LOGOUT_REDIRECT_URL: https://messages.${BASE_DOMAIN}
+        # On a 401, retry OIDC silently before showing the login page (as Drive's).
+        FRONTEND_SILENT_LOGIN_ENABLED: "true"
 
         # MAIL. One MX, not upstream's mx1/mx2: one Gateway address (README.md, Mail DNS).
         MESSAGES_TECHNICAL_DOMAIN: ${BASE_DOMAIN}

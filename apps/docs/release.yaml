@@ -75,6 +75,8 @@ spec:
         DJANGO_SUPERUSER_EMAIL: admin@${BASE_DOMAIN}
         # No marketing homepage: an anonymous visitor gets the login page.
         FRONTEND_HOMEPAGE_FEATURE_ENABLED: "false"
+        # On a 401, retry OIDC silently before showing the login page (as Drive's).
+        FRONTEND_SILENT_LOGIN_ENABLED: "true"
         DJANGO_EMAIL_BRAND_NAME: Office
         LANGUAGE_CODE: nl-nl
         MEDIA_BASE_URL: https://docs.${BASE_DOMAIN}
