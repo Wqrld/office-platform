@@ -5,6 +5,14 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Upstream bumps: Meet 1.37.0, Find `main@89768a4`, Collabora chart 1.3.8,
+  external-secrets 2.15.0, garage-operator 0.9.0, kube-prometheus-stack 93.3.0, blackbox
+  exporter 11.21.3, valkey chart 1.0.0. Valkey 1.0 renames `valkeyConfig` to `extraConfig`
+  and `dataStorage` to `persistence`; the PVC name is unchanged, so the broker keeps its
+  data. The broker's pod is replaced rather than rolled (one short broker outage on
+  upgrade, its volume is ReadWriteOnce); the cache still rolls. Both pods restart once and
+  now have a readiness probe.
+
 ## 2.5.3 — 2026-10-31
 
 - Docs `v6.0.4-office.3`. The fork's images are built with `PUBLISH_AS_MIT=false`, as

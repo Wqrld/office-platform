@@ -79,7 +79,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/find
-  ref: {branch: main, commit: bb2aa09693e11aa0158068de8794da34efd1c917}
+  ref: {branch: main, commit: 89768a42da2017215f88e584a5ba61dce7a90481}
   ignore: |
     /*
     !/src/helm
@@ -181,7 +181,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/suitenumerique/meet
-  ref: {tag: v1.36.3}
+  ref: {tag: v1.37.0}
   ignore: |
     /*
     !/src/helm

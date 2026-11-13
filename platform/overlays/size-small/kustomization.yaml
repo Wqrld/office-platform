@@ -13,7 +13,7 @@ patches:
       metadata: {name: valkey-cache, namespace: office-data}
       spec:
         values:
-          valkeyConfig: |
+          extraConfig: |
             maxmemory 128mb
             maxmemory-policy allkeys-lru
             save ""
@@ -26,7 +26,7 @@ patches:
       metadata: {name: valkey-broker, namespace: office-data}
       spec:
         values:
-          valkeyConfig: |
+          extraConfig: |
             maxmemory 128mb
             maxmemory-policy noeviction
             appendonly yes

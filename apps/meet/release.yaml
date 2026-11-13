@@ -62,7 +62,7 @@ spec:
   values:
     # The backend's (and the Celery backend's); every other tag overrides it. All the same
     # version, moved together by updatecli/updatecli.d/meet.yaml.
-    image: {tag: v1.36.3}
+    image: {tag: v1.37.0}
 
     ingress: {enabled: false}
     ingressWebhook: {enabled: false}
@@ -165,7 +165,7 @@ spec:
 
     # ---------------------------------------------------------------- frontend
     frontend:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -188,7 +188,7 @@ spec:
     # One image run four ways: the API the backend POSTs jobs to, and three Celery workers,
     # one per queue. The env block is anchored: the chart has no shared env for them.
     summary:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -212,7 +212,7 @@ spec:
 
     # `transcribe-queue`: download, ffmpeg (the pipeline's memory peak), whisperx, Docs.
     celeryTranscribe:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -231,7 +231,7 @@ spec:
 
     # `call-webhook-queue`: tells the backend the job finished. Tiny.
     celerySummaryBackend:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
@@ -239,7 +239,7 @@ spec:
 
     # `summarize-queue`: the LLM step, off.
     celerySummarize:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       replicas: 0
       pdb: {enabled: false}
       securityContext: *restricted
@@ -258,13 +258,13 @@ spec:
     # speakers in transcripts; diarization labels them already. Revisit if "Speaker 1" is
     # the complaint.
     agentMetadata:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       replicas: 0
       pdb: {enabled: false}
       securityContext: *restricted
       persistence: *tmp
     agentSubtitles:
-      image: {tag: v1.36.3}
+      image: {tag: v1.37.0}
       replicas: 0
       pdb: {enabled: false}
       securityContext: *restricted

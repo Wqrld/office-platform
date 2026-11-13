@@ -7,7 +7,7 @@ spec:
   chart:
     spec:
       chart: valkey
-      version: "0.12.0"
+      version: "1.0.0"
       sourceRef: {kind: HelmRepository, name: valkey, namespace: flux-system}
   # `auth.aclUsers`, one per app, from the tenants release (README.md, Adding an application).
   valuesFrom:
@@ -19,11 +19,13 @@ spec:
   values:
     fullnameOverride: valkey-cache
     priorityClassName: office-data
-    valkeyConfig: |
+    extraConfig: |
       maxmemory 256mb
       maxmemory-policy allkeys-lru
       save ""
-    dataStorage: {enabled: false}
+    persistence: {enabled: false}
+    # Nothing on disk, so nothing stops the new pod starting beside the old one.
+    deploymentStrategy: RollingUpdate
     auth:
       enabled: true
       usersExistingSecret: valkey-cache-acl
