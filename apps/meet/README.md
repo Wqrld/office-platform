@@ -54,7 +54,7 @@ in a call there is no header and the button falls back to a fixed position.
 ## Pins and forks
 
 Chart at git tag `v1.34.0` (`suitenumerique-meet` in
-`charts/control-plane/templates/sources.yaml`); every image tag in `release.yaml` is the
+`source.yaml`); every image tag in `release.yaml` is the
 same version, moved together by `updatecli/updatecli.d/meet.yaml`. whisperx is
 `lasuite/whisper-api:v1.2.0`, the last tag; `main` upstream made the model an env var
 (`TRANSCRIBE_MODEL`) — the first tag past v1.2.0 changes `args` in whisperx.yaml. No fork.

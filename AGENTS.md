@@ -118,7 +118,7 @@ fresh VPS as `install.sh` writes it.
 - `deps.yaml` → `<app>-deps` (`charts/platform-deps`): Secrets/OIDC/bucket/tokens the app
   needs before it starts, shaped per app via named env profiles (adr/0106).
 - `release.yaml` → the upstream chart (La Suite charts come from pinned git refs, adr/0104;
-  pins in `charts/control-plane/templates/sources.yaml`), Secrets wired in via
+  pinned in the app's `source.yaml`), Secrets wired in via
   `postRenderers` envFrom patches.
 - `surround.yaml` → `<app>-platform` (`charts/platform-app`): HTTPRoutes, traffic policy,
   NetworkPolicy, PDB, media proxy, static files.
@@ -138,8 +138,8 @@ Garage replication factor, broker `noeviction`) — see `apps/README.md`.
 - **Adding an app**: the list is in `apps/README.md` (Adding an application).
 - `apps/gaufre.js` / `apps/switcher.js` must not contain `$` (Calendars' ConfigMap is
   substituted over).
-- updatecli patterns must be anchored to the repository URL: all git pins share
-  `sources.yaml`, and an unanchored match rewrites the wrong app's tag.
+- updatecli patterns stay anchored to the repository URL, so a pattern can only ever match
+  its own source (an unanchored one once rewrote Drive's tag to a Docs version).
 - NetworkPolicy is rendered but not enforced (Flannel, adr/0103) — don't treat it as
   segmentation.
 - A change that adds or reverses a design decision needs an ADR in `docs/adr/` (numbered

@@ -80,7 +80,7 @@ own `REDIS_URL`; eviction there costs retraining, not mail. It runs as Lua scrip
 Written in the application's repo at `src/helm/messages`, **copied from Docs'
 `src/helm/impress`**: the backend, worker, frontend and Jobs as Docs has them, and two new
 components in the same shape, `mtaIn` and `mpa`, both off by default. It comes from the
-fork's git tag (`GitRepository` `wqrld-messages`, `charts/control-plane/templates/sources.yaml`),
+fork's git tag (`GitRepository` `wqrld-messages`, `source.yaml`),
 the same tag that publishes the five images, so chart and images move together.
 
 ### Pins

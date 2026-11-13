@@ -15,6 +15,6 @@ No PR links are recorded yet; add each one to its row when it is opened.
 
 Two sources are not forks but pin a commit, because upstream has no tag to pin: **Find**
 has never cut a release, and **LiveKit**'s chart index stopped updating in mid-2025.
-`charts/control-plane/templates/sources.yaml` explains both.
+Each app's `source.yaml` explains why.
 
 Check this table on every upstream bump.

@@ -212,8 +212,10 @@ def variables(values: pathlib.Path = DEFAULT, extra: tuple[str, ...] = ()) -> di
 
 
 def sources(values: pathlib.Path = FULL) -> dict[str, dict]:
-    """name -> source object: the pins live in the control plane and nowhere else."""
-    return {d["metadata"]["name"]: d for d in control_plane(values)
+    """name -> source object: the control plane's, and each app's own (apps/<app>/source.yaml)."""
+    docs = control_plane(values) + [d for f in sorted((ROOT / "apps").glob("*/source.yaml"))
+                                    for d in load_all(f.read_text()) if d]
+    return {d["metadata"]["name"]: d for d in docs
             if d["kind"] in {"GitRepository", "HelmRepository", "OCIRepository"}}
 
 

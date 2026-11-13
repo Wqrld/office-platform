@@ -14,7 +14,7 @@ files.
 ## Pins and forks
 
 The fork's chart at git tag `v0.23.0-office.6`, path `src/helm/drive` (`wqrld-drive` in
-`charts/control-plane/templates/sources.yaml`); the same tag publishes both images.
+`source.yaml`); the same tag publishes both images.
 
 ### The fork
 
@@ -138,7 +138,7 @@ indexing task fails on every upload — it is explicitly false.
 ## Upstream PRs
 
 - **Document thumbnails** (`feature/wopi-thumbnails` in the fork, The fork above), meant for
-  upstream. Once upstream releases the feature, point `sources.yaml` back at
+  upstream. Once upstream releases the feature, point `source.yaml` back at
   `suitenumerique/drive` and drop the image `repository` lines in `release.yaml`.
 - **Content-Type on upload** (Gotchas, above): worth a one-line PR upstream,
   `.get("ContentType")`. No PR recorded yet.

@@ -8,7 +8,7 @@ into `<outdir>/<cluster>/<kustomization>.yaml`, everything read from the rendere
 plane. Fails on a build error, on a `${VAR}` that survived substitution (Flux leaves an
 unknown one alone, and the app serves `docs.${BASE_DOMIAN}`), and when the app table, the
 directories under apps/ and examples/cluster.yaml disagree, when a release's chart
-source is missing from sources.yaml or from updatecli, or when monitoring stops being a
+source is missing (sources.yaml, apps/*/source.yaml) or not in updatecli, or when monitoring stops being a
 leaf (adr/0119). See `AGENTS.md` (Checks).
 """
 import argparse
@@ -67,7 +67,7 @@ def pins_are_tracked() -> list[str]:
             if ref["name"] in HAND_PINNED:
                 continue
             if src is None:
-                problems.append(f"{where}: source {ref['name']} is not in templates/sources.yaml")
+                problems.append(f"{where}: source {ref['name']} is in neither templates/sources.yaml nor its source.yaml")
                 continue
             url = src["spec"]["url"]
             if src["kind"] == "GitRepository" and url not in patterns and url.replace(".", "\\.") not in patterns:
@@ -131,7 +131,7 @@ def main() -> int:
     print("== pins")
     if problems := pins_are_tracked():
         return render.report(problems, "", "release source(s) nothing pins or bumps")
-    print("   every release's source is in sources.yaml and bumped by updatecli")
+    print("   every release's source exists and is bumped by updatecli")
 
     for values in render.clusters():
         cluster = values.stem.removeprefix("cluster-")

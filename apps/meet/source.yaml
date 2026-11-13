@@ -1,0 +1,11 @@
+# Chart lives in-tree at src/helm/meet; the git tag is the pin.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: suitenumerique-meet, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/suitenumerique/meet
+  ref: {tag: v1.37.0}
+  ignore: |
+    /*
+    !/src/helm

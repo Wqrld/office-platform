@@ -14,6 +14,13 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
   the last daily fetch sat in `SourceNotReady` until the next one.
 - Prometheus keeps Flux's reconcile durations (`gotk_reconcile_duration_seconds`, per
   object), so a slow rollout shows where its time went.
+- Each application's chart source is in its own layer (`apps/<app>/source.yaml`), applied
+  with its release. From the control plane, a bumped chart reached every app before the
+  layers did, so each bumped app upgraded twice — first the new chart with the old values
+  (2.5.4: Meet 1.37's chart on 1.36.3 images), then again — and ignored `dependsOn`. The
+  existing GitRepositories are adopted in place (Helm keeps them, the layer takes them over);
+  no migration. The weekly updatecli PR no longer regenerates the goldens: no pin it moves is
+  in them any more.
 
 ## 2.5.4 — 2026-11-13
 

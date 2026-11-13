@@ -34,7 +34,7 @@ targets:
     kind: file
     sourceid: release
     spec:
-      file: "charts/control-plane/templates/sources.yaml"
+      file: "apps/calendars/source.yaml"
       matchpattern: '(url: https://github\.com/Wqrld/calendars\n  ref: \{tag: )v[0-9]+\.[0-9]+\.[0-9]+\}'
       replacepattern: '${1}{{ source "release" }}}'
 

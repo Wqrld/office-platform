@@ -4,6 +4,7 @@ resources:
   - ../namespace.yaml
   - ../services.yaml
   - deps.yaml
+  - source.yaml
   - release.yaml
   - mx-tls.yaml
   - surround.yaml

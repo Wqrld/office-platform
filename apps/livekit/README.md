@@ -35,12 +35,12 @@ that blocks all UDP fall back to ICE/TCP 7881 and nothing else.
 ## Pins and forks
 
 Both charts from `livekit/livekit-helm` at commit `8f0ad0809c2be8cbed375a6f8bef10625e5e8a2b`
-(`livekit-helm` in `charts/control-plane/templates/sources.yaml`, which says why a commit:
+(`livekit-helm` in `source.yaml`, which says why a commit:
 the Helm repository's index stopped updating, and no tag names the chart we deploy). Images
 pinned separately in `release.yaml`, because the charts' appVersion lags them:
 `livekit/livekit-server:v1.13.9`, `livekit/egress:v1.15.0`. No fork.
 
-Chart bump checklist (the commit in `charts/control-plane/templates/sources.yaml` is moved by hand):
+Chart bump checklist (the commit in `source.yaml` is moved by hand):
 render with `tests/binding.py`, then check the livekit Deployment still has `LIVEKIT_CONFIG`
 as `env[0]` and the same port names; check egress's `EGRESS_CONFIG_BODY` likewise.
 

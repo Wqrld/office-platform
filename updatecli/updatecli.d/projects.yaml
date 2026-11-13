@@ -32,7 +32,7 @@ targets:
     kind: file
     sourceid: release
     spec:
-      file: "charts/control-plane/templates/sources.yaml"
+      file: "apps/projects/source.yaml"
       matchpattern: '(url: https://github\.com/Wqrld/projects\n  ref: \{tag: )v[0-9]+\.[0-9]+\.[0-9]+\}'
       replacepattern: '${1}{{ source "release" }}}'
 

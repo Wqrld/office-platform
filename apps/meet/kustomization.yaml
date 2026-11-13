@@ -6,6 +6,7 @@ resources:
   - deps.yaml
   - summary-secret.yaml
   - whisperx.yaml
+  - source.yaml
   - release.yaml
   - surround.yaml
 

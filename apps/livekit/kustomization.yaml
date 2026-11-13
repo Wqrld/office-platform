@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - ../namespace.yaml
   - secrets.yaml
+  - source.yaml
   - release.yaml
   - surround.yaml
 

@@ -1,6 +1,6 @@
 # Find has no releases at all — zero git tags — so there is no version to track. What moves
 # is the HEAD of `main`, and the two pins that must move together with it: the GitRepository
-# commit in sources.yaml and the image digest in the release's post-renderer.
+# commit in source.yaml and the image digest in the release's post-renderer.
 #
 # They are two independent references to the same upstream state and nothing enforces that
 # they correspond. Keeping them in ONE manifest is what makes a bump a single reviewable
@@ -30,7 +30,7 @@ targets:
     kind: file
     sourceid: commit
     spec:
-      file: "charts/control-plane/templates/sources.yaml"
+      file: "apps/find/source.yaml"
       matchpattern: '(url: https://github\.com/suitenumerique/find\n  ref: \{branch: main, commit: )[0-9a-f]{40}\}'
       replacepattern: '${1}{{ source "commit" }}}'
 

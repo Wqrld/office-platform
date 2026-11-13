@@ -5,6 +5,7 @@ resources:
   - ../services.yaml
   - deps.yaml
   - oidc-refresh-key.yaml
+  - source.yaml
   - release.yaml
   - surround.yaml
 

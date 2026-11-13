@@ -41,7 +41,7 @@ client probes. Without it, Thunderbird and iOS find nothing and report no useful
 The chart is written in the application's own repo at `src/helm/calendars`, which is exactly
 what `adr/0104` expects. It is **not in any upstream tag**: `v0.1.0` predates it and the
 upstreaming PR is open. So, like Projects and Messages, it comes from the fork's git tag
-(`wqrld-calendars` at `v0.2.1`, `charts/control-plane/templates/sources.yaml`) — the same
+(`wqrld-calendars` at `v0.2.1`, `source.yaml`) — the same
 tag that publishes the images — and one pin moves both.
 
 ### Pins

@@ -1,0 +1,15 @@
+# Calendars. The same arrangement as Projects: the chart is src/helm/calendars in the fork,
+# not in any upstream tag yet (v0.1.0 predates it; the upstreaming PR is open), and the
+# fork's tag also publishes the images. Those have to be the fork's: upstream's images
+# predate the `dockerflow` endpoints behind this chart's probes, and the fork's tags also
+# carry the CI fix that makes them run non-root. When the PR lands, only the url changes.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata: {name: wqrld-calendars, namespace: flux-system}
+spec:
+  interval: 24h
+  url: https://github.com/Wqrld/calendars
+  ref: {tag: v0.2.1}
+  ignore: |
+    /*
+    !/src/helm

@@ -36,16 +36,6 @@ jobs:
       - name: Keycloak operator
         run: platform/identity/vendor/keycloak-operator/update.sh
 
-      # The goldens keep upstream pins on purpose (tests/golden.py), so a Meet or Find bump in
-      # charts/control-plane/templates/sources.yaml moves them: regenerate here, or pr.yaml's
-      # `golden files` fails on every bump PR. Pins read from pr.yaml, the one list of them.
-      - name: Tool pins
-        run: sed -n 's/^  \(PYYAML_VERSION\|HELM_VERSION\): "\(.*\)"$/\1=\2/p' .github/workflows/pr.yaml >> "$GITHUB_ENV"
-      - uses: ./.github/actions/setup
-        with: {tools: helm}
-      - name: Goldens
-        run: ./tests/golden.py --update
-
       - uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676   # v7.0.11
         with:
           branch: updatecli/upstream
@@ -55,9 +45,8 @@ jobs:
           body: |
             Opened by `updatecli`, plus the Keycloak operator check
             (`platform/identity/vendor/keycloak-operator/update.sh`) if it found a newer
-            tag, and `tests/golden/` regenerated to match. Nothing outside these pins and
-            goldens is touched, and every step fails rather than skips when something it
-            expects to find is missing.
+            tag. Nothing outside these pins is touched, and both steps fail rather than
+            skip when something they expect to find is missing.
 
             Before merging, for anything that moved a major or minor:
 

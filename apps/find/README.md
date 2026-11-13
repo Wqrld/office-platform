@@ -34,7 +34,7 @@ unconditionally, so the `services` M2M stays empty.
 ## Pins and forks
 
 Upstream chart `src/helm/find` pinned to commit `025e6d02ea08c46ef831a70f0ae1a41036c5a7c9`
-of `main` (`suitenumerique-find` in `charts/control-plane/templates/sources.yaml`); image
+of `main` (`suitenumerique-find` in `source.yaml`); image
 `lasuite/find:main` pinned by digest in `release.yaml`. No fork.
 
 ### The one departure from adr/0104

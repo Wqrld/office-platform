@@ -56,7 +56,7 @@ The chart is written in the application's repo at `src/helm/projects`, **copied 
 `src/helm/impress`** and cut down to one workload, so an upstream reviewer reads a chart
 they already maintain. It is not in any upstream tag, so it comes from the fork's own git
 tag (`GitRepository` `wqrld-projects` on `github.com/Wqrld/projects`,
-`charts/control-plane/templates/sources.yaml`) — the same tag that publishes the image, so
+`source.yaml`) — the same tag that publishes the image, so
 chart and image move together.
 
 ### Pins

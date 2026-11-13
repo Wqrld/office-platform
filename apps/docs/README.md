@@ -29,7 +29,7 @@ from `static.suite.anct.gouv.fr` — without it there is no switcher) and the se
 ## Pins and forks
 
 The fork's chart `src/helm/impress` at git tag `v6.0.4-office.3` (`wqrld-docs` in
-`charts/control-plane/templates/sources.yaml`); the same tag publishes the four images
+`source.yaml`); the same tag publishes the four images
 `image`, `frontend.image`, `yProvider.image` and `yhub.image` point at. On a bump, read
 Gotchas, The theme file, first.
 

@@ -17,21 +17,21 @@ Run both from the repository root — target paths are relative to the working d
 | external-secrets chart | `infra/external-secrets.yaml` | chart repo index |
 | garage-operator chart | `infra/garage-operator.yaml` | OCI registry tags |
 | valkey chart ×2 | `platform/valkey/{cache,broker}.yaml` | chart repo index |
-| Docs chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/docs` git tags |
+| Docs chart tag | `apps/docs/source.yaml` | `suitenumerique/docs` git tags |
 | Docs image tags ×3 | `apps/docs/release.yaml` | the same git tag |
-| Drive chart tag | `charts/control-plane/templates/sources.yaml` | `Wqrld/drive` `v*-office.*` git tags |
+| Drive chart tag | `apps/drive/source.yaml` | `Wqrld/drive` `v*-office.*` git tags |
 | Drive image tags ×2 | `apps/drive/release.yaml` | the same git tag |
 | collabora-online chart | `apps/collabora/release.yaml` | chart repo index |
-| Meet chart tag | `charts/control-plane/templates/sources.yaml` | `suitenumerique/meet` git tags |
+| Meet chart tag | `apps/meet/source.yaml` | `suitenumerique/meet` git tags |
 | Meet image tags ×7 | `apps/meet/release.yaml` | the same git tag |
 | LiveKit image tags ×2 | `apps/livekit/release.yaml` | Docker Hub tags; the chart commit is moved by hand |
 | whisperx image tag | `apps/meet/whisperx.yaml` | `suitenumerique/meet-whisperx` git tags |
-| Find chart commit + image | `charts/control-plane/templates/sources.yaml`, `apps/find/release.yaml` | `suitenumerique/find` main, image digest |
+| Find chart commit + image | `apps/find/source.yaml`, `apps/find/release.yaml` | `suitenumerique/find` main, image digest |
 | Calendars chart + image tags ×3 | `apps/calendars/release.yaml` | our Helm repo, the fork's git tags |
 
-Every git pin lives in `charts/control-plane/templates/sources.yaml`, so each pattern is
-**anchored to the repository URL**: an unanchored `ref: {tag: vX.Y.Z}` matches all of them
-and rewrites Drive's tag to a Docs version — a real bug that was caught, not a hypothetical.
+Each git pin lives in its app's `apps/<app>/source.yaml`, and each pattern is still
+**anchored to the repository URL**: when they shared one file, an unanchored `ref: {tag:
+vX.Y.Z}` rewrote Drive's tag to a Docs version, and the anchor keeps a misplaced pattern harmless.
 Image tags in a release file are anchored the same way where the file has a `repository:`
 line; the per-component `image: {tag: }` overrides in Docs, Drive and Meet have none, and
 are rewritten together on purpose — they must never hold different values.
@@ -74,10 +74,9 @@ lines of unrelated churn per file, enough to bury the one line that actually cha
 replacement anchored on `chart: <name>` is byte-exact. Verified: a full behind-version
 simulation restores every pin and leaves the tree byte-identical to where it started.
 
-The anchor is also a safety property. `charts/control-plane/templates/sources.yaml` holds seven documents,
-and updatecli's yamlpath engine writes to *every* document whose path matches — which
-there would rewrite `platform-deps` and `platform-app`, our own charts, to a Docs version.
-There is no document selector. A pattern that cannot match them is the fix.
+The anchor is also a safety property: updatecli's yamlpath engine writes to *every*
+document whose path matches, and there is no document selector. A pattern that can only
+match its own source is the fix.
 
 **Autodiscovery is not used.** `crawlers: {flux: {}}` finds two of the six pins on this
 layout, and one of the two is `office-config` — our own artifact, which `release.sh`
