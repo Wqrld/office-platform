@@ -5,6 +5,9 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Calendars from the fork at `v0.2.1` (upstream v0.2.0 plus the chart and the non-root CI
+  fix). Silent login in Calendars, Docs and Messages: on a 401 the frontend retries OIDC
+  silently before showing the login page, as Drive's does.
 - Valkey's probes check the port. Valkey 1.0's own log in as the `default` user, which the
   ACL turns off, so 2.5.4's new valkey-cache pod never became ready (the old one kept
   serving). Upgrading from 2.5.3 or 2.5.4 needs one command first (valkey UPGRADE.md,
