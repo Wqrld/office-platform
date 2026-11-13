@@ -250,7 +250,7 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://cloudnative-pg.github.io/charts
 ---
 # Source: control-plane/templates/sources.yaml
@@ -261,7 +261,7 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://charts.external-secrets.io
 ---
 # Source: control-plane/templates/sources.yaml
@@ -272,7 +272,7 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://valkey.io/valkey-helm/
 ---
 # Source: control-plane/templates/sources.yaml
@@ -284,7 +284,7 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://prometheus-community.github.io/helm-charts
 ---
 # Source: control-plane/templates/sources.yaml
@@ -295,7 +295,7 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://opensearch-project.github.io/helm-charts
 ---
 # Source: control-plane/templates/sources.yaml
@@ -308,7 +308,7 @@ metadata:
   namespace: flux-system
   annotations: {helm.sh/resource-policy: keep}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://collaboraonline.github.io/online
 ---
 # Source: control-plane/templates/sources.yaml

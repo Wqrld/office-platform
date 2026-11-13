@@ -10,6 +10,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
   serving). Upgrading from 2.5.3 or 2.5.4 needs one command first (valkey UPGRADE.md,
   `deploymentStrategy`): `kubectl -n office-data patch deployment valkey-broker -p
   '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null}}}'`.
+- Chart repositories refresh hourly, not daily: a release that bumps a chart published after
+  the last daily fetch sat in `SourceNotReady` until the next one.
 
 ## 2.5.4 — 2026-11-13
 

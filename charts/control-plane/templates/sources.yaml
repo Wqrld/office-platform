@@ -3,26 +3,28 @@
 # repository, so its charts come from pinned git tags — see docs/adr/0104.
 {{- /* Written out per source on purpose, `interval` and `ignore` included: updatecli's
 patterns are anchored to each source's url line, and a source generated from a table
-has none to anchor to. */}}
+has none to anchor to. An HTTP HelmRepository is an index of every version, refreshed at
+its interval: at 24h a bumped pin newer than the last fetch failed SourceNotReady for up to a
+day, so 1h. A git tag or OCI pin is fetched when it changes, whatever the interval. */}}
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "cloudnative-pg" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://cloudnative-pg.github.io/charts
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "external-secrets" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://charts.external-secrets.io
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "valkey" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://valkey.io/valkey-helm/
 ---
 # kube-prometheus-stack (under monitoring.mode: platform) and the blackbox exporter.
@@ -30,14 +32,14 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "prometheus-community" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://prometheus-community.github.io/helm-charts
 ---
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "opensearch" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://opensearch-project.github.io/helm-charts
 ---
 # Docs. Chart lives in-tree at src/helm/impress. Until the title in exports lands upstream,
@@ -90,7 +92,7 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "collabora" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://collaboraonline.github.io/online
 ---
 # Calendars. The same arrangement as Projects: the chart is src/helm/calendars in the fork,
@@ -222,7 +224,7 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "jetstack" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://charts.jetstack.io
 {{- end }}
 {{- if .Values.cluster.loadBalancer.install }}
@@ -231,6 +233,6 @@ apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 {{ include "platform.metadata" "metallb" }}
 spec:
-  interval: 24h
+  interval: 1h
   url: https://metallb.github.io/metallb
 {{- end }}
