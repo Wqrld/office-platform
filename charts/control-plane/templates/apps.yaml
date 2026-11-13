@@ -8,7 +8,10 @@ An app that is off is not emitted: its Kustomization is deleted, and that prunes
 */}}
 {{- range $name := include "platform.enabledApps" . | fromYamlArray }}
 {{- $deps := list $base }}
-{{- range (index $table $name).requires }}{{ $deps = append $deps (printf "app-%s" .) }}{{ end }}
+{{- range (index $table $name).startsAfter }}
+{{- if not (has . (index $table $name).requires) }}{{ fail (printf "%s starts after %s, which it does not require: it may never run" $name .) }}{{ end }}
+{{- $deps = append $deps (printf "app-%s" .) }}
+{{- end }}
 ---
 {{ include "platform.kustomization" (dict "root" $ "name" (printf "app-%s" $name)
      "path" (printf "./apps/%s" $name) "dependsOn" $deps

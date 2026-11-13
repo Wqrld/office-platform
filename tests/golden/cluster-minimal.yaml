@@ -189,7 +189,6 @@ spec:
   path: ./apps/docs
   dependsOn:
     - {name: platform}
-    - {name: app-find}
   postBuild:
     substitute: {"APP":"docs"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]

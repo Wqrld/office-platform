@@ -5,6 +5,12 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Applications no longer wait for the ones they only call at runtime: Docs for Find, Meet for
+  Docs and LiveKit (checked in their source: no call at startup, in migrations or in a
+  probe). Only Drive still waits for Collabora, whose discovery its install Job calls. In
+  2.5.5 the find → docs → meet chain was half the rollout. `apps.yaml` says which with
+  `startsAfter:`; `requires:` now only switches an app on.
+
 ## 2.5.5 — 2026-11-13
 
 - Calendars from the fork at `v0.2.1` (upstream v0.2.0 plus the chart and the non-root CI

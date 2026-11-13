@@ -6,7 +6,9 @@
 #   default: true|false            on or off when the organisation's `apps:` does not say;
 #                                  none on an internal app
 #   internal: true                 not chosen: pulled in by what requires it, dropped with it
-#   requires: [app, ...]           what must run first; Flux enforces it with `dependsOn`
+#   requires: [app, ...]           what must run with it: switched on with it, in any order
+#   startsAfter: [app, ...]        what must be ready before it installs (`dependsOn`). Only for
+#                                  an install-time call: a runtime one only delays every rollout
 #   hosts: [name, ...]             its subdomains, so the certificate's SANs: an app that is
 #                                  off has none and needs no DNS record
 #   switcher: {name, logo, maturity}  its entry in every switcher (SERVICES_JSON), logo a
@@ -40,6 +42,7 @@ collabora:
 drive:
   default: true
   requires: [collabora]
+  startsAfter: [collabora]
   hosts: [drive]
   switcher: {name: Drive, logo: /assets/logo-icon_beta.svg, maturity: stable}
   postgres: {extensions: [ltree, pg_trgm, unaccent]}

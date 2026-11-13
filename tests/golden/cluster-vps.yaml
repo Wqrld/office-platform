@@ -251,7 +251,6 @@ spec:
   path: ./apps/docs
   dependsOn:
     - {name: objectstore}
-    - {name: app-find}
   postBuild:
     substitute: {"APP":"docs"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
@@ -333,8 +332,6 @@ spec:
   path: ./apps/meet
   dependsOn:
     - {name: objectstore}
-    - {name: app-docs}
-    - {name: app-livekit}
   postBuild:
     substitute: {"APP":"meet"}
     substituteFrom: [{kind: ConfigMap, name: cluster-vars}]
