@@ -41,14 +41,14 @@ client probes. Without it, Thunderbird and iOS find nothing and report no useful
 The chart is written in the application's own repo at `src/helm/calendars`, which is exactly
 what `adr/0104` expects. It is **not in any upstream tag**: `v0.1.0` predates it and the
 upstreaming PR is open. So, like Projects and Messages, it comes from the fork's git tag
-(`wqrld-calendars` at `v0.1.1`, `charts/control-plane/templates/sources.yaml`) — the same
+(`wqrld-calendars` at `v0.2.1`, `charts/control-plane/templates/sources.yaml`) — the same
 tag that publishes the images — and one pin moves both.
 
 ### Pins
 
 The three image tags are stated in `release.yaml` (`apps/README.md`, Conventions) as
-`0.1.1`, without a `v` (`type=semver,pattern={{version}}` publishes `v0.1.1` as
-`…-backend:0.1.1`), and updatecli tracks the FORK's tags.
+`0.2.1`, without a `v` (`type=semver,pattern={{version}}` publishes `v0.2.1` as
+`…-backend:0.2.1`), and updatecli tracks the FORK's tags.
 
 **The registry is the fork's, and has to be.** The chart is built from the fork at `fe564fd`,
 and `dockerflow`, which serves the `/__heartbeat__` and `/__lbheartbeat__` probes the chart
@@ -57,7 +57,7 @@ configures by default, was added after upstream's `v0.1.0`. Against
 pod in a loop. Upstream's `:main` does not help: it was last built 2026-06-24 from
 `9bb5200`, before that commit.
 
-**`0.1.1` is `fe564fd` plus one CI fix**, so the images declare `USER 1001:127` and run
+**`0.2.1` is upstream `v0.2.0`+ plus the chart (`7927fbb`) and one CI fix (`d31cff6`)**, so the images declare `USER 1001:127` and run
 non-root as Docs' do. Upstream's CI builds without `DOCKER_USER`, so its images run as root
 and the chart's own `runAsNonRoot: true` cannot start them: a `CreateContainerConfigError`
 with no logs (chart change 6). `runAsUser: 1001` on backend and frontend states the user in
@@ -124,10 +124,8 @@ table fills up, not after.
   other three can read it and any of them can `FLUSHDB` it. Adding Calendars does not create
   this; it is the fourth reason to fix it. Narrowing to `~calendar*` per app is one line per
   user in `platform/valkey/*.yaml`.
-- **Silent login is off, and cannot be turned on from values.** An anonymous visitor with a
-  live Keycloak session still sees the home page and a login button. Drive's
-  `FRONTEND_SILENT_LOGIN_ENABLED` has no counterpart here at any version; it needs three
-  changes in the application itself.
+- **Silent login** is on (`FRONTEND_SILENT_LOGIN_ENABLED` in `release.yaml`, upstream v0.2.0+).
+  It is the first fork tag to carry it; `0.1.1` ignored the setting.
 - **Sizing is unmeasured.** The numbers in `release.yaml` and the overlays are starting
   points, not `measure.py` output. The three install Jobs inherit `backend.resources` and run
   alongside the workloads, so the install **peak** is roughly one extra backend over the

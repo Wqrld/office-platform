@@ -36,7 +36,7 @@ spec:
     # user (README.md, Pins).
     image:
       repository: ghcr.io/wqrld/calendars-backend
-      tag: "0.1.1"
+      tag: "0.2.1"
 
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
@@ -97,7 +97,9 @@ spec:
           FRONTEND_LAGAUFRE_ENABLED: "true"
           FRONTEND_LAGAUFRE_WIDGET_PATH: https://calendars.${BASE_DOMAIN}/custom/gaufre.js
           FRONTEND_LAGAUFRE_WIDGET_API_URL: https://calendars.${BASE_DOMAIN}/custom/services.json
-          # No silent login: the app has no such setting (README.md, Known gaps).
+          # On a 401, retry OIDC silently before showing the login page. Upstream v0.2.0+;
+          # an older image ignores it (README.md, Known gaps).
+          FRONTEND_SILENT_LOGIN_ENABLED: "true"
 
       # Upstream's command cannot work (README.md, chart change 5). `migrate` first: Helm
       # orders same-weight hooks by name, so this Job runs before `…-migrate` on a fresh
@@ -137,7 +139,7 @@ spec:
     frontend:
       image:
         repository: ghcr.io/wqrld/calendars-frontend
-        tag: "0.1.1"
+        tag: "0.2.1"
       pdb: {enabled: false}
       # NET_BIND_SERVICE only so the image's file-capability caddy can exec at all; it listens
       # on :8080. Remove when the image drops it (README.md, Gotchas). Caddy writes its XDG
@@ -154,7 +156,7 @@ spec:
     caldav:
       image:
         repository: ghcr.io/wqrld/calendars-caldav
-        tag: "0.1.1"
+        tag: "0.2.1"
       pdb: {enabled: false}
 
       # www-data, not the chart's root: the postRenderers sysctl lets it bind :80. Also the

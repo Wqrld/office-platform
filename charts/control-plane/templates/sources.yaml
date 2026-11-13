@@ -104,7 +104,7 @@ kind: GitRepository
 spec:
   interval: 24h
   url: https://github.com/Wqrld/calendars
-  ref: {tag: v0.1.1}
+  ref: {tag: v0.2.1}
   ignore: |
     /*
     !/src/helm
