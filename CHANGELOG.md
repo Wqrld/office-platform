@@ -12,6 +12,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
   data. The broker's pod is replaced rather than rolled (one short broker outage on
   upgrade, its volume is ReadWriteOnce); the cache still rolls. Both pods restart once and
   now have a readiness probe.
+- The weekly updatecli PR regenerates `tests/golden/`: a Meet or Find pin is rendered into
+  every cluster golden, so each such bump failed the `golden files` check.
 
 ## 2.5.3 — 2026-10-31
 
