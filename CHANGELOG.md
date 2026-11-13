@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.5 — 2026-11-13
+
 - Calendars from the fork at `v0.2.1` (upstream v0.2.0 plus the chart and the non-root CI
   fix). Silent login in Calendars, Docs and Messages: on a 401 the frontend retries OIDC
   silently before showing the login page, as Drive's does.
