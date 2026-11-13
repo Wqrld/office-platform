@@ -12,6 +12,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
   '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null}}}'`.
 - Chart repositories refresh hourly, not daily: a release that bumps a chart published after
   the last daily fetch sat in `SourceNotReady` until the next one.
+- Prometheus keeps Flux's reconcile durations (`gotk_reconcile_duration_seconds`, per
+  object), so a slow rollout shows where its time went.
 
 ## 2.5.4 — 2026-11-13
 

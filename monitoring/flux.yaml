@@ -1,0 +1,18 @@
+# How long each Flux reconcile takes, per object: the only record of how long a rollout spent
+# where (adr/0119). Kept to the duration histogram; the controllers expose far more.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: flux
+  namespace: office-monitoring
+  labels:
+    office.haaijer.dev/monitoring: "true"
+spec:
+  namespaceSelector: {matchNames: [flux-system]}
+  selector:
+    matchExpressions:
+      - {key: app, operator: In, values: [source-controller, kustomize-controller, helm-controller]}
+  podMetricsEndpoints:
+    - port: http-prom
+      metricRelabelings:
+        - {sourceLabels: [__name__], regex: "gotk_reconcile_duration_seconds_(bucket|sum|count)", action: keep}
