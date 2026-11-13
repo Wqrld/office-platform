@@ -26,6 +26,10 @@ spec:
       enabled: true
       size: 5Gi
       storageClass: ${STORAGE_CLASS}
+    # The chart's probes log in as `default`, which `valkeyAcl` turns off (platform-tenants): check the port.
+    startupProbe: {enabled: true, customProbe: {tcpSocket: {port: 6379}, periodSeconds: 5, failureThreshold: 30}}
+    livenessProbe: {enabled: true, customProbe: {tcpSocket: {port: 6379}, periodSeconds: 10}}
+    readinessProbe: {enabled: true, customProbe: {tcpSocket: {port: 6379}, periodSeconds: 5}}
     auth:
       enabled: true
       usersExistingSecret: valkey-broker-acl

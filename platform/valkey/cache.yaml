@@ -26,6 +26,10 @@ spec:
     persistence: {enabled: false}
     # Nothing on disk, so nothing stops the new pod starting beside the old one.
     deploymentStrategy: RollingUpdate
+    # The chart's probes log in as `default`, which `valkeyAcl` turns off (platform-tenants): check the port.
+    startupProbe: {enabled: true, customProbe: {tcpSocket: {port: 6379}, periodSeconds: 5, failureThreshold: 30}}
+    livenessProbe: {enabled: true, customProbe: {tcpSocket: {port: 6379}, periodSeconds: 10}}
+    readinessProbe: {enabled: true, customProbe: {tcpSocket: {port: 6379}, periodSeconds: 5}}
     auth:
       enabled: true
       usersExistingSecret: valkey-cache-acl

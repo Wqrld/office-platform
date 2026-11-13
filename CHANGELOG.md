@@ -5,6 +5,12 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Valkey's probes check the port. Valkey 1.0's own log in as the `default` user, which the
+  ACL turns off, so 2.5.4's new valkey-cache pod never became ready (the old one kept
+  serving). Upgrading from 2.5.3 or 2.5.4 needs one command first (valkey UPGRADE.md,
+  `deploymentStrategy`): `kubectl -n office-data patch deployment valkey-broker -p
+  '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null}}}'`.
+
 ## 2.5.4 — 2026-11-13
 
 - Upstream bumps: Meet 1.37.0, Find `main@89768a4`, Collabora chart 1.3.8,
