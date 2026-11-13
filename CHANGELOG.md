@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.4 — 2026-11-13
+
 - Upstream bumps: Meet 1.37.0, Find `main@89768a4`, Collabora chart 1.3.8,
   external-secrets 2.15.0, garage-operator 0.9.0, kube-prometheus-stack 93.3.0, blackbox
   exporter 11.21.3, valkey chart 1.0.0. Valkey 1.0 renames `valkeyConfig` to `extraConfig`
