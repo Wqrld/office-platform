@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.6 — 2026-11-17
+
 - Calendars from the fork at `v0.2.2`: upstream `main` (scheduling emails queued in the
   worker, an Enter button in the attendee field) plus the chart as it goes upstream. The
   backend probes move to upstream's `/__heartbeat__/`, and the worker gets 600s to finish
