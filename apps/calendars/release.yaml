@@ -13,6 +13,9 @@ spec:
     spec:
       chart: src/helm/calendars
       sourceRef: {kind: GitRepository, name: wqrld-calendars, namespace: flux-system}
+      # The chart's version stays 0.1.0 across fork tags, so ChartVersion would keep the old
+      # templates with the new images (it did, in 2.5.6).
+      reconcileStrategy: Revision
   # apps/README.md, Conventions. These Jobs are also hooks, which Helm waits on itself.
   install:
     disableWaitForJobs: true
