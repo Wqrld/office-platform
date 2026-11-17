@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.7 — 2026-11-17
+
 - Calendars rebuilds its chart on every fork tag (`reconcileStrategy: Revision`, as the other
   apps from git). The chart's version did not change in 2.5.6, so Flux kept the old
   templates: the backend's liveness probe asked v0.2.2 for `/__lbheartbeat__`, which it no
