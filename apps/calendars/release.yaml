@@ -32,11 +32,11 @@ spec:
                 value: {sysctls: [{name: net.ipv4.ip_unprivileged_port_start, value: "80"}]}
   valuesFrom: [{kind: ConfigMap, name: calendars-sizes, valuesKey: "${SIZE}"}]
   values:
-    # All three images are the fork's: upstream's lack the probes' endpoints and a non-root
-    # user (README.md, Pins).
+    # All three images are the fork's: no upstream release has the probes' endpoint, and
+    # upstream's run as root (README.md, Pins).
     image:
       repository: ghcr.io/wqrld/calendars-backend
-      tag: "0.2.1"
+      tag: "0.2.2"
 
     ingress: {enabled: false}
     ingressAdmin: {enabled: false}
@@ -101,7 +101,7 @@ spec:
           # an older image ignores it (README.md, Known gaps).
           FRONTEND_SILENT_LOGIN_ENABLED: "true"
 
-      # Upstream's command cannot work (README.md, chart change 5). `migrate` first: Helm
+      # Our own command, so it can run `migrate` first (README.md, chart change 5). Helm
       # orders same-weight hooks by name, so this Job runs before `…-migrate` on a fresh
       # install. The org is made here because this account never logs in through OIDC.
       createsuperuser:
@@ -134,12 +134,12 @@ spec:
             print("superuser ready:", email, "in org", org.external_id)
             PY
 
-      # The worker is sized in sizes/; its shutdown timeout is a known gap (README.md).
+      # The worker is sized in sizes/. The chart gives it the 600s shutdown worker.py asks for.
 
     frontend:
       image:
         repository: ghcr.io/wqrld/calendars-frontend
-        tag: "0.2.1"
+        tag: "0.2.2"
       pdb: {enabled: false}
       # NET_BIND_SERVICE only so the image's file-capability caddy can exec at all; it listens
       # on :8080. Remove when the image drops it (README.md, Gotchas). Caddy writes its XDG
@@ -156,7 +156,7 @@ spec:
     caldav:
       image:
         repository: ghcr.io/wqrld/calendars-caldav
-        tag: "0.2.1"
+        tag: "0.2.2"
       pdb: {enabled: false}
 
       # www-data, not the chart's root: the postRenderers sysctl lets it bind :80. Also the

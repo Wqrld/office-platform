@@ -5,6 +5,11 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Calendars from the fork at `v0.2.2`: upstream `main` (scheduling emails queued in the
+  worker, an Enter button in the attendee field) plus the chart as it goes upstream. The
+  backend probes move to upstream's `/__heartbeat__/`, and the worker gets 600s to finish
+  its tasks on shutdown instead of 30. No migration.
+
 - Applications no longer wait for the ones they only call at runtime: Docs for Find, Meet for
   Docs and LiveKit (checked in their source: no call at startup, in migrations or in a
   probe). Only Drive still waits for Collabora, whose discovery its install Job calls. In

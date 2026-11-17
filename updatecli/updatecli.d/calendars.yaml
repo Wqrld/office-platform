@@ -3,8 +3,8 @@
 # git tag with the `v` stripped (`v0.1.1` publishes `…-backend:0.1.1`).
 #
 # THE SOURCE IS THE FORK, NOT UPSTREAM, and pointing it at `suitenumerique/calendars` would
-# be a silent DOWNGRADE: upstream's newest tag is v0.1.0, which predates both the chart and
-# the `dockerflow` health endpoints its probes need. See apps/calendars/README.md.
+# be a silent DOWNGRADE: no upstream tag has the chart or the `/__heartbeat__/` endpoint its
+# probes need. See apps/calendars/README.md.
 name: "La Suite Calendars"
 
 sources:
