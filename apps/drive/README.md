@@ -13,18 +13,20 @@ files.
 
 ## Pins and forks
 
-The fork's chart at git tag `v0.23.0-office.6`, path `src/helm/drive` (`wqrld-drive` in
+The fork's chart at git tag `v1.1.1-office.2`, path `src/helm/drive` (`wqrld-drive` in
 `source.yaml`); the same tag publishes both images.
 
 ### The fork
 
-Drive runs from `github.com/Wqrld/drive`: upstream `main` (after `v0.23.0`) plus document
+Drive runs from `github.com/Wqrld/drive`: upstream `main` (release `v1.1.1`) plus document
 thumbnails in the right panel, a celery task that posts each ready file to Collabora's
 `/cool/convert-to/png` and stores the first page beside it (`WOPI_COLLABORA_OPTIONS`,
-`ThumbnailServiceUrl`). The feature is on branch `feature/wopi-thumbnails`, meant for upstream;
-the `office` branch adds one fork-only commit, `.github/workflows/ghcr.yml`, which publishes
-`ghcr.io/wqrld/drive-backend` and `-frontend` on every `v*-office.*` tag. One tag pins chart
-and both images.
+`ThumbnailServiceUrl`). The feature is on branch `feature/explorer-grid-view`, meant for upstream;
+the `office` branch adds two fork-only commits: `.github/workflows/ghcr.yml`, which publishes
+`ghcr.io/wqrld/drive-backend` and `-frontend` on every `v*-office.*` tag, and a migration
+`0040` that only creates `thumbnail_updated_at` when it is missing (the `v0.23.0-office.*`
+tags added it as `0031`, a number upstream has since taken). One tag pins chart and both
+images.
 
 Thumbnails exist for files that became ready after the deploy. Older ones get theirs with
 `kubectl -n office-drive exec deploy/drive-backend -- python manage.py generate_thumbnails`.
@@ -33,6 +35,9 @@ versions their keys, so every file started without one. `v0.23.0-office.3` rende
 format a client opens (PDF included), known after the next discovery: run
 `python manage.py trigger_wopi_configuration` first, then `generate_thumbnails`.
 `v0.23.0-office.4` adds a list/grid toggle to the explorer (per browser, localStorage).
+`v1.1.1-office.2` moves the base from upstream `v0.23.0` to `v1.1.1`; thumbnails keep their
+keys, so nothing needs re-rendering. The fork's Release Chart workflow fails on every `office`
+push (no `gh-pages` branch); nothing here reads that chart repository.
 
 ## Install order / first admin
 

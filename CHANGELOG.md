@@ -5,6 +5,13 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Drive from the fork at `v1.1.1-office.2`: upstream `v1.1.1` (from `v0.23.0`) plus the
+  thumbnails and the grid view, now with arrow-key navigation between cards. Upstream brings
+  link expiry and passwords on share links, leaving shared items, JSON logs, and core
+  migrations `0031`–`0039`; the fork's `0040` keeps the thumbnail column earlier office tags
+  added as `0031`. No value to set: the upload type and email settings upstream renamed are
+  not ones this platform overrides.
+
 ## 2.5.7 — 2026-11-17
 
 - Calendars rebuilds its chart on every fork tag (`reconcileStrategy: Revision`, as the other
