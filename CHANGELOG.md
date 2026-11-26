@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.8 — 2026-11-26
+
 - Drive from the fork at `v1.1.1-office.2`: upstream `v1.1.1` (from `v0.23.0`) plus the
   thumbnails and the grid view, now with arrow-key navigation between cards. Upstream brings
   link expiry and passwords on share links, leaving shared items, JSON logs, and core
