@@ -13,7 +13,7 @@ files.
 
 ## Pins and forks
 
-The fork's chart at git tag `v1.1.1-office.3`, path `src/helm/drive` (`wqrld-drive` in
+The fork's chart at git tag `v1.1.1-office.4`, path `src/helm/drive` (`wqrld-drive` in
 `source.yaml`); the same tag publishes both images.
 
 ### The fork
@@ -38,8 +38,7 @@ format a client opens (PDF included), known after the next discovery: run
 `v1.1.1-office.2` moves the base from upstream `v0.23.0` to `v1.1.1`; thumbnails keep their
 keys, so nothing needs re-rendering. The fork's Release Chart workflow fails on every `office`
 push (no `gh-pages` branch); nothing here reads that chart repository.
-`v1.1.1-office.3` shows a new upload's thumbnail without a refresh: items expose
-`thumbnail_pending` and the explorer polls a settled upload until it is rendered. No migration.
+`v1.1.1-office.4` shows a new upload's thumbnail without a refresh (`thumbnail_pending`).
 
 ## Install order / first admin
 
