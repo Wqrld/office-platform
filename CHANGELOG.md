@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.10 — 2026-11-27
+
 - Drive from the fork at `v1.1.1-office.4`: fixes office.3, whose thumbnail refresh did
   nothing with the dummy malware backend.
 
