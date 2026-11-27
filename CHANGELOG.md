@@ -5,6 +5,8 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+## 2.5.9 — 2026-11-27
+
 - Drive from the fork at `v1.1.1-office.3`: a new upload's thumbnail shows without a page
   refresh. No migration, no value to set.
 
