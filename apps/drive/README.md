@@ -13,7 +13,7 @@ files.
 
 ## Pins and forks
 
-The fork's chart at git tag `v1.1.1-office.4`, path `src/helm/drive` (`wqrld-drive` in
+The fork's chart at git tag `v1.1.1-office.7`, path `src/helm/drive` (`wqrld-drive` in
 `source.yaml`); the same tag publishes both images.
 
 ### The fork

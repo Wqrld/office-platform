@@ -5,6 +5,9 @@ upgrades by changing `ref.tag` in its `cluster.yaml`.
 
 ## Unreleased
 
+- Drive from the fork at `v1.1.1-office.7`: review fixes for the thumbnails and grid view.
+  Enter or Space opens a focused grid card; files above 100 MB get no thumbnail.
+
 ## 2.5.10 — 2026-11-27
 
 - Drive from the fork at `v1.1.1-office.4`: fixes office.3, whose thumbnail refresh did
